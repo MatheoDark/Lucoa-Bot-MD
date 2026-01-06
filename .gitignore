@@ -5,3 +5,4 @@ session/
 MeguminSession/
 creds.json
 *.log
+Sessions/

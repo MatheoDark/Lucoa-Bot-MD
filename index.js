@@ -96,7 +96,6 @@ export async function uPLoader() {
   const STEPS = 100
   const BAR_SIZE = 40
 
-  // --- CAMBIOS DE BRANDING AQUÍ ---
   const TITLE = 'LUCOA-BOT-MD'
   const SUB = 'powered by MatheoDark'
 
@@ -136,32 +135,22 @@ export async function uPLoader() {
   }
 
   console.clear()
-  // --- ASCII ART GRANDE ---
   cfonts.say('LUCOA-BOT-MD', {
     font: 'block',
     align: 'center',
     colors: ['red']
   })
 
-  // --- TEXTO PEQUEÑO ---
   cfonts.say('powered by MatheoDark', {
     font: 'console',
     align: 'center',
     gradient: ['blue', 'cyan']
   })
 
-  console.log(
-    chalk.yellow.bold('\nSeleccione el método de inicio:\n') +
-    chalk.green('1') + ' ➜ Código QR\n' +
-    chalk.green('2') + ' ➜ Código de 8 dígitos\n'
-  )
-
-  let opt
-  while (!['1', '2'].includes(opt)) {
-    opt = await question(chalk.magentaBright('➤ Opción: '))
-  }
-
-  return opt
+  // --- CORRECCIÓN PARA PM2 ---
+  // Eliminamos la pregunta interactiva y forzamos el retorno de '1' (QR)
+  console.log(chalk.yellow.bold('\nModo Automático activado para PM2. Generando QR...\n'))
+  return '1'
 }
 
 const BOT_TYPES = [
