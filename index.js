@@ -96,8 +96,9 @@ export async function uPLoader() {
   const STEPS = 100
   const BAR_SIZE = 40
 
-  const TITLE = 'MEGUMIN-BOT-MD'
-  const SUB = 'powered by David-Chian'
+  // --- CAMBIOS DE BRANDING AQUÍ ---
+  const TITLE = 'LUCOA-BOT-MD'
+  const SUB = 'powered by MatheoDark'
 
   let typedTitle = ''
   let typedSub = ''
@@ -135,13 +136,15 @@ export async function uPLoader() {
   }
 
   console.clear()
-  cfonts.say('MEGUMIN-BOT-MD', {
+  // --- ASCII ART GRANDE ---
+  cfonts.say('LUCOA-BOT-MD', {
     font: 'block',
     align: 'center',
     colors: ['red']
   })
 
-  cfonts.say('powered by David-Chian', {
+  // --- TEXTO PEQUEÑO ---
+  cfonts.say('powered by MatheoDark', {
     font: 'console',
     align: 'center',
     gradient: ['blue', 'cyan']
@@ -365,8 +368,8 @@ if (LOGIN_METHOD === '2') {
 }
 
  function enqueue(task) {
-  queue.push(task)
-  run()
+ queue.push(task)
+ run()
 }
 
 async function run() {

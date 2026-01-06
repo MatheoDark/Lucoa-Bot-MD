@@ -115,7 +115,7 @@ newsletterName: canalName
 },
 externalAdReply: {
 title: botname,
-body: `${botname2}, Built With Megumin Bot`, 
+body: `${botname2}, Built With Lucoa Bot`, 
 showAdAttribution: false,
 thumbnailUrl: banner,
 mediaType: 1,

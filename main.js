@@ -11,49 +11,53 @@ loadCommandsAndPlugins()
 export default async (client, m) => {
     if (!m.message) return
 
-if (global.middlewares?.before?.length) {
-  for (const before of global.middlewares.before) {
-    try {
-      const stop = await before(m, { client })
-      if (stop === true) return
-    } catch (err) {
-      console.error('Error en global middleware BEFORE:', err)
+    // --- MIDDLEWARES BEFORE ---
+    if (global.middlewares?.before?.length) {
+        for (const before of global.middlewares.before) {
+            try {
+                const stop = await before(m, { client })
+                if (stop === true) return
+            } catch (err) {
+                console.error('Error en global middleware BEFORE:', err)
+            }
+        }
     }
-  }
-}
-if (m.sender && m.chat?.endsWith('@g.us')) {
-  const realSender = await resolveLidToRealJid(m.sender, client, m.chat)
-  if (realSender) m.sender = realSender
-}
-if (m.key?.participant && m.chat?.endsWith('@g.us')) {
-  const realParticipant = await resolveLidToRealJid(m.key.participant, client, m.chat)
-  if (realParticipant) m.key.participant = realParticipant
-}
-if (Array.isArray(m.mentionedJid) && m.chat?.endsWith('@g.us')) {
-  m.mentionedJid = await Promise.all(
-    m.mentionedJid.map(jid => resolveLidToRealJid(jid, client, m.chat))
-  )
-}
+
+    // --- RESOLUCIÓN DE JIDs (LID a JID Real) ---
+    if (m.sender && m.chat?.endsWith('@g.us')) {
+        const realSender = await resolveLidToRealJid(m.sender, client, m.chat)
+        if (realSender) m.sender = realSender
+    }
+    if (m.key?.participant && m.chat?.endsWith('@g.us')) {
+        const realParticipant = await resolveLidToRealJid(m.key.participant, client, m.chat)
+        if (realParticipant) m.key.participant = realParticipant
+    }
+    if (Array.isArray(m.mentionedJid) && m.chat?.endsWith('@g.us')) {
+        m.mentionedJid = await Promise.all(
+            m.mentionedJid.map(jid => resolveLidToRealJid(jid, client, m.chat))
+        )
+    }
+
     const sender = m.sender
     const pushname = m.pushName || 'Sin nombre'
     const from = m.key.remoteJid
-global.db = global.db || { data: { chats: {} } }
+    global.db = global.db || { data: { chats: {} } }
 
-const chatId = m.chat
-global.db.data.chats[chatId] = global.db.data.chats[chatId] || {}
+    const chatId = m.chat
+    global.db.data.chats[chatId] = global.db.data.chats[chatId] || {}
 
-const chat = global.db.data.chats[chatId]
+    const chat = global.db.data.chats[chatId]
 
-chat.primaryBot = chat.primaryBot || null
+    chat.primaryBot = chat.primaryBot || null
 
-const primaryBot = chat.primaryBot
-const currentBot = client.user.id.split(':')[0] + '@s.whatsapp.net'
+    const primaryBot = chat.primaryBot
+    const currentBot = client.user.id.split(':')[0] + '@s.whatsapp.net'
 
-if (primaryBot && currentBot !== primaryBot) {
-  return
-}
+    if (primaryBot && currentBot !== primaryBot) {
+        return
+    }
 
-const isGroup = m.isGroup
+    const isGroup = m.isGroup
 
     let groupName = ''
     if (isGroup) {
@@ -61,6 +65,7 @@ const isGroup = m.isGroup
         groupName = metadata?.subject || ''
     }
 
+    // --- LOGS EN CONSOLA (Colorido) ---
     const h = chalk.bold.blue('***********************************')
     const v = chalk.bold.white('│ ')
     console.log(
@@ -81,6 +86,7 @@ const isGroup = m.isGroup
 
     let usedPrefix = null
 
+    // --- PLUGIN ALL ---
     for (const name in global.plugins) {
         const plugin = global.plugins[name]
         if (plugin && typeof plugin.all === "function") {
@@ -96,7 +102,8 @@ const isGroup = m.isGroup
     const rawPrefijo = global.db.data.settings[selfId].prefijo || ""
     const prefas = Array.isArray(rawPrefijo) ? rawPrefijo : rawPrefijo ? [rawPrefijo] : ['#', '/']
 
-    const botname2 = global.db.data.settings[selfId].namebot2 || "Bot"
+    // --- CAMBIO AQUÍ: Nombre por defecto Lucoa-Bot 🐉 ---
+    const botname2 = global.db.data.settings[selfId].namebot2 || "Lucoa-Bot 🐉"
 
     const shortForms = [
         botname2.charAt(0),
@@ -113,6 +120,7 @@ const isGroup = m.isGroup
 
     globalThis.prefix = new RegExp(`^(${nombresEscapados})?[${prefijosEscapados}]+`, "i")
 
+    // --- PLUGIN BEFORE ---
     for (const name in global.plugins) {
         const plugin = global.plugins[name]
         if (typeof plugin.before === "function") {
@@ -136,11 +144,13 @@ const isGroup = m.isGroup
     const text = args.join(" ")
 
     if (!global.comandos.has(command)) {
+        // Mensaje de comando no encontrado
         return m.reply(`ꕤ El comando *${command}* no existe.\n✎ Usa *${usedPrefix}help* para ver la lista de comandos disponibles.`)
     }
 
     const cmdData = global.comandos.get(command)
 
+    // --- CMD BEFORE ---
     if (typeof cmdData.before === "function") {
         try {
             const stop = await cmdData.before.call(client, m, { client, command, args, text, usedPrefix })
@@ -152,56 +162,60 @@ const isGroup = m.isGroup
 
     const isOwner = global.owner.map(x => x + "@s.whatsapp.net").includes(sender)
 
-const metadata = isGroup ? await client.groupMetadata(from).catch(() => null) : null
+    const metadata = isGroup ? await client.groupMetadata(from).catch(() => null) : null
 
-const participants = metadata?.participants || []
-const groupAdmins = []
+    const participants = metadata?.participants || []
+    const groupAdmins = []
 
-for (const p of participants) {
-  if (p.admin) {
-    const realJid = await resolveLidToRealJid(p.id, client, from)
-    if (realJid) groupAdmins.push(realJid)
-  }
-}
+    for (const p of participants) {
+        if (p.admin) {
+            const realJid = await resolveLidToRealJid(p.id, client, from)
+            if (realJid) groupAdmins.push(realJid)
+        }
+    }
 
-const senderJid = await resolveLidToRealJid(sender, client, from)
-const botJid = await resolveLidToRealJid(selfId, client, from)
+    const senderJid = await resolveLidToRealJid(sender, client, from)
+    const botJid = await resolveLidToRealJid(selfId, client, from)
 
-const isAdmin = isGroup ? groupAdmins.includes(senderJid) : false
-const isBotAdmin = isGroup ? groupAdmins.includes(botJid) : false
+    const isAdmin = isGroup ? groupAdmins.includes(senderJid) : false
+    const isBotAdmin = isGroup ? groupAdmins.includes(botJid) : false
 
-const normalizeToJid = (phone) => {
-  if (!phone) return null
-  const base = typeof phone === 'number' ? phone.toString() : phone.replace(/\D/g, '')
-  return base ? `${base}@s.whatsapp.net` : null
-}
+    const normalizeToJid = (phone) => {
+        if (!phone) return null
+        const base = typeof phone === 'number' ? phone.toString() : phone.replace(/\D/g, '')
+        return base ? `${base}@s.whatsapp.net` : null
+    }
 
-const modsJids = global.mods.map(num => normalizeToJid(num))
-const isModeration = modsJids.includes(senderJid)
+    const modsJids = global.mods.map(num => normalizeToJid(num))
+    const isModeration = modsJids.includes(senderJid)
 
-global.dfail = (type, m) => {
-    const msg = {
-        owner: `ꕥ El comando *${command}* solo puede ser ejecutado por mi Creador.`,
-        moderation: `ꕥ El comando *${command}* solo puede ser ejecutado por los moderadores.`,
-        admin: `ꕥ El comando *${command}* solo puede ser ejecutado por los Administradores del Grupo.`,
-        botAdmin: `ꕥ El comando *${command}* solo puede ser ejecutado si el Bot es Administrador del Grupo.`
-    }[type];
-    if (msg) return m.reply(msg)
-}
+    // --- MENSAJES DE ERROR DE PERMISOS ---
+    global.dfail = (type, m) => {
+        const msg = {
+            owner: `ꕥ El comando *${command}* solo puede ser ejecutado por mi Creador (MatheoDark).`,
+            moderation: `ꕥ El comando *${command}* solo puede ser ejecutado por los moderadores.`,
+            admin: `ꕥ El comando *${command}* solo puede ser ejecutado por los Administradores del Grupo.`,
+            botAdmin: `ꕥ El comando *${command}* solo puede ser ejecutado si yo soy Administradora del Grupo.`
+        }[type];
+        if (msg) return m.reply(msg)
+    }
 
-if (cmdData.isOwner && !isOwner) return global.dfail('owner', m)
-if (cmdData.isModeration && !isModeration) return global.dfail('moderation', m)
-if (cmdData.isAdmin && !isAdmin) return global.dfail('admin', m)
-if (cmdData.botAdmin && !isBotAdmin) return global.dfail('botAdmin', m)
+    if (cmdData.isOwner && !isOwner) return global.dfail('owner', m)
+    if (cmdData.isModeration && !isModeration) return global.dfail('moderation', m)
+    if (cmdData.isAdmin && !isAdmin) return global.dfail('admin', m)
+    if (cmdData.botAdmin && !isBotAdmin) return global.dfail('botAdmin', m)
+
     try {
-global.db.data.users = global.db.data.users || {}
-const user2 = global.db.data.users[sender] ||= {}
+        global.db.data.users = global.db.data.users || {}
+        const user2 = global.db.data.users[sender] ||= {}
 
-user2.name = (pushname || 'Sin nombre').trim()
-user2.usedcommands = (user2.usedcommands || 0) + 1
-user2.exp = (user2.exp || 0) + Math.floor(Math.random() * 100)
-user2.lastCommand = command
-user2.lastSeen = new Date()
+        user2.name = (pushname || 'Sin nombre').trim()
+        user2.usedcommands = (user2.usedcommands || 0) + 1
+        user2.exp = (user2.exp || 0) + Math.floor(Math.random() * 100)
+        user2.lastCommand = command
+        user2.lastSeen = new Date()
+
+        // --- EJECUCIÓN DEL COMANDO ---
         await cmdData.run({
             client,
             m,
@@ -215,6 +229,8 @@ user2.lastSeen = new Date()
         m.reply("❌ Error al ejecutar el comando:\n" + (err.message || err))
         console.error("Error ejecutando comando:", err)
     }
+
+    // --- PLUGIN AFTER ---
     for (const name in global.plugins) {
         const plugin = global.plugins[name]
         if (typeof plugin.after === "function") {
@@ -226,6 +242,7 @@ user2.lastSeen = new Date()
         }
     }
 
+    // --- CMD AFTER ---
     if (typeof cmdData.after === "function") {
         try {
             await cmdData.after.call(client, m, { client, command, usedPrefix })
@@ -233,13 +250,15 @@ user2.lastSeen = new Date()
             console.error(`Error en AFTER del comando ${command}:`, err)
         }
     }
-if (global.middlewares?.after?.length) {
-  for (const after of global.middlewares.after) {
-    try {
-      await after(m, { client })
-    } catch (err) {
-      console.error('Error en global middleware AFTER:', err)
+
+    // --- MIDDLEWARE AFTER ---
+    if (global.middlewares?.after?.length) {
+        for (const after of global.middlewares.after) {
+            try {
+                await after(m, { client })
+            } catch (err) {
+                console.error('Error en global middleware AFTER:', err)
+            }
+        }
     }
-  }
-}
 }
