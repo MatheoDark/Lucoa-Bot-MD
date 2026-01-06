@@ -1,82 +1,104 @@
-> 🌧 Versión actual: ^3.0.0
 
-<h1 align="center">💣 Megumin Bot</p>
-<p>
-        <img src= "https://files.catbox.moe/mwi0gz.jpg">
-    </p>
 
---- 
+<h1 align="center">🐉 LUCOA-BOT-MD 🐉</h1>
 
-## Descripción
+<p align="center">
+  <a href="https://github.com/MatheoDark/Lucoa-Bot-MD">
+    <img src="https://imgur.com/gallery/lucoa-1QoKDp8#C18IcAP" alt="Lucoa Banner" width="100%">
+  </a>
+</p>
 
-Megumin es un bot de WhatsApp multifuncional basado en `baileys`. Este bot ofrece una variedad de características para mejorar tu experiencia en WhatsApp.
-
----
-
-### **`❤️ YouTube 🍬`**
-<a href="https://youtube.com/@davidchian4957">
-  <img width="180px" src="https://files.catbox.moe/3m3dih.jpg"/>
-</a>
-
-<details>
- <summary><b>:paperclip: Tutoriales</b></summary>
-
-- **Termux:** [Aquí](https://youtu.be/gqtGeXRLImQ?si=PpM7EitywqFunEU5)
-- **Sky:** [Aquí](https://youtu.be/TzHyGH_6GH0?si=uKS3h8MXIhMOGrEM)
-
-</details>
-
---- 
-
-## 🚀 Despliegue en Cafirexos
-
-<div align="center">
-
-[![Logo Cafirexos](https://cdn.cafirexos.com/logos/logo_cfros_2000x2000.png)](https://cafirexos.com)
-
-**Hosting rápido, fiable y buen soporte ☕**
-
-</div>
-
-<details>
-<summary><b>📎 Enlaces Importantes</b></summary>
-
-- 🌐 [Sitio web oficial](https://cafirexos.com/)
-- 👤 [Área de clientes](https://cafirexos.com/clientarea.php)
-- ⚙️ [Panel de control](https://panel.cafirexos.com)
-- 📚 [Base de conocimientos](https://cafirexos.com/knowledgebase)
-- 🔍 [Estado de los servicios](https://estado.cafirexos.com)
-- 💬 [Canal de WhatsApp](https://links.cafirexos.com/whatsapp/canal)
-- 🆘 [Soporte / Contáctenos](https://cafirexos.com/contactenos)
-
-</details>
+<p align="center">
+  <img src="https://img.shields.io/badge/Versión-3.5.0-red?style=for-the-badge&logo=github">
+  <img src="https://img.shields.io/badge/Autor-MatheoDark-blue?style=for-the-badge&logo=whatsapp">
+  <img src="https://img.shields.io/badge/Base-Baileys-green?style=for-the-badge&logo=node.js">
+</p>
 
 ---
 
-## **`🔥 Despliegue en BoxMineWorld 🚀`**
+## 📝 Descripción
 
-<a href="https://boxmineworld.com">
-  <img width="180px" src="https://i.imgur.com/allAyd4.png"/>
-</a>
+**Lucoa-Bot-MD** es una versión recodificada, estable y optimizada del bot de WhatsApp. Esta versión (V3.5) se centra en la estabilidad 24/7, la corrección de errores de API y la implementación de **Web Scraping** para comandos NSFW, garantizando funcionamiento sin bloqueos.
 
-<details>
- <summary><b>📎 Enlaces Importantes</b></summary>
-
-- **Pagina Oficial:** [`Boxmineworld`](https://boxmineworld.com)
-- **Tutorial - Crear cuenta en la Dashboard:** [`Dashboard`](https://www.youtube.com/watch?v=ZAwBLuNmIlI)
-- **Dashboard:** [`Dash`](https://dash.boxmineworld.com)
-- **Panel:** [`Aquí`](https://panel.boxmineworld.com)
-- **Dudas sobre el Host:** [`Discord`](https://discord.gg/84qsr4v) _(Preguntar por Vicemi)_
-- **Canal de WhatsApp:** [`Aquí`](https://whatsapp.com/channel/0029Va71C1q2UPBOICnxu83r)
-
-</details>
+### ✨ Novedades de esta versión (V3.5)
+* 🛠️ **Estructura V3:** Migración completa de comandos a formato `export default { run: ... }`.
+* 🔞 **R34 Mejorado:** Sistema *Anti-Bloqueo* que usa Web Scraping (sin API Key) para saltar restricciones.
+* 📦 **Modo Pack:** El comando `#r34` ahora envía automáticamente packs de 5 fotos/videos.
+* 🎥 **HentaiVid Fix:** Reparado el descargador de videos aleatorios con `node-fetch`.
+* 🛡️ **Seguridad:** Eliminación de archivos inestables (Hangman) y dependencias rotas.
+* 🚀 **PM2 Ready:** Optimizado para correr 24/7 en servidores VPS sin apagarse.
 
 ---
 
-### **`🪐 COLABORADOR`**
-<a
-href="https://github.com/CheirZ"><img src="https://github.com/CheirZ.png" width="80" height="80" alt="Miguel"/></a>
+## 🛠️ Instalación
 
-### **`👑 CREADOR`**
-<a
-href="https://github.com/David-Chian"><img src="https://github.com/David-Chian.png" width="150" height="150" alt="David"/></a>
+### 💻 Termux (Android)
+
+```bash
+termux-setup-storage
+apt update && apt upgrade -y
+pkg install git nodejs ffmpeg imagemagick -y
+git clone [https://github.com/MatheoDark/Lucoa-Bot-MD](https://github.com/MatheoDark/Lucoa-Bot-MD)
+cd Lucoa-Bot-MD
+npm install
+npm start
+
+```
+
+### 🖥️ VPS / Servidor (Ubuntu/Debian)
+
+1. **Instalar dependencias:**
+
+```bash
+sudo apt update
+sudo apt install nodejs git ffmpeg libwebp -y
+
+```
+
+2. **Clonar e instalar:**
+
+```bash
+git clone [https://github.com/MatheoDark/Lucoa-Bot-MD](https://github.com/MatheoDark/Lucoa-Bot-MD)
+cd Lucoa-Bot-MD
+npm install
+
+```
+
+3. **Ejecutar con PM2 (Recomendado para 24/7):**
+
+```bash
+npm install -g pm2
+pm2 start index.js --name "Lucoa"
+pm2 save
+pm2 startup
+
+```
+
+---
+
+## ⚙️ Comandos Destacados
+
+| Comando | Descripción | Categoría |
+| --- | --- | --- |
+| `#menu` | Muestra la lista completa de comandos. | Principal |
+| `#r34 <tag>` | Busca packs (5) de imágenes/videos en Rule34 (Anti-Ban). | NSFW |
+| `#hentaivid` | Descarga un video Hentai aleatorio (API V3). | NSFW |
+| `#s` | Convierte imagen/video a Sticker. | Maker |
+
+---
+
+## 👑 Créditos & Autores
+
+* **MatheoDark** - *Desarrollador Principal, Fixes V3, Web Scraping R34*
+* **David Chian / Megumin** - *Base Original*
+* **Baileys Library** - *Conexión WhatsApp*
+
+---
+
+<p align="center">
+<i>Desarrollado con ❤️ por MatheoDark</i>
+</p>
+
+```
+
+```
