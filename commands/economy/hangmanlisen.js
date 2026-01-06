@@ -82,11 +82,16 @@ const PENALTY_EXP = 100;
 const PENALTY_CHOCOLATES = 200;
 
 export async function before(m, { client }) {
-if (!global.games) global.games = {};
+  // --- PROTECCIÓN CONTRA ERRORES (FIX MATHEODARK) ---
+  if (!m.chat || !global.db.data.chats[m.chat]) return; 
+  // --------------------------------------------------
+
+  if (!global.games) global.games = {};
 
   const games = global.games;
-    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+  const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
   const chat = global.db.data.chats[m.chat];
+  
   chat.primaryBot = chat.primaryBot || null
   const primaryBotId = chat?.primaryBot;
 
@@ -99,7 +104,12 @@ if (!global.games) global.games = {};
       const game = games[m.chat];
       const guess = m.text.trim().toLowerCase();
       const word = game.word;
-      const monedas = global.db.data.settings[botId]?.currency
+      const monedas = global.db.data.settings[botId]?.currency || 'monedas'
+      
+      // Asegurar que el usuario existe en DB
+      if (!global.db.data.chats[m.chat].users[m.sender]) {
+          global.db.data.chats[m.chat].users[m.sender] = { exp: 0, coins: 0 }
+      }
       let user = global.db.data.chats[m.chat].users[m.sender];
 
       if (!guess.match(/^[a-z]+$/)) {
@@ -112,7 +122,7 @@ if (!global.games) global.games = {};
           user.exp += 500;
           user.coins += 1000;
           user.ahorcadoCooldown = Date.now() + COOLDOWN;
-          const info = `➪ *¡Ganaste!*\n\n> La palabra era: *${word}*\n> Recompensa: *500 exp* y *1000 ${monedas}*\n> Total: ${user.exp} exp, ${user.coins} ${monedas}\n> Debes esperar *${msToTime(COOLDOWN)}* para jugar de nuevo.\n\n${dev}`;
+          const info = `➪ *¡Ganaste!*\n\n> La palabra era: *${word}*\n> Recompensa: *500 exp* y *1000 ${monedas}*\n> Total: ${user.exp} exp, ${user.coins} ${monedas}\n> Debes esperar *${msToTime(COOLDOWN)}* para jugar de nuevo.\n\n${globalThis.dev || ''}`;
           clearTimeout(game.timeout);
           delete games[m.chat];
           await client.reply(m.chat, info, m);
@@ -163,7 +173,7 @@ if (!global.games) global.games = {};
           user.exp += 500;
           user.coins += 1000;
           user.ahorcadoCooldown = Date.now() + COOLDOWN;
-          const info = `➪ *¡Ganaste!*\n\n> La palabra era: *${word}*\n> Recompensa: *500 exp* y *1000 ${monedas}*\n> Total: ${user.exp} exp, ${user.coins} ${monedas}\n> Debes esperar *${msToTime(COOLDOWN)}* para jugar de nuevo.\n\n${dev}`;
+          const info = `➪ *¡Ganaste!*\n\n> La palabra era: *${word}*\n> Recompensa: *500 exp* y *1000 ${monedas}*\n> Total: ${user.exp} exp, ${user.coins} ${monedas}\n> Debes esperar *${msToTime(COOLDOWN)}* para jugar de nuevo.\n\n${globalThis.dev || ''}`;
           clearTimeout(game.timeout);
           delete games[m.chat];
           await client.reply(m.chat, info, m);
@@ -189,7 +199,7 @@ if (!global.games) global.games = {};
       }
     } catch (e) {
       console.error('Error in hangman before handler:', e);
-      await client.reply(m.chat, `✎ Ocurrió un error inesperado: ${e.message}.`, m);
+      // No responder al chat para evitar spam de errores
       if (games[m.chat]) {
         clearTimeout(games[m.chat].timeout);
         delete games[m.chat];
