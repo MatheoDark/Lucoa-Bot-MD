@@ -1,0 +1,7 @@
+node_modules/
+.env
+npm-debug.log
+session/
+MeguminSession/
+creds.json
+*.log
