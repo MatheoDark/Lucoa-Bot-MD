@@ -103,4 +103,77 @@ export default {
       const mentionRegex = new RegExp(`@${whoNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`, 'g')
       const mishi = cleanText(text.replace(mentionRegex, ''))
 
-      if (mishi.le
+      if (mishi.length > 30) return m.reply('📌 El texto no puede tener más de 30 caracteres.')
+
+      // Foto perfil + nombre
+      let pp = DEFAULT_PP
+      try { pp = await client.profilePictureUrl(who, 'image') } catch {}
+
+      const nombre =
+        global.db?.data?.users?.[who]?.name ||
+        (who === m.sender ? (m.pushName || 'Usuario') : 'Usuario')
+
+      // Payload quote
+      const payload = {
+        type: 'quote',
+        format: 'png',
+        backgroundColor: '#000000',
+        width: 512,
+        height: 768,
+        scale: 2,
+        messages: [
+          {
+            entities: [],
+            avatar: true,
+            from: { id: 1, name: nombre, photo: { url: pp } },
+            text: mishi,
+            replyMessage: {}
+          }
+        ]
+      }
+
+      const { data } = await axios.post('https://bot.lyo.su/quote/generate', payload, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const base64img = data?.result?.image
+      if (!base64img) return m.reply('❌ No se pudo generar la imagen del quote.')
+
+      const buffer = Buffer.from(base64img, 'base64')
+
+      // Pack/Author
+      const userId = m.sender
+      const packstickers = global.db?.data?.users?.[userId] || {}
+      const packname = packstickers.text1 || global.packsticker || 'Lucoa'
+      const author = packstickers.text2 || global.packsticker2 || 'Bot'
+
+      // 1) Intentar helper sticker (si existe en tu base)
+      const stickerFn = await resolveStickerHelper()
+      if (stickerFn) {
+        const stiker = await stickerFn(buffer, false, packname, author)
+        if (stiker) {
+          if (typeof client.sendFile === 'function') {
+            return client.sendFile(m.chat, stiker, 'qc.webp', '', m)
+          }
+          return client.sendMessage(m.chat, { sticker: stiker }, { quoted: m })
+        }
+      }
+
+      // 2) Fallback: si tu base tiene sendImageAsSticker
+      if (typeof client.sendImageAsSticker === 'function') {
+        await client.sendImageAsSticker(m.chat, buffer, m, { packname, author })
+        return
+      }
+
+      // 3) Si nada existe, avisar claro
+      return m.reply(
+        '❌ Tu base no trae helper de sticker (lib/sticker) ni client.sendImageAsSticker.\n' +
+        '📌 Revisa qué archivo usa el comando /sticker de tu bot y lo adaptamos a qc.'
+      )
+
+    } catch (e) {
+      console.error(e)
+      return m.reply('❌ Ocurrió un error al generar el QC.')
+    }
+  }
+}
