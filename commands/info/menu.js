@@ -5,6 +5,19 @@ import { commands } from '../../lib/commands.js'
 import fs from 'fs'
 import path from 'path'
 
+function getSelfId(client) {
+  const raw =
+    client?.user?.id ||
+    client?.user?.jid ||
+    client?.authState?.creds?.me?.id ||
+    client?.authState?.creds?.me?.jid
+
+  if (!raw) return null
+
+  const cleaned = String(raw).replace(/:\d+/, '')
+  return cleaned.includes('@') ? cleaned : `${cleaned}@s.whatsapp.net`
+}
+
 export default {
   command: ['menu', 'help', 'menú'],
   category: 'info',
@@ -13,32 +26,28 @@ export default {
       const cmdsList = commands || []
       const plugins = cmdsList.length
 
-      const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+      const botId = getSelfId(client)
+      if (!botId) return m.reply('❌ No pude obtener el ID del bot.')
+
       const botSettings = global.db?.data?.settings?.[botId] || {}
 
-      const botname = global.botname || botSettings.namebot || 'Lucoa-Bot-MD'
-      const botVersion = botSettings.namebot2 || '3.5'
-      const owner = botSettings.owner || 'MatheoDark'
+      // ✅ NOMBRE / CREADOR (como pidió)
+      const botname = 'Lucoa Bot'
+      const owner = 'MatheoDark'
+
+      // Si quiere mantener versión desde settings:
+      const botVersion = botSettings.version || botSettings.namebot2 || '3.5'
 
       // =========================
-      // BANNER: URL o /media
+      // BANNER: VIDEO desde /media
       // =========================
-      // Si en settings.banner pone una URL (http/https) la usará.
-      // Si pone un nombre de archivo (ej: "banner.gif" o "3.mp4") lo buscará en /media.
-      // Si no pone nada, elegirá uno random de esta lista:
-      const medias = [
-        '1.gif',
-        '2.gif',
-        '3.mp4',
-        '4.mp4',
-        '5.gif',
-        '6.gif',
-        '7.mp4',
-        'banner.gif'
-      ]
+      // Si settings.banner es URL http/https -> lo usa
+      // Si settings.banner es "3.mp4" -> lo busca en /media
+      // Si no hay settings.banner -> elige un mp4 random
+      const mediasVideo = ['3.mp4', '4.mp4', '7.mp4']
 
       const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)]
-      const banner = botSettings.banner || pickRandom(medias)
+      const banner = botSettings.banner || pickRandom(mediasVideo)
 
       const getBuffer = async (src) => {
         // URL
@@ -54,24 +63,24 @@ export default {
         return fs.readFileSync(localPath)
       }
 
-      const tiempo = moment.tz('America/Bogota').format('DD/MM/YYYY')
-      const tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
-      const jam = moment.tz('America/Bogota').format('HH:mm:ss')
+      const tiempo = moment.tz('America/Santiago').format('DD/MM/YYYY')
+      const tiempo2 = moment.tz('America/Santiago').format('hh:mm A')
+      const jam = moment.tz('America/Santiago').format('HH:mm:ss')
       const ucapan =
         jam < '12:00:00' ? 'Buenos días' :
         jam < '18:00:00' ? 'Buenas tardes' :
         'Buenas noches'
 
-      // Prefijo limpio (igual lógica megumin)
+      // Prefijo limpio
       const match = (usedPrefix || '').match(/[#\/+.!-]$/)
       const cleanPrefix = match ? match[0] : (usedPrefix || '#')
 
       // =========================
-      // LUCOA DISEÑO
+      // DISEÑO MENÚ
       // =========================
       let menu = `\n\n`
       menu += `....․⁀⸱⁀⸱︵⸌⸃૰⳹․💥․⳼૰⸂⸍︵⸱⁀⸱⁀․....\n`
-      menu += `𔓕꯭ ꯭ 𓏲꯭֟፝੭ ꯭⌑ LUCOA-BOT-MD ⌑꯭ 𓏲꯭֟፝੭꯭  ꯭𔓕\n`
+      menu += `𔓕꯭ ꯭ 𓏲꯭֟፝੭ ꯭⌑ LUCOA BOT ⌑꯭ 𓏲꯭֟፝੭꯭  ꯭𔓕\n`
       menu += `▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬\n`
       menu += `> ${ucapan}  *${m.pushName ? m.pushName : 'Sin nombre'}*\n\n`
       menu += `.    ╭─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🍨⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╮\n`
@@ -93,7 +102,7 @@ export default {
         categories[category].push(command)
       }
 
-      // ✅ MEGUMIN STYLE: usar alias reales, NO traducciones
+      // estilo megumin
       const getMeguminCmd = (cmd) => {
         const aliasArr = Array.isArray(cmd.alias) ? cmd.alias : []
         let main = aliasArr[0]
@@ -121,34 +130,54 @@ export default {
         })
       }
 
+      const menuText = menu.trim()
+
       // =========================
-      // ENVIAR (igual a su estilo)
+      // ENVIAR: VIDEO + MENÚ
       // =========================
       const bannerBuffer = await getBuffer(banner)
 
-      await client.sendMessage(m.chat, {
-        // Mantengo su “truco” de documento para que se vea como antes
-        document: bannerBuffer,
-        fileName: '🐉 LUCOA V3.5 🐉',
-        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        fileLength: '99999999999999',
-        pageCount: 2026,
-        caption: menu.trim(),
-        contextInfo: {
-          mentionedJid: [m.sender],
-          forwardingScore: 999,
-          isForwarded: true,
-          externalAdReply: {
-            title: botname,
-            body: `Powered by ${owner}`,
-            showAdAttribution: true,
-            thumbnailUrl: 'https://images3.alphacoders.com/814/814389.jpg',
-            mediaType: 1,
-            renderLargerThumbnail: true,
-            sourceUrl: 'https://github.com/MatheoDark/Lucoa-Bot-MD'
-          }
+      // WhatsApp a veces recorta captions muy largas.
+      // Para que NO se corte, enviamos 2 mensajes si el menú es grande.
+      const MAX_CAPTION = 900
+
+      const commonContext = {
+        mentionedJid: [m.sender],
+        forwardingScore: 999,
+        isForwarded: true,
+        externalAdReply: {
+          title: botname,
+          body: `Creador: ${owner}`,
+          showAdAttribution: true,
+          thumbnailUrl: 'https://images3.alphacoders.com/814/814389.jpg',
+          mediaType: 1,
+          renderLargerThumbnail: true,
+          sourceUrl: 'https://github.com/MatheoDark/Lucoa-Bot-MD'
         }
-      }, { quoted: m })
+      }
+
+      if (menuText.length <= MAX_CAPTION) {
+        // 1 solo mensaje: video con caption
+        await client.sendMessage(m.chat, {
+          video: bannerBuffer,
+          mimetype: 'video/mp4',
+          caption: menuText,
+          contextInfo: commonContext
+        }, { quoted: m })
+      } else {
+        // 2 mensajes: primero video, luego menú completo
+        await client.sendMessage(m.chat, {
+          video: bannerBuffer,
+          mimetype: 'video/mp4',
+          caption: `🐉 ${botname} — Menú`,
+          contextInfo: commonContext
+        }, { quoted: m })
+
+        await client.sendMessage(m.chat, {
+          text: menuText,
+          contextInfo: commonContext
+        }, { quoted: m })
+      }
 
     } catch (e) {
       console.error(e)
