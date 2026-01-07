@@ -10,6 +10,8 @@ const agent = new https.Agent({
 export default {
     command: ['r34', 'rule34'],
     category: 'nsfw',
+    desc: 'Busca imágenes (pack) en Rule34.', // <--- ESTO FALTABA
+
     run: async ({ client, m, text, usedPrefix, command }) => {
         
         if (!text) return m.reply(`*⚠️ Falta el nombre.*\nEjemplo: ${usedPrefix + command} lucoa`)
@@ -52,17 +54,14 @@ export default {
                     let htmlPost = await resPost.text()
                     let fileUrl = null
 
-                    // Estrategia 1: Original image
                     let originalMatch = htmlPost.match(/href="([^"]+)">Original image/i)
                     if (originalMatch) fileUrl = originalMatch[1]
 
-                    // Estrategia 2: Video
                     if (!fileUrl) {
                         let videoMatch = htmlPost.match(/<source src="([^"]+)"/i)
                         if (videoMatch) fileUrl = videoMatch[1]
                     }
 
-                    // Estrategia 3: Imagen normal
                     if (!fileUrl) {
                         let imgMatch = htmlPost.match(/id="image"[^>]+src="([^"]+)"/i) || htmlPost.match(/src="([^"]+)"[^>]+id="image"/i)
                         if (imgMatch) fileUrl = imgMatch[1]
@@ -71,8 +70,6 @@ export default {
                     if (fileUrl) {
                         if (fileUrl.startsWith('//')) fileUrl = 'https:' + fileUrl
                         
-                        // --- CORRECCIÓN DE DETECCIÓN DE VIDEO ---
-                        // Quitamos los números después del "?" para verificar la extensión limpia
                         let cleanUrl = fileUrl.split('?')[0].toLowerCase()
                         let isVideo = cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mov')
 
@@ -92,7 +89,7 @@ export default {
                         }
                     }
                     
-                    await new Promise(r => setTimeout(r, 1500)) // Pausa de 1.5s para no saturar
+                    await new Promise(r => setTimeout(r, 1500)) 
 
                 } catch (err) {
                     console.log(`Error al enviar ID ${id}:`, err.message)
