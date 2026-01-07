@@ -4,23 +4,48 @@ node_modules/
 # Env / creds
 .env
 creds.json
+*.env
 
 # Logs
 *.log
-npm-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Sessions (no versionar)
+# Sessions / auth (no versionar)
 Sessions/
 session/
+sessions/
+auth_info*/
+*.session
+*.session.json
 
 # Runtime DB / backups (no versionar)
 lib/datos.db*
+*.sqlite
+*.sqlite3
+*.db
 backups/
-# Si quieres SOLO ignorar .db dentro de backups, usa esto y borra "backups/":
-# backups/*.db
 
-# Lockfile (elige 1 según tu gestor)
-package-lock.json
-# Si usas NPM en vez de Yarn, comenta la línea de arriba y descomenta esta:
-# yarn.lock
+# Temp / cache
+tmp/
+temp/
+cache/
+.pnpm-store/
+.npm/
+.nyc_output/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build / output (por si aplica)
+dist/
+build/
+out/
 
