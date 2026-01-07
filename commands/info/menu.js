@@ -1,212 +1,158 @@
+// commands/info/menu.js
 import fetch from 'node-fetch'
-
-/**
- * - captions(from, to, genero)
- * - symbols random
- * - commandAliases (alias ES -> command EN)
- * - export.command incluye EN + aliases ES
- * - parsea prefijo con globalThis.prefix (como la base)
- * - menciones con @user
- * - usa api.url/api.key (fallback waifu.pics)
- */
-
-const captions = {
-  peek: (from, to) =>
-    from === to ? 'está espiando detrás de una puerta por diversión.' : 'está espiando a',
-  stare: (from, to) =>
-    from === to ? 'se queda mirando al techo sin razón.' : 'se queda mirando fijamente a',
-  trip: (from, to) =>
-    from === to ? 'se tropezó consigo mismo, otra vez.' : 'tropezó accidentalmente con',
-  sleep: (from, to) =>
-    from === to ? 'está durmiendo plácidamente.' : 'está durmiendo con',
-  sing: (from, to) =>
-    from === to ? 'está cantando.' : 'le está cantando a',
-  tickle: (from, to) =>
-    from === to ? 'se está haciendo cosquillas.' : 'le está haciendo cosquillas a',
-  slap: (from, to, genero) =>
-    from === to
-      ? `se dio una bofetada a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'}.`
-      : 'le dio una bofetada a',
-  kill: (from, to) =>
-    from === to ? 'se autoeliminó en modo dramático.' : 'asesinó a',
-  kiss: (from, to) =>
-    from === to ? 'se mandó un beso al aire.' : 'le dio un beso a',
-  hug: (from, to, genero) =>
-    from === to
-      ? `se abrazó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'}.`
-      : 'le dio un abrazo a',
-  pat: (from, to) =>
-    from === to ? 'se acarició la cabeza con ternura.' : 'le dio una caricia a',
-  lick: (from, to) =>
-    from === to ? 'se lamió por curiosidad.' : 'lamió a',
-  cry: (from, to) =>
-    from === to ? 'está llorando.' : 'está llorando por',
-  blush: (from, to) =>
-    from === to ? 'se sonrojó.' : 'se sonrojó por',
-  smile: (from, to) =>
-    from === to ? 'está sonriendo.' : 'le sonrió a',
-  wave: (from, to, genero) =>
-    from === to
-      ? `se saludó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.`
-      : 'está saludando a',
-  highfive: (from, to) =>
-    from === to ? 'se chocó los cinco frente al espejo.' : 'chocó los 5 con',
-  dance: (from, to) =>
-    from === to ? 'está bailando.' : 'está bailando con',
-  wink: (from, to, genero) =>
-    from === to
-      ? `se guiñó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.`
-      : 'le guiñó a',
-  happy: (from, to) =>
-    from === to ? 'está feliz.' : 'está feliz con',
-  cuddle: (from, to, genero) =>
-    from === to
-      ? `se acurrucó ${genero === 'Hombre' ? 'solo' : genero === 'Mujer' ? 'sola' : 'solx'}.`
-      : 'se acurrucó con',
-  poke: (from, to) =>
-    from === to ? 'se picó la cara.' : 'le picó la cara a',
-  bite: (from, to, genero) =>
-    from === to
-      ? `se mordió ${genero === 'Hombre' ? 'solito' : genero === 'Mujer' ? 'solita' : 'solitx'}.`
-      : 'mordió a',
-}
-
-// símbolos (igual estilo base)
-const symbols = [
-  '(⁠◠⁠‿⁠◕⁠)',
-  '˃͈◡˂͈',
-  '૮(˶ᵔᵕᵔ˶)ა',
-  '(づ｡◕‿‿◕｡)づ',
-  '(✿◡‿◡)',
-  '(꒪⌓꒪)',
-  '(✿✪‿✪｡)',
-  '(*≧ω≦)',
-  '(✧ω◕)',
-  '˃ 𖥦 ˂',
-  '(⌒‿⌒)',
-  '(¬‿¬)',
-  '(✧ω✧)',
-  '✿(◕ ‿◕)✿',
-  'ʕ•́ᴥ•̀ʔっ',
-  '(ㅇㅅㅇ❀)',
-  '(∩︵∩)',
-  '(✪ω✪)',
-  '(✯◕‿◕✯)',
-  '(•̀ᴗ•́)و ̑̑',
-]
-function getRandomSymbol() {
-  return symbols[Math.floor(Math.random() * symbols.length)]
-}
-
-// ✅ Alias ES -> Command EN (como la base)
-const commandAliases = {
-  mirar: 'stare',
-  espiar: 'peek',
-  tropezar: 'trip',
-  dormir: 'sleep',
-  cantar: 'sing',
-  cosquillas: 'tickle',
-  bofetada: 'slap',
-  matar: 'kill',
-  besar: 'kiss',
-  abrazar: 'hug',
-  acariciar: 'pat',
-  lamer: 'lick',
-  llorar: 'cry',
-  sonrojar: 'blush',
-  sonreir: 'smile',
-  saludar: 'wave',
-  chocar: 'highfive',
-  bailar: 'dance',
-  guiñar: 'wink',
-  feliz: 'happy',
-  acurrucar: 'cuddle',
-  picar: 'poke',
-  morder: 'bite',
-}
-
-// ✅ comandos exportados: EN + aliases ES
-const englishCommands = Object.keys(captions)
-const spanishAliases = Object.keys(commandAliases)
+import moment from 'moment-timezone'
+import { commands } from '../../lib/commands.js'
+import fs from 'fs'
+import path from 'path'
 
 export default {
-  command: [...englishCommands, ...spanishAliases],
-  category: 'anime',
-  run: async ({ client, m }) => {
+  command: ['menu', 'help', 'menú'],
+  category: 'info',
+  run: async ({ client, m, usedPrefix }) => {
     try {
-      // ===== parse prefijo (igual base) =====
-      if (!m.text || !globalThis.prefix || typeof globalThis.prefix.exec !== 'function') return
-      const match = globalThis.prefix.exec(m.text)
-      if (!match) return
+      const cmdsList = commands || []
+      const plugins = cmdsList.length
 
-      const usedPrefix = match[0]
-      const command = m.text.slice(usedPrefix.length).trim().split(' ')[0].toLowerCase()
-      const currentCommand = commandAliases[command] || command
-      if (!captions[currentCommand]) return
+      const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+      const botSettings = global.db?.data?.settings?.[botId] || {}
 
-      // ===== target =====
-      let who
-      const texto = m.mentionedJid || []
-      if (m.isGroup) {
-        who = texto.length > 0 ? texto[0] : m.quoted ? m.quoted.sender : m.sender
-      } else {
-        who = m.quoted ? m.quoted.sender : m.sender
+      const botname = global.botname || botSettings.namebot || 'Lucoa-Bot-MD'
+      const botVersion = botSettings.namebot2 || '3.5'
+      const owner = botSettings.owner || 'MatheoDark'
+
+      // =========================
+      // BANNER: URL o /media
+      // =========================
+      // Si en settings.banner pone una URL (http/https) la usará.
+      // Si pone un nombre de archivo (ej: "banner.gif" o "3.mp4") lo buscará en /media.
+      // Si no pone nada, elegirá uno random de esta lista:
+      const medias = [
+        '1.gif',
+        '2.gif',
+        '3.mp4',
+        '4.mp4',
+        '5.gif',
+        '6.gif',
+        '7.mp4',
+        'banner.gif'
+      ]
+
+      const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)]
+      const banner = botSettings.banner || pickRandom(medias)
+
+      const getBuffer = async (src) => {
+        // URL
+        if (/^https?:\/\//i.test(src)) {
+          return await (await fetch(src)).buffer()
+        }
+
+        // Archivo local en /media
+        const localPath = path.join(process.cwd(), 'media', src)
+        if (!fs.existsSync(localPath)) {
+          throw new Error(`No existe el archivo: /media/${src}`)
+        }
+        return fs.readFileSync(localPath)
       }
 
-      // ===== nombres/género (igual base) =====
-      const fromName = global.db?.data?.users?.[m.sender]?.name || m.pushName || 'Alguien'
-      const toName = global.db?.data?.users?.[who]?.name || 'alguien'
-      const genero = global.db?.data?.users?.[m.sender]?.genre || 'Oculto'
+      const tiempo = moment.tz('America/Bogota').format('DD/MM/YYYY')
+      const tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
+      const jam = moment.tz('America/Bogota').format('HH:mm:ss')
+      const ucapan =
+        jam < '12:00:00' ? 'Buenos días' :
+        jam < '18:00:00' ? 'Buenas tardes' :
+        'Buenas noches'
 
-      const captionText = captions[currentCommand](fromName, toName, genero)
-      const caption =
-        who !== m.sender
-          ? `@${m.sender.split('@')[0]} ${captionText} @${who.split('@')[0]} ${getRandomSymbol()}.`
-          : `${fromName} ${captionText} ${getRandomSymbol()}.`
+      // Prefijo limpio (igual lógica megumin)
+      const match = (usedPrefix || '').match(/[#\/+.!-]$/)
+      const cleanPrefix = match ? match[0] : (usedPrefix || '#')
 
-      // ===== obtener url media (api.megumin) + fallback waifu.pics =====
-      let mediaUrl = null
+      // =========================
+      // LUCOA DISEÑO
+      // =========================
+      let menu = `\n\n`
+      menu += `....․⁀⸱⁀⸱︵⸌⸃૰⳹․💥․⳼૰⸂⸍︵⸱⁀⸱⁀․....\n`
+      menu += `𔓕꯭ ꯭ 𓏲꯭֟፝੭ ꯭⌑ LUCOA-BOT-MD ⌑꯭ 𓏲꯭֟፝੭꯭  ꯭𔓕\n`
+      menu += `▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬\n`
+      menu += `> ${ucapan}  *${m.pushName ? m.pushName : 'Sin nombre'}*\n\n`
+      menu += `.    ╭─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🍨⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╮\n`
+      menu += `. ☁️⬪࣪ꥈ𑁍⃪࣭۪ٜ݊݊݊݊݊໑ٜ࣪ 🄼🄴🄽🅄-🄱🄾🅃໑⃪࣭۪ٜ݊݊݊݊𑁍ꥈ࣪⬪\n`
+      menu += `֪࣪    ╰─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🍧⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╯\n`
+      menu += `ׅㅤ𓏸𓈒ㅤׄ *Creador ›* ${owner}\n`
+      menu += `ׅㅤ𓏸𓈒ㅤׄ *Plugins ›* ${plugins}\n`
+      menu += `ׅㅤ𓏸𓈒ㅤׄ *Versión ›* ^${botVersion} ⋆. 𐙚 ˚\n`
+      menu += `ׅㅤ𓏸𓈒ㅤׄ *Fecha ›* ${tiempo}, ${tiempo2}\n`
+      menu += `╚▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬▭╝\n`
 
-      // 1) API de Megumin (si existe)
-      // soporte: api.url / api.key (global var del proyecto)
-      if (typeof api !== 'undefined' && api?.url) {
-        const response = await fetch(
-          `${api.url}/sfw/interaction?type=${currentCommand}${api.key ? `&key=${api.key}` : ''}`,
-        )
-        const json = await response.json().catch(() => ({}))
-        mediaUrl = json?.result || json?.url || null
+      // =========================
+      // CATEGORÍAS
+      // =========================
+      const categories = {}
+      for (const command of cmdsList) {
+        const category = command.category || 'otros'
+        if (!categories[category]) categories[category] = []
+        categories[category].push(command)
       }
 
-      // 2) fallback waifu.pics
-      if (!mediaUrl) {
-        let res = await fetch(`https://api.waifu.pics/sfw/${currentCommand}`)
-        if (!res.ok) res = await fetch(`https://api.waifu.pics/sfw/neko`)
-        const json = await res.json().catch(() => ({}))
-        mediaUrl = json?.url || null
+      // ✅ MEGUMIN STYLE: usar alias reales, NO traducciones
+      const getMeguminCmd = (cmd) => {
+        const aliasArr = Array.isArray(cmd.alias) ? cmd.alias : []
+        let main = aliasArr[0]
+
+        if (!main) {
+          if (Array.isArray(cmd.command) && cmd.command.length) main = cmd.command[0]
+          else main = cmd.command || cmd.name || '???'
+        }
+
+        const aliasClean = String(main).split(/[\/#!+.\-]+/).pop().toLowerCase()
+        return `[${cleanPrefix}${aliasClean}]`
       }
 
-      if (!mediaUrl) throw new Error('No media url')
+      for (const [category, cmds] of Object.entries(categories)) {
+        const catName = category.charAt(0).toUpperCase() + category.slice(1)
 
-      // descargar buffer (más estable para gif/video)
-      const mediaRes = await fetch(mediaUrl)
-      const buffer = await mediaRes.buffer()
+        menu += `\n.    ╭─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🔥⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╮\n`
+        menu += `.   ☁️⬪࣪ꥈ𑁍⃪࣭۪ٜ݊݊݊݊݊໑ٜ࣪ *${catName}* ໑⃪࣭۪ٜ݊݊݊݊𑁍ꥈ࣪⬪☁️ׅ\n`
+        menu += `֪࣪    ╰─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🔥⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╯\n`
 
-      // ===== enviar =====
-      const mentions = [...new Set([who, m.sender])].filter(Boolean)
+        cmds.forEach(cmd => {
+          const cmdShow = getMeguminCmd(cmd)
+          menu += `֯　ׅ🫟ֶ֟፝֯ㅤ *${cmdShow}*\n`
+          menu += `> _*${cmd.desc || ''}*_\n\n`
+        })
+      }
 
-      await client.sendMessage(
-        m.chat,
-        {
-          video: buffer,
-          gifPlayback: true,
-          caption,
-          mentions,
-        },
-        { quoted: m },
-      )
+      // =========================
+      // ENVIAR (igual a su estilo)
+      // =========================
+      const bannerBuffer = await getBuffer(banner)
+
+      await client.sendMessage(m.chat, {
+        // Mantengo su “truco” de documento para que se vea como antes
+        document: bannerBuffer,
+        fileName: '🐉 LUCOA V3.5 🐉',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        fileLength: '99999999999999',
+        pageCount: 2026,
+        caption: menu.trim(),
+        contextInfo: {
+          mentionedJid: [m.sender],
+          forwardingScore: 999,
+          isForwarded: true,
+          externalAdReply: {
+            title: botname,
+            body: `Powered by ${owner}`,
+            showAdAttribution: true,
+            thumbnailUrl: 'https://images3.alphacoders.com/814/814389.jpg',
+            mediaType: 1,
+            renderLargerThumbnail: true,
+            sourceUrl: 'https://github.com/MatheoDark/Lucoa-Bot-MD'
+          }
+        }
+      }, { quoted: m })
+
     } catch (e) {
-      console.error('Error reacción:', e)
-      await m.reply(typeof msgglobal !== 'undefined' ? msgglobal : '❌ Error API. Intenta de nuevo.')
+      console.error(e)
+      await m.reply(`❌ Error: ${e?.message || e}`)
     }
-  },
+  }
 }
