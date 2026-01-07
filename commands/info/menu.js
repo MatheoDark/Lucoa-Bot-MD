@@ -183,7 +183,7 @@ export default {
       menu += `│ 🧩 Plugins : ${plugins}\n`
       menu += `│ 🧷 Versión : ${botVersion}\n`
       menu += `│ 📅 Fecha   : ${fecha}, ${hora}\n`
-      menu += `│ ✅ Usa así : ${cleanPrefix}menu / ${cleanPrefix}menu economy\n`
+      menu += `│ ✅ Usa así : ${cleanPrefix}menu / ${cleanPrefix}menu economia\n`
       menu += `╰──────────────────────────────╯\n`
 
       for (const [category, cmds] of Object.entries(catsToShow)) {
