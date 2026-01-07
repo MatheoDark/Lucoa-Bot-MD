@@ -6,3 +6,10 @@ MeguminSession/
 creds.json
 *.log
 Sessions/
+
+# === runtime (NO versionar) ===
+node_modules/
+Sessions/
+lib/datos.db*
+backups/*.db
+package-lock.json
