@@ -1,10 +1,8 @@
-
-
 <h1 align="center">🐉 LUCOA-BOT-MD 🐉</h1>
 
 <p align="center">
   <a href="https://github.com/MatheoDark/Lucoa-Bot-MD">
-    <img src="https://imgur.com/gallery/lucoa-1QoKDp8#C18IcAP" alt="Lucoa Banner" width="100%">
+    <img src="media/lucoa-anime-waving-ql3s2yfn0dzu4e75.gif" alt="Lucoa Banner" width="100%">
   </a>
 </p>
 
@@ -13,6 +11,14 @@
   <img src="https://img.shields.io/badge/Autor-MatheoDark-blue?style=for-the-badge&logo=whatsapp">
   <img src="https://img.shields.io/badge/Base-Baileys-green?style=for-the-badge&logo=node.js">
 </p>
+
+<p align="center">
+  <a href="https://chat.whatsapp.com/BUuAq6aUBZ33pxaBUUWeFc">
+    <img src="https://img.shields.io/badge/UNIRSE%20AL%20GRUPO%20OFICIAL-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="Grupo WhatsApp">
+  </a>
+</p>
+
+---
 
 ---
 
@@ -42,9 +48,7 @@ git clone [https://github.com/MatheoDark/Lucoa-Bot-MD](https://github.com/Matheo
 cd Lucoa-Bot-MD
 npm install
 npm start
-
 ```
-
 ### 🖥️ VPS / Servidor (Ubuntu/Debian)
 
 1. **Instalar dependencias:**
