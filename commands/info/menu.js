@@ -1,132 +1,108 @@
 import fetch from 'node-fetch'
-import fs from 'fs'
-import axios from 'axios'
 import moment from 'moment-timezone'
 import { commands } from '../../lib/commands.js'
 
 export default {
-  command: ['menu', 'help'],
+  command: ['menu', 'help', 'menú'],
   category: 'info',
   run: async ({client, m, text, args, usedPrefix}) => {
-  try {
-  
-    const cmdsList = commands
-    let now = new Date()
-    let colombianTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-    let tiempo = colombianTime.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric', 
-    }).replace(/,/g, '')
+    try {
+      // --- CONFIGURACIÓN ---
+      const cmdsList = commands
+      let tiempo = moment.tz('America/Bogota').format('DD/MM/YYYY')
+      let tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
+      let jam = moment.tz('America/Bogota').format('HH:mm:ss')
+      let _uptime = process.uptime() * 1000
+      let uptime = clockString(_uptime)
 
-    let tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
+      // --- DATOS DEL BOT ---
+      let plugins = commands.length
+      const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
+      let botSettings = global.db.data.settings[botId] || {}
+      
+      let botname = botSettings.namebot || 'Lucoa-Bot'
+      let bannerVideo = 'https://i.imgur.com/OvoF1QZ.mp4' // Video de Lucoa (MP4)
+      const link = 'https://github.com/MatheoDark/Lucoa-Bot-MD'
 
-    let plugins = commands.length
+      // Saludo dinámico
+      const saludo = jam < '12:00:00' ? 'Buenos días 🌄' : jam < '18:00:00' ? 'Buenas tardes 🌇' : 'Buenas noches 🌃';
 
-    const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
-    let botSettings = global.db.data.settings[botId]
-    let botname = botSettings.namebot
-    let botname2 = botSettings.namebot2
-    let banner = botSettings.banner
-    const owner = botSettings.owner
-    const canalId = botSettings.id
-    const canalName = botSettings.nameid
-    const link = botSettings.link
-    let desar = "Oculto";
-    if (owner && !isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))) {
-      const userData = global.db.data.users[owner];
-      desar = userData?.genre || "Oculto";
-     }
-    let isOficialBot = botId === botId
+      // --- CABECERA ESTILO RUBY ---
+      let menu = `
+୨୧‿̥̣‿̣̥̣̇‿̥̣୨୧‿̥̣‿̣̥̣̇‿̥̣୨୧‿̥̣‿̣̥̣̇‿̥̣୨୧୧‿̥̣‿̣̥̣̇‿̥̣୨୧
+ᰔ🐉 ${saludo} *${m.pushName || 'Usuario'}*! Soy *Lucoa* (≧◡≦)
 
-    let botType = isOficialBot ? 'Principal' : 'Sub-Bot'
+╔═══════⩽✦✰✦⩾═══════╗
+       「 𝙄𝙉𝙁𝙊 𝘿𝙀 𝙇𝘼 𝘽𝙊𝙏 」
+╚═══════⩽✦✰✦⩾═══════╝
+║ ☆ 🐉 *𝖡𝖮𝖳*: ${botname}
+║ ☆ 📚 *𝖡𝖠𝖲𝖤*: Lucoa V3.5
+║ ☆ 🌐 *𝖢𝖮𝖬𝖠𝖭𝖣𝖮𝖲*: ${plugins}
+║ ☆ ⏱️ *𝖠𝖢𝖳𝖨𝖵𝖮*: ${uptime}
+║ ☆ 📅 *𝖥𝖤𝖢𝖧𝖠*: ${tiempo}
+╚════════════════════════
 
-const jam = moment.tz('America/Bogota').locale('id').format('HH:mm:ss')
-const ucapan = jam < '05:00:00' ? 'Buen día' : jam < '11:00:00' ? 'Buen día' : jam < '15:00:00' ? 'Buenas tardes' : jam < '18:00:00' ? 'Buenas tardes' : jam < '19:00:00' ? 'Buenas tardes' : jam < '23:59:00' ? 'Buenas noches' : 'Buenas noches';
+🔥 *NOVEDADES V3.5*
+> 🔞 *#r34 <tag>* (Packs de 5)
+> 🎥 *#hentaivid* (Video Random)
 
-let menu = `\n\n`
-menu += `....․⁀⸱⁀⸱︵⸌⸃૰⳹․💥․⳼૰⸂⸍︵⸱⁀⸱⁀․....\n`
-menu += `𔓕꯭ ꯭ 𓏲꯭֟፝੭ ꯭⌑𝐄꯭𝐗꯭𝐏꯭𝐋꯭𝐎꯭𝐒꯭𝐈𝐎꯭𝐍꯭⌑꯭ 𓏲꯭֟፝੭꯭  ꯭𔓕\n`
-menu += `▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬\n`
-menu += `> ${ucapan}  *${m.pushName ? m.pushName : 'Sin nombre'}*\n\n`
-menu += `.   ╭─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🍨⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╮\n`
-menu += `. ☁️⬪࣪ꥈ𑁍⃪࣭۪ٜ݊݊݊݊݊໑ٜ࣪ 🄼🄴🄽🅄-🄱🄾🅃໑⃪࣭۪ٜ݊݊݊݊𑁍ꥈ࣪⬪\n`
-menu += `֪࣪   ╰─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🍧⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╯\n`
-menu += `ׅㅤ𓏸𓈒ㅤׄ *${desar === 'Hombre' ? 'Creador' : desar === 'Mujer' ? 'Creadora' : 'Creador(a)'} ›* ${owner ? (!isNaN(owner.replace(/@s\.whatsapp\.net$/, '')) ? `@${owner.split('@')[0]}` : owner) : "Oculto por privacidad"}\n`
-menu += `ׅㅤ𓏸𓈒ㅤׄ *Plugins ›* ${plugins}\n`
-menu += `ׅㅤ𓏸𓈒ㅤׄ *Versión ›* ^3.0.0 ⋆. 𐙚 ˚\n`
-menu += `ׅㅤ𓏸𓈒ㅤׄ *Link ›* ${link}\n\n`
-menu += `ׅㅤ𓏸𓈒ㅤׄ *Fecha ›* ${tiempo}, ${tiempo2}\n`
-menu += `ׅㅤ𓏸𓈒ㅤׄ *Users ›* ${Object.keys(global.db.data.users).length.toLocaleString()} ฅ(ᯫ᳐ꔷ⩊ꔷ˶ᯫ᳐)\n`
-menu += `╚▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬▭╝\n`
+✞͙͙͙͙͙͙͙͙͙͙⏜❟︵ֹ̩̥̩̥̩̥̩̩̥⏜੭🏮୧ֹ⏜︵ֹ̩̥̩̥̩̥̩̥̩̥̩̥̩̥❟⏜፞✞͙͙͙͙͙͙͙͙͙͙
+`
 
-    const categoryArg = args[0]?.toLowerCase();
-    const categories = {};
-
-    for (const command of cmdsList) {
-      const category = command.category || 'otros';
-      if (!categories[category]) {
-        categories[category] = [];
+      // --- GENERADOR AUTOMÁTICO DE COMANDOS ---
+      const categories = {};
+      for (const command of cmdsList) {
+        const category = command.category || 'otros';
+        if (!categories[category]) categories[category] = [];
+        categories[category].push(command);
       }
-      categories[category].push(command);
-    }
 
-if (categoryArg && !categories[categoryArg]) {
-  return m.reply(`「✎」La categoría *${categoryArg}* no fue encontrada.\n\nCategorías disponibles:\n${Object.keys(categories).map(c => `「${c}」`).join('\n')}`);
-}
-
-    if (categoryArg && !categories[categoryArg]) {
-      return m.reply(`「✎」La categoría *${categoryArg}* no encontrada.`);
-    }
-
-    for (const [category, cmds] of Object.entries(categories)) {
-      if (categoryArg && category.toLowerCase() !== categoryArg) {
-        continue;
+      for (const [category, cmds] of Object.entries(categories)) {
+        const catName = category.charAt(0).toUpperCase() + category.slice(1)
+        
+        // Cabecera de Categoría
+        menu += `\n├┈ ↷ 𝙈𝙀𝙉𝙐 ${catName.toUpperCase()}\n├• ✐; ₊˚✦୧︰\n├┈・──・──・﹕₊˚ ✦・୨୧・\n`
+        
+        cmds.forEach(cmd => {
+            const mainCmd = Array.isArray(cmd.command) ? cmd.command[0] : cmd.command;
+            // Estilo de comando tipo Ruby
+            menu += `┣ ☃️ *${usedPrefix}${mainCmd}*\n> ✦ ${cmd.desc || 'Sin descripción'}\n`
+        });
+        menu += `╚▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬▭╝\n`
       }
-      const catName = category.charAt(0).toUpperCase() + category.slice(1)
-      menu += `\n.    ╭─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🔥⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╮\n.   ☁️⬪࣪ꥈ𑁍⃪࣭۪ٜ݊݊݊݊݊໑ٜ࣪ *${catName}* ໑⃪࣭۪ٜ݊݊݊݊𑁍ꥈ࣪⬪☁️ׅ\n֪࣪    ╰─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🔥⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╯\n`
-      cmds.forEach(cmd => {
-      const match = usedPrefix.match(/[#\/+.!-]$/);
-const separator = match ? match[0] : '';
-      const cleanPrefix = separator ? separator : usedPrefix;
-      const aliases = cmd.alias.map(a => {
-  const aliasClean = a.split(/[\/#!+.\-]+/).pop().toLowerCase();
-      return `${cleanPrefix}${aliasClean}`}).join(' › ');
-        menu += `֯　ׅ🫟ֶ֟፝֯ㅤ *${aliases}* ${cmd.uso ? `+ ${cmd.uso}` : ''}\n`;
-        menu += `> _*${cmd.desc}*_\n\n`;
-      });
+
+      menu += `\n> 🐉 Powered by MatheoDark`
+
+      // --- ENVIAR MENÚ CON VIDEO ---
+      await client.sendMessage(m.chat, {
+        video: { url: bannerVideo },
+        caption: menu.trim(),
+        gifPlayback: true, // Se reproduce como GIF
+        contextInfo: {
+          mentionedJid: [m.sender],
+          isForwarded: true,
+          forwardingScore: 999,
+          externalAdReply: {
+            title: `🐉 ${botname} MD`,
+            body: '¡Disfruta los comandos!',
+            thumbnailUrl: 'https://i.imgur.com/Tyf8g9A.jpeg', // Imagen estática para la miniatura
+            sourceUrl: link,
+            mediaType: 1,
+            renderLargerThumbnail: true
+          }
+        }
+      }, { quoted: m })
+
+    } catch (e) {
+      console.error(e)
+      await m.reply(`❌ Error: ${e.message}`)
     }
-
- await client.sendMessage(m.chat, {
-document: await (await fetch(banner)).buffer(),
-fileName: '^3.0.0 | Lastest 🥧',
-mimetype: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-fileLength: '0',
-pageCount: '1',
-caption: menu.trim(),
-contextInfo: {
-mentionedJid: [owner],
-forwardingScore: 0,
-isForwarded: true,
-forwardedNewsletterMessageInfo: {
-newsletterJid: canalId,
-serverMessageId: null,
-newsletterName: canalName
-},
-externalAdReply: {
-title: botname,
-body: `${botname2}, Built With Lucoa Bot`, 
-showAdAttribution: false,
-thumbnailUrl: banner,
-mediaType: 1,
-previewType: 0,
-renderLargerThumbnail: true,
-mediaUrl: null,
-sourceUrl: null,
-}
-}}, { quoted: m })
-
-  } catch (e) {
-    await m.reply(`${msgglobal + e}`)
   }
-}}
+}
+
+function clockString(ms) {
+    let h = Math.floor(ms / 3600000)
+    let m = Math.floor(ms / 60000) % 60
+    let s = Math.floor(ms / 1000) % 60
+    return [h, m, s].map(v => v.toString().padStart(2, 0)).join(':')
+}
