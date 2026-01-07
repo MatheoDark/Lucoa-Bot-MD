@@ -122,3 +122,26 @@ export default {
       const buffer = Buffer.from(base64img, 'base64')
 
       // 7) Pack/author igual que tu sticker.js
+      const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+      const botSettings = global.db?.data?.settings?.[botId] || {}
+      const botname = botSettings.namebot || 'Lucoa'
+
+      const user = global.db?.data?.users?.[m.sender] || {}
+      const name = user.name || (m.pushName || 'Usuario')
+
+      const packname = user.metadatos || global.packsticker || 'Lucoa'
+      const author =
+        user.metadatos2 ||
+        global.packsticker2 ||
+        `Socket:\n↳@${botname}\n👹Usuario:\n↳@${name}`
+
+      // 8) Enviar como sticker (igual que tu base)
+      const enc = await client.sendImageAsSticker(m.chat, buffer, m, { packname, author })
+      try { fs.unlinkSync(enc) } catch {}
+
+    } catch (e) {
+      console.error(e)
+      return m.reply('❌ Error al generar QC: ' + (e?.message || e))
+    }
+  }
+}
