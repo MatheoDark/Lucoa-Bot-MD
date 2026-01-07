@@ -10,7 +10,7 @@ export default {
   }
 
   if (!text) {
-    return m.reply(`✧ Ingresa un prompt para generar una imagen NSFW.\n\n📌 Ejemplo:\n${usedPrefix + command} Megumin tomando un baño`)
+    return m.reply(`✧ Ingresa un prompt para generar una imagen NSFW.\n\n📌 Ejemplo:\n${usedPrefix + command} Lucoa tomando un baño`)
   }
 
   await client.sendMessage(m.chat, { react: { text: '🔞', key: m.key } })

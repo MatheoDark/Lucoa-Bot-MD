@@ -19,8 +19,8 @@ export default {
     const botId = client.user.id.split(':')[0] + "@s.whatsapp.net" || false
     const botSettings = global.db.data.settings[botId] || {}
 
-    const botname = botSettings.namebot || 'Ai Surus'
-    const botname2 = botSettings.namebot2 || 'Surus'
+    const botname = botSettings.namebot || 'Lucoa Bot'
+    const botname2 = botSettings.namebot2 || 'Lucoa'
     const userCount = Object.keys(global.db.data.users).length || '0'
 
     const estadoBot = 

@@ -20,8 +20,8 @@ export default {
     const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
     const botSettings = global.db.data.settings[botId] || {}
 
-    const botname = botSettings.namebot || 'Ai Surus'
-    const botname2 = botSettings.namebot2 || 'Surus'
+    const botname = botSettings.namebot || 'Lucoa Bot'
+    const botname2 = botSettings.namebot2 || 'Lucoa'
     const monedas = botSettings.currency || 'BitCoins'
     const banner = botSettings.banner
     const prefijo = botSettings.prefijo

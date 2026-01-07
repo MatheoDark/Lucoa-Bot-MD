@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 
 /**
- * ✅ Estilo Megumin Mejorado:
+ * ✅ Estilo Lucoa Mejorado:
  * - Se han agregado TODAS las reacciones que faltaban en 'captions'.
  * - Ahora funcionan comandos como #comer, #fumar, #enojado, etc.
  */
