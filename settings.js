@@ -5,7 +5,8 @@ import chalk from 'chalk';
 // Tu número: 56992523459
 global.owner = [
   ['56992523459', 'ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ', true], // Nombre estilizado en la lista
-  // ['569xxxxxxxx', 'Amigo', true] 
+   ['56985519854', 'Dark', true],
+ // ['569xxxxxxxx', 'Amigo', true]
 ]
 
 // --- NOMBRE DE LA SESIÓN ---

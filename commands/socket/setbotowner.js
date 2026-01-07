@@ -6,8 +6,13 @@ export default {
   run: async ({client, m, args}) => {
     const idBot = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const config = global.db.data.settings[idBot]
-    const isOwner2 = [idBot, ...global.owner.map((number) => number + '@s.whatsapp.net')].includes(m.sender)
-    if (!isOwner2 && m.sender !== owner) return m.reply(mess.socket)
+    const owners = (global.owner || [])
+  .map(o => Array.isArray(o) ? o[0] : o)
+  .map(n => String(n).replace(/\D/g, ''))
+  .filter(Boolean)
+const isOwner2 = [idBot, ...owners.map(n => n + '@s.whatsapp.net')].includes(m.sender);
+
+if (!isOwner2 && m.sender !== owner) return m.reply(mess.socket)
     const mentioned = m.mentionedJid
     const who2 = mentioned.length > 0 ? mentioned[0] : (m.quoted ? m.quoted.sender : false)
     const who = await resolveLidToRealJid(who2, client, m.chat);

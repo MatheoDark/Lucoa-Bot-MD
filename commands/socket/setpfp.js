@@ -17,8 +17,13 @@ export default {
   run: async ({client, m, args}) => {
     const idBot = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const config = global.db.data.settings[idBot]
-    const isOwner2 = [idBot, ...global.owner.map((number) => number + '@s.whatsapp.net')].includes(m.sender)
-    if (!isOwner2 && m.sender !== owner) return m.reply(mess.socket)
+    const owners = (global.owner || [])
+  .map(o => Array.isArray(o) ? o[0] : o)
+  .map(n => String(n).replace(/\D/g, ''))
+  .filter(Boolean)
+const isOwner2 = [idBot, ...owners.map(n => n + '@s.whatsapp.net')].includes(m.sender);
+
+if (!isOwner2 && m.sender !== owner) return m.reply(mess.socket)
     const q = m.quoted || m
     const mime = (q.msg || q).mimetype || q.mediaType || ''
     if (!/image/g.test(mime)) return m.reply('✐ Debes enviar o citar una imagen para cambiar la foto de perfil del bot.')

@@ -28,25 +28,51 @@ function ensureUserId(client) {
 }
 
 export default async (client, m) => {
-  if (!m.message) return
+  if (!m?.message) return
 
   // ✅ Asegura ID del bot desde el inicio
   const selfId = ensureUserId(client)
   if (!selfId) return
-  // ✅ Inicializa DB antes de correr middlewares BEFORE
-global.db = global.db || { data: {} }
-global.db.data = global.db.data || {}
-global.db.data.chats = global.db.data.chats || {}
-global.db.data.users = global.db.data.users || {}
-global.db.data.settings = global.db.data.settings || {}
-initDB(m, client)
+
+  // ✅ Ignorar SIEMPRE mensajes enviados por el bot (evita loops)
+  if (m.key?.fromMe) return
+
+  // ✅ Inicializa DB antes de middlewares BEFORE
+  global.db = global.db || { data: {} }
+  global.db.data = global.db.data || {}
+  global.db.data.chats = global.db.data.chats || {}
+  global.db.data.users = global.db.data.users || {}
+  global.db.data.settings = global.db.data.settings || {}
+
+  // initDB necesita settings/users/chats listos
+  initDB(m, client)
+
+  // ===== Early sender/owner detection (antes de middlewares) =====
+  const chatJidEarly = m.chat || m.key?.remoteJid || ''
+  const rawSenderEarly = m.sender || m.key?.participant || m.participant || ''
+  let senderEarly = rawSenderEarly
+
+  // Resolver LID -> JID real en grupos (para owner early)
+  if (chatJidEarly.endsWith('@g.us') && senderEarly) {
+    const real = await resolveLidToRealJid(senderEarly, client, chatJidEarly)
+    if (real) senderEarly = real
+  }
+
+  const ownersNums = (global.owner || [])
+    .map(o => Array.isArray(o) ? o[0] : o)
+    .map(n => String(n).replace(/\D/g, ''))
+    .filter(Boolean)
+
+  const senderNumEarly = String(senderEarly).split('@')[0].replace(/\D/g, '')
+  const isOwnerEarly = ownersNums.includes(senderNumEarly)
 
   // --- MIDDLEWARES BEFORE ---
   if (global.middlewares?.before?.length) {
     for (const before of global.middlewares.before) {
       try {
         const stop = await before(m, { client })
-        if (stop === true) return
+        // Si middleware pide stop, SOLO lo respetamos si NO es owner
+        if (stop === true && !isOwnerEarly) return
       } catch (err) {
         console.error('Error en global middleware BEFORE:', err)
       }
@@ -63,35 +89,34 @@ initDB(m, client)
     if (realParticipant) m.key.participant = realParticipant
   }
   if (Array.isArray(m.mentionedJid) && m.chat?.endsWith('@g.us')) {
-    m.mentionedJid = await Promise.all(
+    const resolved = await Promise.all(
       m.mentionedJid.map(jid => resolveLidToRealJid(jid, client, m.chat))
     )
+    m.mentionedJid = resolved.filter(Boolean)
   }
 
   const sender = m.sender
   const pushname = m.pushName || 'Sin nombre'
   const from = m.key.remoteJid
-  global.db = global.db || { data: { chats: {} } }
 
+  // --- Chat settings ---
   const chatId = m.chat
   global.db.data.chats[chatId] = global.db.data.chats[chatId] || {}
-
   const chat = global.db.data.chats[chatId]
-  chat.primaryBot = chat.primaryBot || null
 
+  chat.primaryBot = chat.primaryBot || null
   const primaryBot = chat.primaryBot
   const currentBot = selfId
 
-  if (primaryBot && currentBot !== primaryBot) {
-    return
-  }
+  // ✅ Si hay bot primario, ignora solo si NO es owner
+  if (primaryBot && currentBot !== primaryBot && !isOwnerEarly) return
 
   const isGroup = m.isGroup
 
   let groupName = ''
   if (isGroup) {
-    const metadata = await client.groupMetadata(from).catch(() => null)
-    groupName = metadata?.subject || ''
+    const metadata0 = await client.groupMetadata(from).catch(() => null)
+    groupName = metadata0?.subject || ''
   }
 
   // --- LOGS EN CONSOLA (Colorido) ---
@@ -125,11 +150,10 @@ initDB(m, client)
     }
   }
 
-  // ✅ settings protegidos (evita crash si settings[selfId] no existe aún)
+  // ✅ settings protegidos
   const rawPrefijo = global.db.data.settings?.[selfId]?.prefijo || ""
   const prefas = Array.isArray(rawPrefijo) ? rawPrefijo : rawPrefijo ? [rawPrefijo] : ['#', '/']
 
-  // --- Nombre por defecto Lucoa-Bot 🐉 ---
   const botname2 = global.db.data.settings?.[selfId]?.namebot2 || "Lucoa-Bot 🐉"
 
   const shortForms = [
@@ -186,7 +210,11 @@ initDB(m, client)
     }
   }
 
-  const isOwner = global.owner.map(x => x + "@s.whatsapp.net").includes(sender)
+  // ✅ Owner definitivo (ya con LID->JID)
+  const owners = (global.owner || [])
+    .map(o => Array.isArray(o) ? o[0] : o)
+    .map(n => String(n).replace(/\D/g, ''))
+    .filter(Boolean)
 
   const metadata = isGroup ? await client.groupMetadata(from).catch(() => null) : null
   const participants = metadata?.participants || []
@@ -200,19 +228,26 @@ initDB(m, client)
   }
 
   const senderJid = await resolveLidToRealJid(sender, client, from)
+  if (senderJid) m.sender = senderJid
+
+  const senderResolved = senderJid || sender
+  const senderNum = String(senderResolved).split('@')[0].replace(/[^0-9]/g, '')
+  const isOwner = owners.includes(senderNum) || owners.map(n => n + '@s.whatsapp.net').includes(senderResolved)
+
   const botJid = await resolveLidToRealJid(selfId, client, from)
 
-  const isAdmin = isGroup ? groupAdmins.includes(senderJid) : false
+  const isAdmin = isGroup ? groupAdmins.includes(senderResolved) : false
   const isBotAdmin = isGroup ? groupAdmins.includes(botJid) : false
 
   const normalizeToJid = (phone) => {
     if (!phone) return null
-    const base = typeof phone === 'number' ? phone.toString() : phone.replace(/\D/g, '')
+    const base = typeof phone === 'number' ? phone.toString() : String(phone).replace(/\D/g, '')
     return base ? `${base}@s.whatsapp.net` : null
   }
 
-  const modsJids = global.mods.map(num => normalizeToJid(num))
-  const isModeration = modsJids.includes(senderJid)
+  const mods = Array.isArray(global.mods) ? global.mods : []
+  const modsJids = mods.map(num => normalizeToJid(num)).filter(Boolean)
+  const isModeration = modsJids.includes(senderResolved)
 
   // --- MENSAJES DE ERROR DE PERMISOS ---
   global.dfail = (type, m) => {
@@ -232,7 +267,7 @@ initDB(m, client)
 
   try {
     global.db.data.users = global.db.data.users || {}
-    const user2 = global.db.data.users[sender] ||= {}
+    const user2 = global.db.data.users[senderResolved] ||= {}
 
     user2.name = (pushname || 'Sin nombre').trim()
     user2.usedcommands = (user2.usedcommands || 0) + 1
@@ -240,7 +275,6 @@ initDB(m, client)
     user2.lastCommand = command
     user2.lastSeen = new Date()
 
-    // --- EJECUCIÓN DEL COMANDO ---
     await cmdData.run({
       client,
       m,
@@ -287,3 +321,4 @@ initDB(m, client)
     }
   }
 }
+

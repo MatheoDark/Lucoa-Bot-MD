@@ -352,6 +352,9 @@ async function startBot() {
           : m.message
 
       if (m.key?.remoteJid === "status@broadcast") return
+      // ✅ PUBLIC MODE: responde a todos (owners se controlan por isOwner)
+      client.public = true
+
       if (!client.public && !m.key.fromMe && type === "notify") return
       if (m.key?.id?.startsWith("BAE5") && m.key.id.length === 16) return
 

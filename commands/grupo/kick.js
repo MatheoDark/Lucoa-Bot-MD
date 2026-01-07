@@ -12,9 +12,11 @@ export default {
 
     const groupInfo = await client.groupMetadata(m.chat)
     const ownerGroup = groupInfo.owner || m.chat.split`-`[0] + '@s.whatsapp.net'
-    const ownerBot = global.owner[0][0] + '@s.whatsapp.net'
+    const ownerNum = (global.owner || [])
+  .map(o => Array.isArray(o) ? o[0] : o)[0]
+const ownerBot = String(ownerNum || '').replace(/\D/g, '') + '@s.whatsapp.net';
 
-    const participant = groupInfo.participants.find(
+const participant = groupInfo.participants.find(
       (p) => p.phoneNumber === user || p.jid === user || p.id === user || p.lid === user,
     )
     if (!participant) {
