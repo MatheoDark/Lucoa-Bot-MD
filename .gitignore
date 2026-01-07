@@ -1,15 +1,26 @@
+# Dependencies
 node_modules/
-.env
-npm-debug.log
-session/
-MeguminSession/
-creds.json
-*.log
-Sessions/
 
-# === runtime (NO versionar) ===
-node_modules/
+# Env / creds
+.env
+creds.json
+
+# Logs
+*.log
+npm-debug.log
+
+# Sessions (no versionar)
 Sessions/
+session/
+
+# Runtime DB / backups (no versionar)
 lib/datos.db*
-backups/*.db
+backups/
+# Si quieres SOLO ignorar .db dentro de backups, usa esto y borra "backups/":
+# backups/*.db
+
+# Lockfile (elige 1 según tu gestor)
 package-lock.json
+# Si usas NPM en vez de Yarn, comenta la línea de arriba y descomenta esta:
+# yarn.lock
+
