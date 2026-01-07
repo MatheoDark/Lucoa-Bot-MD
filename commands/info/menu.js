@@ -1,108 +1,158 @@
+// commands/info/menu.js
 import fetch from 'node-fetch'
 import moment from 'moment-timezone'
 import { commands } from '../../lib/commands.js'
+import fs from 'fs'
+import path from 'path'
 
 export default {
   command: ['menu', 'help', 'menú'],
   category: 'info',
-  run: async ({client, m, text, args, usedPrefix}) => {
+  run: async ({ client, m, usedPrefix }) => {
     try {
-      // --- CONFIGURACIÓN ---
-      const cmdsList = commands
-      let tiempo = moment.tz('America/Bogota').format('DD/MM/YYYY')
-      let tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
-      let jam = moment.tz('America/Bogota').format('HH:mm:ss')
-      let _uptime = process.uptime() * 1000
-      let uptime = clockString(_uptime)
+      const cmdsList = commands || []
+      const plugins = cmdsList.length
 
-      // --- DATOS DEL BOT ---
-      let plugins = commands.length
-      const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
-      let botSettings = global.db.data.settings[botId] || {}
-      
-      let botname = botSettings.namebot || 'Lucoa-Bot'
-      let bannerVideo = 'https://i.imgur.com/OvoF1QZ.mp4' // Video de Lucoa (MP4)
-      const link = 'https://github.com/MatheoDark/Lucoa-Bot-MD'
+      const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+      const botSettings = global.db?.data?.settings?.[botId] || {}
 
-      // Saludo dinámico
-      const saludo = jam < '12:00:00' ? 'Buenos días 🌄' : jam < '18:00:00' ? 'Buenas tardes 🌇' : 'Buenas noches 🌃';
+      const botname = global.botname || botSettings.namebot || 'Lucoa-Bot-MD'
+      const botVersion = botSettings.namebot2 || '3.5'
+      const owner = botSettings.owner || 'MatheoDark'
 
-      // --- CABECERA ESTILO RUBY ---
-      let menu = `
-୨୧‿̥̣‿̣̥̣̇‿̥̣୨୧‿̥̣‿̣̥̣̇‿̥̣୨୧‿̥̣‿̣̥̣̇‿̥̣୨୧୧‿̥̣‿̣̥̣̇‿̥̣୨୧
-ᰔ🐉 ${saludo} *${m.pushName || 'Usuario'}*! Soy *Lucoa* (≧◡≦)
+      // =========================
+      // BANNER: URL o /media
+      // =========================
+      // Si en settings.banner pone una URL (http/https) la usará.
+      // Si pone un nombre de archivo (ej: "banner.gif" o "3.mp4") lo buscará en /media.
+      // Si no pone nada, elegirá uno random de esta lista:
+      const medias = [
+        '1.gif',
+        '2.gif',
+        '3.mp4',
+        '4.mp4',
+        '5.gif',
+        '6.gif',
+        '7.mp4',
+        'banner.gif'
+      ]
 
-╔═══════⩽✦✰✦⩾═══════╗
-       「 𝙄𝙉𝙁𝙊 𝘿𝙀 𝙇𝘼 𝘽𝙊𝙏 」
-╚═══════⩽✦✰✦⩾═══════╝
-║ ☆ 🐉 *𝖡𝖮𝖳*: ${botname}
-║ ☆ 📚 *𝖡𝖠𝖲𝖤*: Lucoa V3.5
-║ ☆ 🌐 *𝖢𝖮𝖬𝖠𝖭𝖣𝖮𝖲*: ${plugins}
-║ ☆ ⏱️ *𝖠𝖢𝖳𝖨𝖵𝖮*: ${uptime}
-║ ☆ 📅 *𝖥𝖤𝖢𝖧𝖠*: ${tiempo}
-╚════════════════════════
+      const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)]
+      const banner = botSettings.banner || pickRandom(medias)
 
-🔥 *NOVEDADES V3.5*
-> 🔞 *#r34 <tag>* (Packs de 5)
-> 🎥 *#hentaivid* (Video Random)
+      const getBuffer = async (src) => {
+        // URL
+        if (/^https?:\/\//i.test(src)) {
+          return await (await fetch(src)).buffer()
+        }
 
-✞͙͙͙͙͙͙͙͙͙͙⏜❟︵ֹ̩̥̩̥̩̥̩̩̥⏜੭🏮୧ֹ⏜︵ֹ̩̥̩̥̩̥̩̥̩̥̩̥̩̥❟⏜፞✞͙͙͙͙͙͙͙͙͙͙
-`
+        // Archivo local en /media
+        const localPath = path.join(process.cwd(), 'media', src)
+        if (!fs.existsSync(localPath)) {
+          throw new Error(`No existe el archivo: /media/${src}`)
+        }
+        return fs.readFileSync(localPath)
+      }
 
-      // --- GENERADOR AUTOMÁTICO DE COMANDOS ---
-      const categories = {};
+      const tiempo = moment.tz('America/Bogota').format('DD/MM/YYYY')
+      const tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
+      const jam = moment.tz('America/Bogota').format('HH:mm:ss')
+      const ucapan =
+        jam < '12:00:00' ? 'Buenos días' :
+        jam < '18:00:00' ? 'Buenas tardes' :
+        'Buenas noches'
+
+      // Prefijo limpio (igual lógica megumin)
+      const match = (usedPrefix || '').match(/[#\/+.!-]$/)
+      const cleanPrefix = match ? match[0] : (usedPrefix || '#')
+
+      // =========================
+      // LUCOA DISEÑO
+      // =========================
+      let menu = `\n\n`
+      menu += `....․⁀⸱⁀⸱︵⸌⸃૰⳹․💥․⳼૰⸂⸍︵⸱⁀⸱⁀․....\n`
+      menu += `𔓕꯭ ꯭ 𓏲꯭֟፝੭ ꯭⌑ LUCOA-BOT-MD ⌑꯭ 𓏲꯭֟፝੭꯭  ꯭𔓕\n`
+      menu += `▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬͞▭͞▬\n`
+      menu += `> ${ucapan}  *${m.pushName ? m.pushName : 'Sin nombre'}*\n\n`
+      menu += `.    ╭─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🍨⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╮\n`
+      menu += `. ☁️⬪࣪ꥈ𑁍⃪࣭۪ٜ݊݊݊݊݊໑ٜ࣪ 🄼🄴🄽🅄-🄱🄾🅃໑⃪࣭۪ٜ݊݊݊݊𑁍ꥈ࣪⬪\n`
+      menu += `֪࣪    ╰─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🍧⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╯\n`
+      menu += `ׅㅤ𓏸𓈒ㅤׄ *Creador ›* ${owner}\n`
+      menu += `ׅㅤ𓏸𓈒ㅤׄ *Plugins ›* ${plugins}\n`
+      menu += `ׅㅤ𓏸𓈒ㅤׄ *Versión ›* ^${botVersion} ⋆. 𐙚 ˚\n`
+      menu += `ׅㅤ𓏸𓈒ㅤׄ *Fecha ›* ${tiempo}, ${tiempo2}\n`
+      menu += `╚▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬▭╝\n`
+
+      // =========================
+      // CATEGORÍAS
+      // =========================
+      const categories = {}
       for (const command of cmdsList) {
-        const category = command.category || 'otros';
-        if (!categories[category]) categories[category] = [];
-        categories[category].push(command);
+        const category = command.category || 'otros'
+        if (!categories[category]) categories[category] = []
+        categories[category].push(command)
+      }
+
+      // ✅ MEGUMIN STYLE: usar alias reales, NO traducciones
+      const getMeguminCmd = (cmd) => {
+        const aliasArr = Array.isArray(cmd.alias) ? cmd.alias : []
+        let main = aliasArr[0]
+
+        if (!main) {
+          if (Array.isArray(cmd.command) && cmd.command.length) main = cmd.command[0]
+          else main = cmd.command || cmd.name || '???'
+        }
+
+        const aliasClean = String(main).split(/[\/#!+.\-]+/).pop().toLowerCase()
+        return `[${cleanPrefix}${aliasClean}]`
       }
 
       for (const [category, cmds] of Object.entries(categories)) {
         const catName = category.charAt(0).toUpperCase() + category.slice(1)
-        
-        // Cabecera de Categoría
-        menu += `\n├┈ ↷ 𝙈𝙀𝙉𝙐 ${catName.toUpperCase()}\n├• ✐; ₊˚✦୧︰\n├┈・──・──・﹕₊˚ ✦・୨୧・\n`
-        
+
+        menu += `\n.    ╭─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🔥⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╮\n`
+        menu += `.   ☁️⬪࣪ꥈ𑁍⃪࣭۪ٜ݊݊݊݊݊໑ٜ࣪ *${catName}* ໑⃪࣭۪ٜ݊݊݊݊𑁍ꥈ࣪⬪☁️ׅ\n`
+        menu += `֪࣪    ╰─ׅ─ׅ┈ ─๋︩︪─☪︎︎︎̸⃘̸࣭ٜ࣪࣪࣪۬◌⃘۪֟፝֯۫۫︎⃪𐇽۫۬🔥⃘⃪۪֟፝֯۫۫۫۬◌⃘࣭ٜ࣪࣪࣪۬☪︎︎︎︎̸─ׅ─ׅ┈ ─๋︩︪─╯\n`
+
         cmds.forEach(cmd => {
-            const mainCmd = Array.isArray(cmd.command) ? cmd.command[0] : cmd.command;
-            // Estilo de comando tipo Ruby
-            menu += `┣ ☃️ *${usedPrefix}${mainCmd}*\n> ✦ ${cmd.desc || 'Sin descripción'}\n`
-        });
-        menu += `╚▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬ִ▭࣪▬▭╝\n`
+          const cmdShow = getMeguminCmd(cmd)
+          menu += `֯　ׅ🫟ֶ֟፝֯ㅤ *${cmdShow}*\n`
+          menu += `> _*${cmd.desc || ''}*_\n\n`
+        })
       }
 
-      menu += `\n> 🐉 Powered by MatheoDark`
+      // =========================
+      // ENVIAR (igual a su estilo)
+      // =========================
+      const bannerBuffer = await getBuffer(banner)
 
-      // --- ENVIAR MENÚ CON VIDEO ---
       await client.sendMessage(m.chat, {
-        video: { url: bannerVideo },
+        // Mantengo su “truco” de documento para que se vea como antes
+        document: bannerBuffer,
+        fileName: '🐉 LUCOA V3.5 🐉',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        fileLength: '99999999999999',
+        pageCount: 2026,
         caption: menu.trim(),
-        gifPlayback: true, // Se reproduce como GIF
         contextInfo: {
           mentionedJid: [m.sender],
-          isForwarded: true,
           forwardingScore: 999,
+          isForwarded: true,
           externalAdReply: {
-            title: `🐉 ${botname} MD`,
-            body: '¡Disfruta los comandos!',
-            thumbnailUrl: 'https://i.imgur.com/Tyf8g9A.jpeg', // Imagen estática para la miniatura
-            sourceUrl: link,
+            title: botname,
+            body: `Powered by ${owner}`,
+            showAdAttribution: true,
+            thumbnailUrl: 'https://images3.alphacoders.com/814/814389.jpg',
             mediaType: 1,
-            renderLargerThumbnail: true
+            renderLargerThumbnail: true,
+            sourceUrl: 'https://github.com/MatheoDark/Lucoa-Bot-MD'
           }
         }
       }, { quoted: m })
 
     } catch (e) {
       console.error(e)
-      await m.reply(`❌ Error: ${e.message}`)
+      await m.reply(`❌ Error: ${e?.message || e}`)
     }
   }
-}
-
-function clockString(ms) {
-    let h = Math.floor(ms / 3600000)
-    let m = Math.floor(ms / 60000) % 60
-    let s = Math.floor(ms / 1000) % 60
-    return [h, m, s].map(v => v.toString().padStart(2, 0)).join(':')
 }
