@@ -58,7 +58,7 @@ export default {
       let user = global.db.data.users[m.sender]
       let user2 = global.db.data.chats[m.chat].users[m.sender]
       const name = user.name
-      let text1 = user.metadatos || `♯𝐓꯭̱𝔥̱𝑒̱ . ㌦‥ꪱ꯭̱ꪆ꯭̱í̱α꯭̱ო꯭̱ꤩꤨօ꯭̱ղ꯭̱꤬ძ ̱  ──͟͞🄱̱ǿ̱𝔱…ꤩꤨ‧💎`
+      let text1 = user.metadatos || `♯𝐓꯭̱𝔥̱𝑒̱ . ㌦‥ꪱ꯭̱ꪆ꯭̱LUCoa ──͟͞🄱̱ǿ̱𝔱…ꤩꤨ‧💎`
       let text2 = user.metadatos2 || `Socket:\n↳@${botname}\n👹Usuario:\n↳@${name}`
       
       const q = m.quoted || m
