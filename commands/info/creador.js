@@ -1,27 +1,31 @@
 import PhoneNumber from 'awesome-phonenumber';
 
 export default {
-  command: ['owner', 'creador'],
+  command: ['owner', 'creador', 'contacto'],
   category: 'info',
   run: async ({client, m}) => {
     try {
-
-      const number = '5351524614'
-      const jid = number + '@s.whatsapp.net'
-
+      // TU NÚMERO (Sacado de tus logs anteriores: +56 9 ...)
+      const number = '56992523459' 
+      
       const contact = {
         number,
-        name: 'Creador Principal 🫒',
-        org: dev,
-        email: 'diamond.settlar.help@gmail.com',
-        region: 'Cuba',
-        website: 'studio.diamondbots.xyz',
-        note: '💎 Creador oficial.'
+        name: 'MatheoDark 🐉',
+        org: 'Lucoa Bot Developer',
+        email: 'matheodark@github.com', // Puedes poner tu email real si quieres
+        region: 'Chile',
+        website: 'https://github.com/MatheoDark/Lucoa-Bot-MD',
+        note: '💎 Creador oficial de Lucoa Bot.'
       }
 
       const generateVCard = ({ number, name, org, email, region, website, note }) => {
-        const phone = PhoneNumber('+' + number)
-        const intl = phone.getNumber('international') || '+' + number
+        // Intentamos usar la librería, si falla usamos el número directo
+        let intl = '+' + number
+        try {
+            const phone = new PhoneNumber('+' + number)
+            if(phone.isValid()) intl = phone.getNumber('international')
+        } catch (e) { }
+        
         const clean = (text) => String(text).replace(/\n/g, '\\n').trim()
 
         return `
@@ -46,6 +50,12 @@ END:VCARD`.trim()
         }
       }, { quoted: m })
 
+    } catch (e) {
+      console.error(e)
+      await client.sendMessage(m.chat, { text: '❌ Ocurrió un error al enviar el contacto del creador.' }, { quoted: m })
+    }
+  }
+};
     } catch (e) {
       await client.reply(m.chat, msgglobal, m)
     }
