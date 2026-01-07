@@ -108,7 +108,7 @@ if (/image/.test(mime)) {
   return client.reply(m.chat, 'Envía imagen, video o texto para hacer sticker.', m)
 }
 
-      if (isFree) botSettings.freeUses_sticker.count++
+      //if (isFree) botSettings.freeUses_sticker.count++
 
     } catch (e) {
       m.reply(msgglobal + e)
