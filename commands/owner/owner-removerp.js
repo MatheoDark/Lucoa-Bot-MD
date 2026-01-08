@@ -1,70 +1,73 @@
 export default {
-  command: ['removerpj'],
+  command: ['removerpj', 'delchar', 'deletechar', 'delwaifu'],
   category: 'owner',
-  isOwner: true,
-  run: async ({client, m, text, args}) => {
-    try {
-        let mentionedJid = 
-            (m.mentionedJid && m.mentionedJid[0]) ||
-            (m.quoted ? m.quoted.sender : null) ||
-            (args[0]?.match(/^\d+$/) ? args[0] + '@s.whatsapp.net' : null);
+  isOwner: true, // Solo tú puedes borrar personajes
 
-    /*    if (!mentionedJid) {
-            conn.reply(m.chat, 'Uso correcto:\n/removerpj @usuario <nombre del personaje>\n/removerpj <número> <nombre del personaje>', m);
-            return;
-        }*/
-
-        let personajeNombre;
-        if (args[0]?.startsWith('@') || args[0]?.match(/^\d+$/)) {
-            personajeNombre = args.slice(1).join(' ').toLowerCase().trim();
-        } else {
-            personajeNombre = args.join(' ').toLowerCase().trim();
-        }
-
-        if (!personajeNombre) {
-            client.reply(m.chat, 'Uso correcto:\n/removerpj @usuario <nombre del personaje>\n/removerpj <número> <nombre del personaje>', m);
-            return;
-        }
-
-        if (!global.db) global.db = {};
-        if (!global.db.data) global.db.data = { chats: {}, settings: {} };
-        if (!global.db.data.chats[m.chat]) global.db.data.chats[m.chat] = { users: {}, personajesReservados: [] };
-        if (!global.db.data.chats[m.chat].users[mentionedJid]) {
-            client.reply(m.chat, '❌ El usuario no tiene datos en este chat.', m);
-            return;
-        }
-
-        let userData = global.db.data.chats[m.chat].users[mentionedJid];
-
-        if (Array.isArray(userData.characters)) {
-            userData.characters = userData.characters.filter(c => c && c.name);
-        } else {
-            userData.characters = [];
-        }
-
-        let index = userData.characters.findIndex(c => c.name.toLowerCase() === personajeNombre);
-
-        if (index === -1) {
-            client.reply(m.chat, `❌ El usuario no tiene el personaje "${personajeNombre}".`, m);
-            return;
-        }
-
-        let personajeEliminado = userData.characters[index];
-
-        userData.characters.splice(index, 1);
-
-        userData.characterCount = userData.characters.length;
-        userData.totalRwcoins = userData.characters.reduce((acc, c) => acc + (Number(c.value) || 0), 0);
-
-        await client.reply(
-            m.chat,
-            `✅ Personaje eliminado correctamente.\n\n👤 Usuario: @${mentionedJid.split('@')[0]}\n❌ Personaje: ${personajeEliminado.name}`,
-            m,
-            { mentions: [mentionedJid] }
-        );
-
-    } catch (e) {
-        console.error('Error al eliminar personaje:', e);
-        m.reply(`Error al eliminar personaje: ${e.message}`);
+  run: async ({ client, m, text, args, usedPrefix, command }) => {
+    
+    // 1. Detectar A QUIÉN se le borra (Mención, Reply o Texto)
+    let who
+    if (m.isGroup) {
+        if (m.mentionedJid.length > 0) who = m.mentionedJid[0]
+        else if (m.quoted) who = m.quoted.sender
+        else if (args[0] && args[0].match(/^\d+$/)) who = args[0] + '@s.whatsapp.net' // Si pone el número directo
+        else who = null
+    } else {
+        who = m.chat // Si es privado
     }
-}}
+
+    // 2. Detectar NOMBRE DEL PERSONAJE
+    // Eliminamos la mención del texto para que solo quede el nombre
+    let charName = text
+    if (who) {
+        // Quitamos el @numero del texto para limpiar
+        charName = charName.replace('@' + who.split('@')[0], '').trim()
+    }
+    
+    // Si usó el formato "número nombre", quitamos el primer argumento (el número)
+    if (args[0] && args[0].match(/^\d+$/)) {
+        charName = args.slice(1).join(" ").trim()
+    }
+
+    // Validaciones
+    if (!who) return m.reply(`⚠️ *Error:* Debes mencionar a alguien o responder a su mensaje.`)
+    if (!charName) return m.reply(`⚠️ *Falta el nombre.*\n\n📌 *Ejemplo:* ${usedPrefix + command} @usuario Lucoa`)
+
+    // 3. Acceder a Base de Datos GLOBAL
+    let user = global.db.data.users[who]
+    if (!user) return m.reply('❌ El usuario no está registrado en mi base de datos.')
+    if (!user.characters || user.characters.length === 0) return m.reply('❌ El usuario no tiene ningún personaje.')
+
+    // 4. Buscar el personaje (Búsqueda insensible a mayúsculas)
+    let index = user.characters.findIndex(c => c.name.toLowerCase() === charName.toLowerCase())
+
+    if (index === -1) {
+        // Opción Extra: Búsqueda parcial (por si escribiste "Luc" en vez de "Lucoa")
+        index = user.characters.findIndex(c => c.name.toLowerCase().includes(charName.toLowerCase()))
+        
+        if (index === -1) {
+             return m.reply(`❌ No encontré al personaje *"${charName}"* en el inventario de este usuario.`)
+        }
+    }
+
+    // 5. Eliminar y Recalcular
+    let personajeEliminado = user.characters[index]
+    
+    // Cortamos el array en la posición encontrada
+    user.characters.splice(index, 1)
+
+    // Actualizamos estadísticas del usuario para evitar bugs
+    user.characterCount = user.characters.length
+    user.totalRwcoins = user.characters.reduce((acc, c) => acc + (Number(c.value) || 0), 0)
+
+    // 6. Confirmación
+    await client.sendMessage(m.chat, { 
+        text: `🗑️ *PERSONAJE ELIMINADO*\n\n` +
+              `👤 *Usuario:* @${who.split('@')[0]}\n` +
+              `❌ *Personaje:* ${personajeEliminado.name}\n` +
+              `📉 *Nuevo Valor Harem:* ${user.totalRwcoins}\n\n` +
+              `> 🐲 Powered by MatheoDark`,
+        mentions: [who]
+    }, { quoted: m })
+  }
+}
