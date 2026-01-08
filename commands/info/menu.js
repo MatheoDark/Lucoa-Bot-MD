@@ -1,6 +1,40 @@
 import { commands as staticCommands } from '../../lib/commands.js'
 import fs from 'fs'
 import path from 'path'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execPromise = promisify(exec)
+
+// --- FUNCIÓN FFmpeg MEJORADA (COMPATIBILIDAD TOTAL MÓVIL) ---
+async function optimizeVideo(buffer, extension) {
+    try {
+        if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp')
+        
+        const filename = Math.floor(Math.random() * 10000)
+        const inputPath = `./tmp/${filename}.${extension}`
+        const outputPath = `./tmp/${filename}_opt.mp4`
+
+        await fs.promises.writeFile(inputPath, buffer)
+
+        // COMANDO MAESTRO PARA MÓVIL:
+        // -profile:v baseline -level 3.0: Hace que funcione en cualquier Android/iPhone.
+        // -crf 28: Baja un poco el peso sin perder calidad visible.
+        // -an: (Opcional) Quita el audio para ahorrar peso y evitar errores de codec de audio.
+        await execPromise(`ffmpeg -y -i "${inputPath}" -c:v libx264 -profile:v baseline -level 3.0 -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -crf 28 -preset veryfast -movflags +faststart "${outputPath}"`)
+
+        const resultBuffer = await fs.promises.readFile(outputPath)
+
+        // Limpiar
+        await fs.promises.unlink(inputPath)
+        await fs.promises.unlink(outputPath)
+
+        return resultBuffer
+    } catch (e) {
+        console.error('Error FFmpeg Menú:', e)
+        return buffer // Si falla, devuelve el original
+    }
+}
 
 export default {
     command: ['menu', 'help', 'menú'],
@@ -10,7 +44,7 @@ export default {
             const botname = 'Lucoa-Bot-MD'
             const cleanPrefix = (usedPrefix || '#').trim()
             
-            // Unificar Comandos (Igual que antes, para que salgan todos)
+            // 1. MAPA DE CATEGORÍAS
             const catMap = {
                 'downloader': 'Descargas', 'download': 'Descargas',
                 'economia': 'Economía', 'economy': 'Economía', 'rpg': 'Economía',
@@ -26,17 +60,25 @@ export default {
                 'profile': 'Perfil'
             }
 
-            // Cargar Plugins + Lista Estática
-            const fileCommands = Object.values(global.plugins).map(p => p.default).filter(c => c && c.command).map(c => ({
-                name: Array.isArray(c.command) ? c.command[0] : c.command,
-                category: catMap[(c.category || 'otros').toLowerCase()] || 'Otros'
-            }))
+            // 2. CARGADOR DE COMANDOS
+            let fileCommands = []
+            Object.values(global.plugins).forEach(p => {
+                const c = p.default
+                if (!c || !c.command) return
+                const category = catMap[(c.category || 'otros').toLowerCase()] || 'Otros'
+                if (Array.isArray(c.command)) {
+                    c.command.forEach(cmd => fileCommands.push({ name: cmd, category }))
+                } else {
+                    fileCommands.push({ name: c.command, category })
+                }
+            })
+
             const extraCommands = (staticCommands || []).map(c => ({
                 name: c.name || c.command,
                 category: catMap[(c.category || 'otros').toLowerCase()] || 'Otros'
             }))
-            const allCommands = [...fileCommands, ...extraCommands]
             
+            const allCommands = [...fileCommands, ...extraCommands]
             const categories = {}
             allCommands.forEach(cmd => {
                 const cat = cmd.category
@@ -44,7 +86,7 @@ export default {
                 if (!categories[cat].some(ex => ex.name === cmd.name)) categories[cat].push(cmd)
             })
 
-            // Texto del menú
+            // 3. TEXTO
             let menuText = `╭━ꕥ *${botname}* ꕥ━\n`
             menuText += `┃ 👤 *User:* ${m.pushName || 'Usuario'}\n`
             menuText += `┃ 📚 *Total:* ${allCommands.length}\n`
@@ -59,46 +101,52 @@ export default {
             })
             menuText += `> 🐲 Powered by MatheoDark`
 
-            // === LÓGICA DE VIDEO (SOLUCIÓN MÓVIL) ===
+            // 4. LÓGICA DE VIDEO (Optimizada para Móvil)
             const MEDIA_DIR = path.join(process.cwd(), 'media')
-            let mediaPath = null
+            let buffer = null
             let isVideo = false
 
-            // Buscar archivo local válido
             if (fs.existsSync(MEDIA_DIR)) {
                 try {
                     const files = fs.readdirSync(MEDIA_DIR)
-                    const videos = files.filter(f => /\.(mp4)$/i.test(f)) // Solo MP4, gifs dan problemas
+                    const videos = files.filter(f => /\.(mp4|gif)$/i.test(f)) 
                     const images = files.filter(f => /\.(jpg|png|jpeg)$/i.test(f))
 
                     if (videos.length > 0) {
-                        mediaPath = path.join(MEDIA_DIR, videos[Math.floor(Math.random() * videos.length)])
+                        const randomVideo = videos[Math.floor(Math.random() * videos.length)]
+                        const filePath = path.join(MEDIA_DIR, randomVideo)
+                        buffer = fs.readFileSync(filePath)
+                        
+                        // Detectar extensión
+                        const ext = randomVideo.split('.').pop().toLowerCase()
+                        
+                        // SI ES GIF O MP4 -> OPTIMIZAR SIEMPRE
+                        // Esto arregla los videos que "se ven en pc pero no en cel"
+                        // El proceso es rápido gracias a '-preset veryfast'
+                        buffer = await optimizeVideo(buffer, ext)
+                        
                         isVideo = true
                     } else if (images.length > 0) {
-                        mediaPath = path.join(MEDIA_DIR, images[Math.floor(Math.random() * images.length)])
+                        const randomImage = images[Math.floor(Math.random() * images.length)]
+                        buffer = fs.readFileSync(path.join(MEDIA_DIR, randomImage))
                         isVideo = false
                     }
-                } catch (e) { console.error('Error leyendo carpeta media:', e) }
+                } catch (e) { console.error('Error media:', e) }
             }
 
-            // Enviar
-            if (mediaPath && isVideo) {
-                // Video Local: Enviamos como documento de video si es pesado, o video normal
-                // Para asegurar compatibilidad móvil, lo mejor es enviar URL si falla lo local, pero probemos esto:
+            // 5. ENVÍO
+            if (buffer && isVideo) {
                 await client.sendMessage(m.chat, { 
-                    video: fs.readFileSync(mediaPath), 
+                    video: buffer, 
                     caption: menuText.trim(),
-                    gifPlayback: true // Si falla en cel, prueba poner esto en 'false'
+                    gifPlayback: true 
                 }, { quoted: m })
-            } else if (mediaPath && !isVideo) {
-                // Imagen Local
+            } else if (buffer && !isVideo) {
                 await client.sendMessage(m.chat, { 
-                    image: fs.readFileSync(mediaPath), 
+                    image: buffer, 
                     caption: menuText.trim() 
                 }, { quoted: m })
             } else {
-                // FALLBACK SEGURO (URL)
-                // Usamos un video de Imgur que sabemos que carga bien en móviles
                 await client.sendMessage(m.chat, { 
                     video: { url: 'https://i.imgur.com/OvoF1QZ.mp4' }, 
                     caption: menuText.trim(),

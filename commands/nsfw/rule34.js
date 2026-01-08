@@ -10,10 +10,20 @@ const agent = new https.Agent({
 export default {
     command: ['r34', 'rule34'],
     category: 'nsfw',
-    desc: 'Busca imágenes (pack) en Rule34.', // <--- ESTO FALTABA
+    desc: 'Busca imágenes (pack) en Rule34.',
 
     run: async ({ client, m, text, usedPrefix, command }) => {
         
+        // --- VERIFICACIÓN NSFW (Agregada) ---
+        const chatId = m.chat
+        const db = global.db
+        
+        // Si es un grupo y el NSFW está desactivado, bloquear
+        if (m.isGroup && !db.data.chats[chatId]?.nsfw) {
+             return m.reply('🚫 Los comandos *NSFW* están desactivados en este grupo.\nUsa `#enable nsfw` para activarlos.')
+        }
+        // ------------------------------------
+
         if (!text) return m.reply(`*⚠️ Falta el nombre.*\nEjemplo: ${usedPrefix + command} lucoa`)
 
         m.reply('🔍 *Buscando Pack (5) en Rule34...*')
@@ -80,7 +90,7 @@ export default {
                                 video: { url: fileUrl }, 
                                 caption: `🔥 *ID:* ${id}`,
                                 gifPlayback: false 
-                            }, { quoted: m })
+                             }, { quoted: m })
                         } else {
                             await client.sendMessage(m.chat, { 
                                 image: { url: fileUrl }, 
