@@ -1,82 +1,57 @@
-import axios from 'axios'
 import fetch from 'node-fetch'
 
 export default {
-  // ✅ 'megumin' eliminado
-  command: ['ia', 'chatgpt', 'lucoa'],
+  // Agregué variaciones para asegurar que responda
+  command: ['ia', 'chatgpt', 'lucoa', 'gpt'],
   category: 'ia',
 
   run: async ({ client, m, usedPrefix, command, text }) => {
     
-    const isQuotedImage = m.quoted && (m.quoted.msg || m.quoted).mimetype && (m.quoted.msg || m.quoted).mimetype.startsWith('image/')
-    const isImage = (m.mimetype && m.mimetype.startsWith('image/')) || isQuotedImage
-
+    // Configuración de Personalidad
     const username = m.pushName || 'Humano'
     const basePrompt = `
-    Instrucciones: Eres Lucoa-Bot (Quetzalcoatl), una ex-diosa dragona amable, despreocupada y con actitud de "Ara ara".
-    Tu creador es MatheoDark.
-    Responde siempre en español, de forma coqueta pero tierna, usando emojis.
-    Si te preguntan quién eres, di que eres Lucoa, la dragona de MatheoDark.
-    No uses lenguaje técnico, sé casual y divertida.
-    Usuario actual: ${username}.
+    Personaje: Lucoa-Bot (Quetzalcoatl).
+    Personalidad: Diosa dragona, hermana mayor, despreocupada, coqueta "Ara ara", amable.
+    Creador: MatheoDark.
+    Contexto: Estás hablando por WhatsApp con ${username}.
+    Instrucción: Responde en español, sé breve y divertida. No uses lenguaje técnico.
     `.trim();
 
     try {
-        // --- MODO VISIÓN (Imagen) ---
-        if (isImage) {
-            await m.reply('👀 *A ver, déjame ver esa imagen...* (Analizando)')
-            
-            const q = m.quoted ? m.quoted : m
-            const imgBuffer = await q.download()
-            if (!imgBuffer) return m.reply('❌ No pude descargar la imagen.')
-
-            const content = text || '¿Qué ves en esta imagen? Descríbela al estilo Lucoa.'
-            const imgBase64 = Buffer.from(imgBuffer).toString('base64')
-
-            const response = await axios.post('https://api.siputzx.my.id/api/ai/gemini-vision', {
-                prompt: basePrompt + " " + content,
-                image: imgBase64
-            }).catch(e => null)
-
-            if (!response || !response.data) {
-                 return m.reply('❌ No pude analizar la imagen en este momento, cariño.')
-            }
-
-            const txt = response.data.data || response.data.result || response.data.message
-            
-            await client.sendMessage(m.chat, { 
-                text: `✨ *ANÁLISIS DE LUCOA* ✨\n\n${txt}\n\n> 🐲 Powered by MatheoDark` 
-            }, { quoted: m })
-
-        } 
-        
         // --- MODO TEXTO (Chat) ---
-        else {
-            if (!text) return m.reply(`🍟 *¡Hola! Soy Lucoa.*\n\nDime algo para charlar o pregúntame lo que quieras.\n\n*Ejemplo:* ${usedPrefix + command} ¿Qué te gusta comer?`)
+        if (!text) return m.reply(`🍟 *¡Hola! Soy Lucoa.*\n\nCuéntame algo o pregúntame lo que quieras.\n\n*Ejemplo:* ${usedPrefix + command} ¿Cómo estás hoy?`)
 
-            await client.sendMessage(m.chat, { react: { text: '💭', key: m.key } })
+        await client.sendMessage(m.chat, { react: { text: '💭', key: m.key } })
 
-            const apiUrl = 'https://delirius-api-oficial.vercel.app/api/ia/gpt4'
-            
-            const res = await axios.get(apiUrl, {
-                params: {
-                    text: text,
-                    system: basePrompt
-                }
-            })
+        // 🟢 NUEVA API (Más estable)
+        // Inyectamos la personalidad directamente en el prompt para asegurar que funcione
+        const fullPrompt = `${basePrompt}\n\nUsuario dice: ${text}`;
+        const apiUrl = `https://api.eliasar-yt.com/api/ai/gpt4o?text=${encodeURIComponent(fullPrompt)}`
+        
+        const res = await fetch(apiUrl)
+        const json = await res.json()
 
-            const respuesta = res.data.data || res.data.result
+        if (!json.status || !json.results) throw new Error('API sin respuesta')
 
-            if (!respuesta) throw new Error('Sin respuesta de API')
-
-            await client.sendMessage(m.chat, { 
-                text: respuesta + `\n\n> 🐲 Powered by MatheoDark` 
-            }, { quoted: m })
-        }
+        await client.sendMessage(m.chat, { 
+            text: json.results + `\n\n> 🐲 Powered by MatheoDark` 
+        }, { quoted: m })
 
     } catch (error) {
         console.error('Error en IA:', error)
-        m.reply('😵 *Ugh...* Me mareé un poco (Error de API). Inténtalo de nuevo, cariño.')
+        // Si falla la primera, intentamos una API de respaldo (Backup)
+        try {
+            const backupUrl = `https://api.ryzendesu.vip/api/ai/chatgpt?text=${encodeURIComponent(text)}&prompt=${encodeURIComponent(basePrompt)}`
+            const resBackup = await fetch(backupUrl)
+            const jsonBackup = await resBackup.json()
+            
+            await client.sendMessage(m.chat, { 
+                text: jsonBackup.response + `\n\n> 🐲 Powered by MatheoDark` 
+            }, { quoted: m })
+            
+        } catch (e2) {
+            m.reply('😵 *Ugh...* Mis neuronas fallaron. La API está caída, intenta en un rato.')
+        }
     }
   }
 }
