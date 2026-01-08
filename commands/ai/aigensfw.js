@@ -1,7 +1,7 @@
 import fetch from 'node-fetch'
 
 export default {
-  command: ['nsfwaigen', 'aigensfw', 'pornogen', 'ainsfw'],
+  command: ['nsfwaigen', 'aigensfw', 'pornogen', 'ainsfw'], // Agregué ainsfw aquí también
   category: 'ia',
   run: async ({ client, m, text, usedPrefix, command }) => {
     
@@ -19,18 +19,16 @@ export default {
     await m.reply('😈 *Generando imagen...*')
 
     try {
-      // 🟢 USAMOS POLLINATIONS (La más estable del mundo actualmente)
-      // Agregamos una "semilla" aleatoria para que siempre salga una imagen diferente
-      const seed = Math.floor(Math.random() * 100000)
+      // Truco de Pollinations: Usamos un número aleatorio (seed) para que la imagen siempre cambie
+      const seed = Math.floor(Math.random() * 1000000)
       
-      // Construimos el Prompt mejorado automáticamente
-      const promptMejorado = `${text}, nsfw, uncensored, anime style, high quality, detailed, 4k`
-      
-      // URL Directa (Genera la imagen al vuelo)
-      const apiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptMejorado)}?width=1080&height=1920&seed=${seed}&nologo=true`
+      // Construimos la URL Directa. 
+      // Esta URL DEVUELVE UNA IMAGEN, no un JSON. Por eso usamos .buffer()
+      const apiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(text + ", nsfw, anime style, high quality")}?width=1080&height=1920&seed=${seed}&nologo=true`
 
-      // Fetch directo al buffer (sin JSON intermedio que pueda fallar)
       const res = await fetch(apiUrl)
+      
+      // Obtenemos los datos binarios de la imagen directamente
       const buffer = await res.buffer()
 
       await client.sendMessage(
