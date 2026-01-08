@@ -7,44 +7,50 @@ export default {
   run: async ({ client, m, usedPrefix, command, text }) => {
     
     const username = m.pushName || 'Humano'
-    // Personalidad
-    const logic = `Eres Lucoa-Bot (Quetzalcoatl). Una diosa dragona amable, despreocupada y coqueta ("Ara ara"). Tu creador es MatheoDark. Responde en español de forma divertida y breve. Estás hablando con ${username}.`
+    
+    // Personalidad fusionada en el texto
+    // Al mezclar la instrucción con el mensaje, cualquier IA entenderá el rol.
+    const logic = `Instrucciones de sistema: Actúa como "Lucoa-Bot" (Quetzalcoatl). Eres una diosa dragona amable, despreocupada y coqueta ("Ara ara"). Tu creador es MatheoDark. Responde en español de forma divertida y breve, usa emojis. Estás hablando con ${username}.
+    
+    Mensaje del usuario: ${text}`
 
     if (!text) return m.reply(`🍟 *¡Hola! Soy Lucoa.*\n\nCuéntame algo.\n*Ejemplo:* ${usedPrefix + command} Hola`)
 
     await client.sendMessage(m.chat, { react: { text: '💭', key: m.key } })
 
     try {
-        // 🟢 API PRIMARIA: RyzenDesu (ChatGPT)
-        // Esta API acepta 'prompt' separado del 'text', ideal para roles.
-        const apiUrl = `https://api.ryzendesu.vip/api/ai/chatgpt?text=${encodeURIComponent(text)}&prompt=${encodeURIComponent(logic)}`
+        // 🟢 INTENTO 1: Hercai API (Muy estable)
+        // Usamos encodeURIComponent para evitar errores con caracteres raros
+        const apiUrl = `https://hercai.onrender.com/v3/hercai?question=${encodeURIComponent(logic)}`
         
         const res = await fetch(apiUrl)
         const json = await res.json()
 
-        // Ryzen devuelve { response: "..." }
-        if (!json.response) throw new Error('API sin respuesta válida')
+        // Hercai devuelve { reply: "..." }
+        if (!json.reply) throw new Error('Hercai sin respuesta')
 
         await client.sendMessage(m.chat, { 
-            text: json.response + `\n\n> 🐲 Powered by MatheoDark` 
+            text: json.reply + `\n\n> 🐲 Powered by MatheoDark` 
         }, { quoted: m })
 
     } catch (error) {
-        console.error(error)
-        // 🟡 API SECUNDARIA: Siputzx (Llama 3)
+        console.error("Fallo Hercai, intentando Backup...")
+        
+        // 🟡 INTENTO 2: Blackbox (Backup de emergencia)
         try {
-            const backupUrl = `https://api.siputzx.my.id/api/ai/llama3?text=${encodeURIComponent(text)}&prompt=${encodeURIComponent(logic)}`
+            const backupUrl = `https://api.eliasar-yt.com/api/ai/blackbox?text=${encodeURIComponent(logic)}`
             const res2 = await fetch(backupUrl)
             const json2 = await res2.json()
 
-            if (!json2.data) throw new Error('Backup falló')
+            // A veces devuelve .result, a veces .response
+            const respuesta = json2.result || json2.response || "Estoy algo cansada hoy... inténtalo luego."
 
             await client.sendMessage(m.chat, { 
-                text: json2.data + `\n\n> 🐲 Powered by MatheoDark` 
+                text: respuesta + `\n\n> 🐲 Powered by MatheoDark` 
             }, { quoted: m })
 
         } catch (e2) {
-             m.reply('😵 Estoy un poco mareada hoy. Intenta más tarde.')
+             m.reply('😵 Mis servidores están dormidos. Intenta en 5 minutos.')
         }
     }
   }
