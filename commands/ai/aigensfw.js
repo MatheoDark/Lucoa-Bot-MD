@@ -19,13 +19,18 @@ export default {
     await m.reply('😈 *Generando imagen...*')
 
     try {
-      // 🟢 API DE RESPALDO (Delirius) - Muy estable
-      const apiUrl = `https://delirius-api-oficial.vercel.app/api/ia/dalle-anime?text=${encodeURIComponent(text)}`
+      // 🟢 USAMOS POLLINATIONS (La más estable del mundo actualmente)
+      // Agregamos una "semilla" aleatoria para que siempre salga una imagen diferente
+      const seed = Math.floor(Math.random() * 100000)
       
+      // Construimos el Prompt mejorado automáticamente
+      const promptMejorado = `${text}, nsfw, uncensored, anime style, high quality, detailed, 4k`
+      
+      // URL Directa (Genera la imagen al vuelo)
+      const apiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptMejorado)}?width=1080&height=1920&seed=${seed}&nologo=true`
+
+      // Fetch directo al buffer (sin JSON intermedio que pueda fallar)
       const res = await fetch(apiUrl)
-      if (!res.ok) throw new Error('API Error')
-      
-      // Delirius a veces devuelve la imagen directa (buffer)
       const buffer = await res.buffer()
 
       await client.sendMessage(
@@ -39,7 +44,7 @@ export default {
       
     } catch (e) {
       console.error(e)
-      m.reply(`❌ Error: La API está saturada. Intenta de nuevo en unos minutos.`)
+      m.reply(`❌ Error de conexión. Intenta de nuevo.`)
     }
   }
 }
