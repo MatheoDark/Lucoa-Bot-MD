@@ -1,240 +1,136 @@
 import axios from 'axios'
-import fs from 'fs'
-import { resolveLidToRealJid } from '../../lib/utils.js'
+import { Sticker, createSticker, StickerTypes } from 'wa-sticker-formatter' 
+// NOTA: Si no tienes 'wa-sticker-formatter', el código usará el método nativo abajo.
 
-const FALLBACK_PP = 'https://telegra.ph/file/24fa902ead26340f3df2c.png'
-const FALLBACK_NAME = 'Personita'
-const MAX_LEN = 40
-
-const onlyDigits = (s = '') => String(s).replace(/\D/g, '')
-const escapeRegExp = (s = '') => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-function ensureJid(x) {
-  if (!x) return null
-  const s = String(x)
-  if (s.includes('@')) return s
-  const n = onlyDigits(s)
-  return n ? `${n}@s.whatsapp.net` : null
-}
-
-function getContextParticipant(m) {
-  const msg = m?.message || {}
-  const ctx =
-    msg?.extendedTextMessage?.contextInfo ||
-    msg?.imageMessage?.contextInfo ||
-    msg?.videoMessage?.contextInfo ||
-    msg?.documentMessage?.contextInfo ||
-    null
-  return ctx?.participant || null
-}
-
-async function resolveWho(client, m, whoRaw) {
-  let who = ensureJid(whoRaw)
-  if (!who) return null
-
-  // En grupos: resolver LID -> JID real
-  if (m.chat?.endsWith('@g.us')) {
-    const real = await resolveLidToRealJid(who, client, m.chat).catch(() => null)
-    if (real) who = ensureJid(real) || who
-  }
-  return who
-}
-
-// ✅ Prioridad #1: alias guardado con #setname (es el mismo campo .name en db.users[jid])
-function getNameFromUsersDB(who) {
-  const n = global?.db?.data?.users?.[who]?.name
-  return n && String(n).trim() ? String(n).trim() : null
-}
-
-// Extra: algunos bots guardan users por chat
-function getNameFromChatDB(m, who) {
-  const n = global?.db?.data?.chats?.[m.chat]?.users?.[who]?.name
-  return n && String(n).trim() ? String(n).trim() : null
-}
-
-async function getNameFromGroupMetadata(client, m, who) {
-  if (!m.chat?.endsWith('@g.us') || typeof client.groupMetadata !== 'function') return null
-  const md = await client.groupMetadata(m.chat).catch(() => null)
-  const parts = md?.participants || []
-  if (!parts.length) return null
-
-  const targetNum = onlyDigits(who)
-  const p =
-    parts.find(x => x.id === who) ||
-    parts.find(x => onlyDigits(x.id) === targetNum)
-
-  const n = p?.notify || p?.name || p?.displayName
-  return n && String(n).trim() ? String(n).trim() : null
-}
-
-async function getDisplayName(client, m, who) {
-  // 0) quoted name (si el wrapper lo trae)
-  const qn = m.quoted?.pushName || m.quoted?.name || m.quoted?.notify
-  if (qn && String(qn).trim()) return String(qn).trim()
-
-  // 1) DB principal (aquí vive setname y también el name del main)
-  const dbName = getNameFromUsersDB(who)
-  if (dbName) return dbName
-
-  // 2) DB por chat (si existe)
-  const chatName = getNameFromChatDB(m, who)
-  if (chatName) return chatName
-
-  // 3) getName si existe
-  try {
-    if (typeof client.getName === 'function') {
-      const n = await client.getName(who)
-      if (n && String(n).trim()) return String(n).trim()
+async function postQuote(payload) {
+    const url = 'https://bot.lyo.su/quote/generate'
+    const headers = { 'Content-Type': 'application/json' }
+    try {
+        const res = await axios.post(url, payload, { 
+            headers, 
+            timeout: 30000 // 30 segundos de espera (la API a veces es lenta)
+        })
+        return res.data
+    } catch (e) {
+        console.error('[QC API Error]:', e.message)
+        return { error: true }
     }
-  } catch {}
-
-  // 4) metadata del grupo
-  try {
-    const n2 = await getNameFromGroupMetadata(client, m, who)
-    if (n2) return n2
-  } catch {}
-
-  return FALLBACK_NAME
 }
 
 async function getProfilePic(client, who) {
-  try {
-    if (typeof client.profilePictureUrl === 'function') {
-      try {
-        const pp = await client.profilePictureUrl(who, 'image')
-        if (pp) return pp
-      } catch {
-        const pp = await client.profilePictureUrl(who)
-        if (pp) return pp
-      }
+    try {
+        return await client.profilePictureUrl(who, 'image')
+    } catch {
+        return 'https://telegra.ph/file/24fa902ead26340f3df2c.png'
     }
-  } catch {}
-  return FALLBACK_PP
+}
+
+async function getDisplayName(client, m, who) {
+    // 1. Prioridad: Base de Datos (Setname)
+    try {
+        const userDb = global.db?.data?.users?.[who]
+        if (userDb && userDb.name && userDb.name !== 'Sin nombre') {
+            return userDb.name
+        }
+    } catch (e) {}
+
+    // 2. Mismo usuario (PushName)
+    if (who === m.sender && m.pushName) return m.pushName
+
+    // 3. Grupo (Notify)
+    if (m.isGroup) {
+        try {
+            const metadata = await client.groupMetadata(m.chat)
+            const participant = metadata.participants.find(p => p.id === who)
+            if (participant && participant.notify) return participant.notify 
+        } catch (e) {}
+    }
+
+    // 4. Contacto (GetName)
+    try {
+        if (client.getName) {
+            const name = await client.getName(who)
+            if (name && !name.includes('+')) return name
+        }
+    } catch (e) {}
+
+    // 5. Fallback: Número
+    return '+' + who.split('@')[0]
 }
 
 export default {
-  command: ['qc'],
-  category: 'utils',
-  run: async ({ client, m, args, usedPrefix, command }) => {
-    try {
-      // ── Texto (como referencia) ──
-      let text = ''
-      if (args?.length) text = args.join(' ')
-      else if (m.quoted?.text) text = m.quoted.text
-      else return m.reply(`📌 Te faltó el texto!\nEj: *${usedPrefix || '#'}${command || 'qc'} Hola*`)
+    command: ['qc'],
+    category: 'utils',
+    run: async ({ client, m, args, usedPrefix, command }) => {
+        try {
+            let text
+            if (args.length >= 1) text = args.join(" ")
+            else if (m.quoted && m.quoted.text) text = m.quoted.text
+            else return m.reply(`📌 *Falta texto*\nEjemplo: ${usedPrefix + command} Hola`)
 
-      text = String(text).trim()
-      if (!text) return m.reply('📌 Te faltó el texto!')
+            if (text.length > 150) return m.reply('📌 Máximo 150 caracteres.')
 
-      // ── Anti-mención owner (como ref) ──
-      const owners = (global.owner || [])
-        .map(o => Array.isArray(o) ? o[0] : o)
-        .map(x => onlyDigits(x))
-        .filter(Boolean)
+            // Determinar quién habla
+            let who = m.quoted ? m.quoted.sender : m.sender
+            if (m.mentionedJid && m.mentionedJid.length > 0) {
+                who = m.mentionedJid[0]
+                text = text.replace(/@\d+/g, '').trim()
+            }
 
-      const senderNum = onlyDigits(m.sender)
-      const esOwner = owners.includes(senderNum)
+            const pp = await getProfilePic(client, who)
+            const nombre = await getDisplayName(client, m, who)
 
-      if (!esOwner && owners.length) {
-        const textoMin = text.toLowerCase()
-        const mencionados = (m.mentionedJid || []).map(jid => onlyDigits(jid))
+            const obj = {
+                type: 'quote',
+                format: 'png',
+                backgroundColor: '#000000',
+                width: 512,
+                height: 768,
+                scale: 2,
+                messages: [{
+                    entities: [],
+                    avatar: true,
+                    from: {
+                        id: 1,
+                        name: nombre,
+                        photo: { url: pp }
+                    },
+                    text: text,
+                    replyMessage: {}
+                }]
+            }
 
-        const seMencionaOwner = owners.some(owner =>
-          textoMin.includes(owner) ||
-          textoMin.includes(`@${owner}`) ||
-          mencionados.includes(owner)
-        )
+            const json = await postQuote(obj)
+            
+            if (json.result && json.result.image) {
+                const buffer = Buffer.from(json.result.image, 'base64')
+                
+                // INTENTO 1: Usar función del bot (sendImageAsSticker)
+                if (client.sendImageAsSticker) {
+                    try {
+                        await client.sendImageAsSticker(m.chat, buffer, m, { 
+                            packname: global.packname || 'Lucoa', 
+                            author: nombre 
+                        })
+                        return // Éxito, terminamos
+                    } catch (e) {
+                        console.log('Falló sendImageAsSticker, probando nativo...')
+                    }
+                }
 
-        if (seMencionaOwner) {
-          return m.reply(
-            `🌸 *Ara ara~... ¿mencionar a uno de mis creadores?*\n` +
-            `💢 No puedo traicionar a mis creadores...`
-          )
+                // INTENTO 2: Envío Nativo (Baileys puro)
+                // Esto funciona incluso si no tienes librerías de stickers instaladas
+                await client.sendMessage(m.chat, { 
+                    sticker: buffer 
+                }, { quoted: m })
+
+            } else {
+                m.reply('❌ La API de QC no respondió. Intenta en 1 minuto.')
+            }
+
+        } catch (e) {
+            console.error(e)
+            m.reply('❌ Error desconocido en QC.')
         }
-      }
-
-      // ── WHO: mención > citado > sender (ref + mejora) ──
-      const mentioned = Array.isArray(m.mentionedJid) ? m.mentionedJid : []
-      let whoRaw = mentioned[0] || null
-
-      if (!whoRaw && m.quoted) {
-        whoRaw =
-          m.quoted?.sender ||
-          m.quoted?.participant ||
-          m.quoted?.key?.participant ||
-          getContextParticipant(m) ||
-          null
-      }
-
-      if (!whoRaw) {
-        whoRaw = m.key?.fromMe ? client.user?.id : m.sender
-      }
-
-      const who = await resolveWho(client, m, whoRaw)
-      if (!who) return m.reply('❌ No pude identificar al usuario.')
-
-      // ── Quitar mención del texto (como ref) ──
-      const mentionRegex = new RegExp(`@${escapeRegExp(who.split('@')[0])}\\s*`, 'g')
-      const mishi = text.replace(mentionRegex, '').trim()
-
-      if (mishi.length > MAX_LEN) return m.reply(`📌 El texto no puede tener más de ${MAX_LEN} caracteres`)
-
-      // ── Foto + nombre ──
-      const pp = await getProfilePic(client, who)
-      const nombre = await getDisplayName(client, m, who)
-
-      // ── Quote API ──
-      const payload = {
-        type: 'quote',
-        format: 'png',
-        backgroundColor: '#000000',
-        width: 512,
-        height: 768,
-        scale: 2,
-        messages: [{
-          entities: [],
-          avatar: true,
-          from: { id: 1, name: nombre, photo: { url: pp } },
-          text: mishi,
-          replyMessage: {}
-        }]
-      }
-
-      const res = await axios.post('https://bot.lyo.su/quote/generate', payload, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 20000
-      })
-
-      const b64 = res?.data?.result?.image
-      if (!b64) return m.reply('❌ La API no devolvió imagen.')
-
-      const buffer = Buffer.from(b64, 'base64')
-
-      // ── Pack/author (igual estilo tu sticker.js + setmeta) ──
-      const user = global?.db?.data?.users?.[m.sender] || {}
-      const botId = (client.user?.id || '').split(':')[0] + '@s.whatsapp.net'
-      const botSettings = global?.db?.data?.settings?.[botId] || {}
-      const botname = botSettings.namebot || botSettings.namebot2 || 'Lucoa'
-      const username = user.name || m.pushName || 'Usuario'
-
-      const packname = user.metadatos || 'Lucoa-Bot'
-      const author =
-        user.metadatos2 ||
-        `Socket:\n↳@${botname}\n👹Usuario:\n↳@${username}`
-
-      // ── Enviar sticker ──
-      if (typeof client.sendImageAsSticker === 'function') {
-        const enc = await client.sendImageAsSticker(m.chat, buffer, m, { packname, author })
-        if (enc && typeof enc === 'string') {
-          try { fs.unlinkSync(enc) } catch {}
-        }
-      } else {
-        await client.sendMessage(m.chat, { sticker: buffer }, { quoted: m })
-      }
-
-    } catch (e) {
-      console.error('[qc] error:', e?.response?.status, e?.message || e)
-      m.reply(`❌ Error al crear QC.${e?.response?.status ? ` (HTTP ${e.response.status})` : ''}`)
     }
-  }
 }

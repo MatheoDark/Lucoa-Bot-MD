@@ -1,12 +1,12 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * 🐉 LUCOA-BOT-MD v3.0.0 - Handler Principal
+ * 🐉 LUCOA-BOT-MD v3.0.0 - Handler Principal (Silent Edition)
  * ═══════════════════════════════════════════════════════════════════════════
  * Basado en Megumin-Bot-MD v3.0.0
- * Arquitectura moderna con export default { command, run }
+ * Optimizado para no responder a comandos inexistentes.
  *
- * @author MatheoDark
- * @version 3.0.0
+ * @author MatheoDark & Modificado
+ * @version 3.0.1 (Silent)
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -26,21 +26,19 @@ const CONFIG = Object.freeze({
   DEFAULT_BOT_NAME: 'Lucoa-Bot 🐉',
   DEFAULT_PUSHNAME: 'Sin nombre',
   TIMEZONE: 'America/Santiago',
-  VERSION: '3.0.0',
-  // Permitir ejecutar comandos desde el mismo número del bot SOLO si eres owner:
+  VERSION: '3.0.1',
   ALLOW_FROM_ME_FOR_OWNERS: true
 })
 
 const ERROR_MESSAGES = Object.freeze({
-  owner: (cmd) => `ꕥ El comando *${cmd}* solo puede ser ejecutado por mi Creador (MatheoDark).`,
+  owner: (cmd) => `ꕥ El comando *${cmd}* solo puede ser ejecutado por mi Creador.`,
   moderation: (cmd) => `ꕥ El comando *${cmd}* solo puede ser ejecutado por los moderadores.`,
-  admin: (cmd) => `ꕥ El comando *${cmd}* solo puede ser ejecutado por los Administradores del Grupo.`,
-  botAdmin: (cmd) => `ꕥ El comando *${cmd}* solo puede ser ejecutado si yo soy Administradora del Grupo.`,
-  notFound: (cmd, prefix) =>
-    `ꕤ El comando *${cmd}* no existe.\n✎ Usa *${prefix}help* para ver la lista de comandos disponibles.`
+  admin: (cmd) => `ꕥ El comando *${cmd}* solo puede ser ejecutado por los Administradores.`,
+  botAdmin: (cmd) => `ꕥ El comando *${cmd}* requiere que yo sea Administradora.`
+  // Eliminamos 'notFound' para que no genere spam
 })
 
-// Cache para prefijos (evita recalcular en cada mensaje)
+// Cache para prefijos
 const prefixCache = new Map()
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -90,7 +88,7 @@ function checkIsOwner(senderJid, ownerNumbers) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// INICIALIZACIÓN DE BASE DE DATOS
+// BASE DE DATOS
 // ═══════════════════════════════════════════════════════════════════════════
 
 function initializeDBStructure() {
@@ -113,7 +111,7 @@ function updateUserStats(sender, pushname, command) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// RESOLUCIÓN DE JIDs (LID → JID Real)
+// JIDs & GRUPOS
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function resolveMessageJids(m, client) {
@@ -153,10 +151,12 @@ async function getResolvedGroupAdmins(metadata, client, chatId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SISTEMA DE LOGGING
+// LOGGING
 // ═══════════════════════════════════════════════════════════════════════════
 
 function logMessage({ pushname, sender, isGroup, groupName, from, command }) {
+  if (!command) return // Solo loguear si hay un comando válido para no ensuciar consola
+
   const h = chalk.bold.blue('★━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━★')
   const v = chalk.bold.white('┃ ')
   const time = moment().tz(CONFIG.TIMEZONE).format('DD/MM/YY HH:mm:ss')
@@ -176,16 +176,13 @@ function logMessage({ pushname, sender, isGroup, groupName, from, command }) {
     lines.push(chalk.bold.greenBright(`${v}💬 Chat privado`))
   }
 
-  if (command) {
-    lines.push(chalk.bold.redBright(`${v}⚡ Comando: ${chalk.yellowBright(command)}`))
-  }
-
+  lines.push(chalk.bold.redBright(`${v}⚡ Comando: ${chalk.yellowBright(command)}`))
   lines.push(h)
   console.log(lines.join('\n'))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SISTEMA DE MIDDLEWARES Y PLUGINS
+// HOOKS & PLUGINS
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function runGlobalMiddlewares(type, m, client, isOwner = false) {
@@ -221,10 +218,11 @@ async function runPluginHooks(hookName, client, m, options = {}, isOwner = false
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SISTEMA DE COMANDOS
+// CACHÉ DE PREFIJOS
 // ═══════════════════════════════════════════════════════════════════════════
 
 function buildPrefixRegex(selfId) {
+  // Protección robusta si db.data.settings no existe
   const settings = global.db.data.settings?.[selfId] || {}
   const rawPrefijo = settings.prefijo || ''
   const botname = settings.namebot2 || CONFIG.DEFAULT_BOT_NAME
@@ -233,11 +231,7 @@ function buildPrefixRegex(selfId) {
   const cached = prefixCache.get(cacheKey)
   if (cached) return cached
 
-  const prefas = Array.isArray(rawPrefijo)
-    ? rawPrefijo
-    : rawPrefijo
-      ? [rawPrefijo]
-      : CONFIG.DEFAULT_PREFIXES
+  const prefas = Array.isArray(rawPrefijo) ? rawPrefijo : rawPrefijo ? [rawPrefijo] : CONFIG.DEFAULT_PREFIXES
 
   const firstWord = botname.split(' ')[0]
   const shortForms = [botname.charAt(0), firstWord, firstWord.slice(0, 2), firstWord.slice(0, 3)].filter(Boolean)
@@ -257,7 +251,7 @@ function buildPrefixRegex(selfId) {
   return regex
 }
 
-function clearPrefixCache(selfId) {
+globalThis.clearPrefixCache = (selfId) => {
   if (selfId) {
     for (const key of prefixCache.keys()) {
       if (key.startsWith(selfId)) prefixCache.delete(key)
@@ -266,7 +260,6 @@ function clearPrefixCache(selfId) {
     prefixCache.clear()
   }
 }
-globalThis.clearPrefixCache = clearPrefixCache
 
 function extractMessageBody(message) {
   return (
@@ -289,7 +282,7 @@ async function checkPermissions(cmdData, command, m, permissions) {
     { flag: 'isModeration', value: isModeration, type: 'moderation' },
     { flag: 'isAdmin', value: isAdmin, type: 'admin' },
     { flag: 'botAdmin', value: isBotAdmin, type: 'botAdmin' },
-    { flag: 'isBotAdmin', value: isBotAdmin, type: 'botAdmin' } // compat
+    { flag: 'isBotAdmin', value: isBotAdmin, type: 'botAdmin' }
   ]
 
   for (const { flag, value, type } of checks) {
@@ -302,158 +295,167 @@ async function checkPermissions(cmdData, command, m, permissions) {
   return true
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// INICIALIZACIÓN DEL LOADER (UNA SOLA VEZ)
-// ═══════════════════════════════════════════════════════════════════════════
-
+// Inicializar Comandos
 loadCommandsAndPlugins()
 
 // ═══════════════════════════════════════════════════════════════════════════
-// HANDLER PRINCIPAL
+// EXECUTION FLOW
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default async (client, m) => {
-  if (!m?.message) return
-
-  const selfId = ensureUserId(client)
-  if (!selfId) return
-
-  initializeDBStructure()
-  initDB(m, client)
-
-  await resolveMessageJids(m, client)
-
-  const sender = m.sender || selfId
-  const pushname = m.pushName || CONFIG.DEFAULT_PUSHNAME
-  const from = m.key?.remoteJid || m.chat
-  const chatId = m.chat || from
-  const isGroup = m.isGroup || chatId?.endsWith('@g.us')
-
-  const ownerNumbers = getOwnerNumbers()
-  const isOwner = checkIsOwner(sender, ownerNumbers)
-
-  // ✅ Anti-loop: ignorar mensajes del bot, EXCEPTO si eres owner y quieres testear
-  if (m.key?.fromMe) {
-    if (!CONFIG.ALLOW_FROM_ME_FOR_OWNERS) return
-    if (!isOwner) return
-  }
-
-  if (await runGlobalMiddlewares('before', m, client, isOwner)) return
-
-  const chatSettings = (global.db.data.chats[chatId] ||= {})
-  chatSettings.primaryBot = chatSettings.primaryBot || null
-
-  const { primaryBot } = chatSettings
-  if (primaryBot && selfId !== primaryBot && !isOwner) return
-
-  let groupName = ''
-  let metadata = null
-  let groupAdmins = []
-
-  if (isGroup) {
-    metadata = await client.groupMetadata(from).catch(() => null)
-    groupName = metadata?.subject || ''
-    groupAdmins = await getResolvedGroupAdmins(metadata, client, chatId)
-  }
-
-  const body = extractMessageBody(m.message)
-  let usedPrefix = null
-
-  await runPluginHooks('all', client, m, { usedPrefix }, isOwner)
-
-  const prefixRegex = buildPrefixRegex(selfId)
-  globalThis.prefix = prefixRegex
-
-  if (await runPluginHooks('before', client, m, { usedPrefix }, isOwner)) return
-
-  const prefixMatch = body.match(prefixRegex)
-  if (!prefixMatch) return
-
-  usedPrefix = prefixMatch[0]
-
-  const noPrefix = body.slice(usedPrefix.length).trim()
-  const args = noPrefix.split(/\s+/)
-  const command = args.shift()?.toLowerCase() || ''
-  const text = args.join(' ')
-
-  logMessage({ pushname, sender, isGroup, groupName, from, command })
-
-  if (!global.comandos?.has(command)) {
-    return m.reply(ERROR_MESSAGES.notFound(command, usedPrefix))
-  }
-
-  const cmdData = global.comandos.get(command)
-
-  if (typeof cmdData.before === 'function') {
-    try {
-      const stop = await cmdData.before.call(client, m, { client, command, args, text, usedPrefix })
-      if (stop && !isOwner) return
-    } catch (err) {
-      console.error(chalk.red(`❌ Error en BEFORE del comando ${command}:`), err)
-    }
-  }
-
-  const senderJid = (await resolveLidToRealJid(sender, client, chatId)) || sender
-  const botJid = (await resolveLidToRealJid(selfId, client, chatId)) || selfId
-
-  const isAdmin = isGroup && groupAdmins.includes(senderJid)
-  const isBotAdmin = isGroup && groupAdmins.includes(botJid)
-
-  const mods = Array.isArray(global.mods) ? global.mods : []
-  const modsJids = mods.map(normalizeToJid).filter(Boolean)
-  const isModeration = modsJids.includes(senderJid)
-
-  const hasPermission = await checkPermissions(cmdData, command, m, {
-    isOwner,
-    isModeration,
-    isAdmin,
-    isBotAdmin
-  })
-  if (!hasPermission) return
-
   try {
-    updateUserStats(senderJid, pushname, command)
+    if (!m?.message) return
 
-    await cmdData.run({
-      client,
-      m,
-      args,
-      command,
-      text,
-      usedPrefix,
-      prefix: usedPrefix,
+    const selfId = ensureUserId(client)
+    if (!selfId) return
 
-      // Contexto adicional
-      isOwner,
-      isAdmin,
-      isBotAdmin,
-      isModeration,
-      isGroup,
-      sender: senderJid,
-      pushname,
-      groupName,
-      metadata,
-      chatId,
-      groupAdmins,
+    initializeDBStructure()
+    initDB(m, client)
 
-      // Utilidades
-      ownerNumbers,
-      selfId
-    })
-  } catch (err) {
-    console.error(chalk.red(`❌ Error ejecutando comando [${command}]:`), err)
-    await m.reply('❌ Error al ejecutar el comando:\n' + (err.message || err))
-  }
+    await resolveMessageJids(m, client)
 
-  await runPluginHooks('after', client, m, { usedPrefix }, isOwner)
+    const sender = m.sender || selfId
+    const pushname = m.pushName || CONFIG.DEFAULT_PUSHNAME
+    const from = m.key?.remoteJid || m.chat
+    const chatId = m.chat || from
+    const isGroup = m.isGroup || chatId?.endsWith('@g.us')
 
-  if (typeof cmdData.after === 'function') {
-    try {
-      await cmdData.after.call(client, m, { client, command, usedPrefix })
-    } catch (err) {
-      console.error(chalk.red(`❌ Error en AFTER del comando ${command}:`), err)
+    const ownerNumbers = getOwnerNumbers()
+    const isOwner = checkIsOwner(sender, ownerNumbers)
+
+    // Anti-loop (Permitir owner)
+    if (m.key?.fromMe) {
+      if (!CONFIG.ALLOW_FROM_ME_FOR_OWNERS) return
+      if (!isOwner) return
     }
-  }
 
-  await runGlobalMiddlewares('after', m, client, isOwner)
+    if (await runGlobalMiddlewares('before', m, client, isOwner)) return
+
+    // Verificar Bot Principal
+    const chatSettings = (global.db.data.chats[chatId] ||= {})
+    chatSettings.primaryBot = chatSettings.primaryBot || null
+
+    const { primaryBot } = chatSettings
+    if (primaryBot && selfId !== primaryBot && !isOwner) return
+
+    let groupName = ''
+    let metadata = null
+    let groupAdmins = []
+
+    if (isGroup) {
+      metadata = await client.groupMetadata(from).catch(() => null)
+      groupName = metadata?.subject || ''
+      groupAdmins = await getResolvedGroupAdmins(metadata, client, chatId)
+    }
+
+    const body = extractMessageBody(m.message)
+    let usedPrefix = null
+
+    // Hooks .all
+    await runPluginHooks('all', client, m, { usedPrefix }, isOwner)
+
+    const prefixRegex = buildPrefixRegex(selfId)
+    globalThis.prefix = prefixRegex
+
+    // Hooks .before
+    if (await runPluginHooks('before', client, m, { usedPrefix }, isOwner)) return
+
+    const prefixMatch = body.match(prefixRegex)
+    if (!prefixMatch) return // Si no tiene prefijo, IGNORAR
+
+    usedPrefix = prefixMatch[0]
+
+    const noPrefix = body.slice(usedPrefix.length).trim()
+    const args = noPrefix.split(/\s+/)
+    const command = args.shift()?.toLowerCase() || ''
+    const text = args.join(' ')
+
+    // 🛑 CAMBIO CRÍTICO: SI EL COMANDO NO EXISTE, SILENCIO ABSOLUTO
+    if (!global.comandos?.has(command)) {
+      return // No hacer nada, no enviar mensajes, no loguear.
+    }
+
+    // Si llegamos aquí, el comando SÍ existe
+    logMessage({ pushname, sender, isGroup, groupName, from, command })
+
+    const cmdData = global.comandos.get(command)
+
+    // Hooks del comando (Before)
+    if (typeof cmdData.before === 'function') {
+      try {
+        const stop = await cmdData.before.call(client, m, { client, command, args, text, usedPrefix })
+        if (stop && !isOwner) return
+      } catch (err) {
+        console.error(chalk.red(`❌ Error en BEFORE del comando ${command}:`), err)
+      }
+    }
+
+    const senderJid = (await resolveLidToRealJid(sender, client, chatId)) || sender
+    const botJid = (await resolveLidToRealJid(selfId, client, chatId)) || selfId
+
+    const isAdmin = isGroup && groupAdmins.includes(senderJid)
+    const isBotAdmin = isGroup && groupAdmins.includes(botJid)
+
+    const mods = Array.isArray(global.mods) ? global.mods : []
+    const modsJids = mods.map(normalizeToJid).filter(Boolean)
+    const isModeration = modsJids.includes(senderJid)
+
+    const hasPermission = await checkPermissions(cmdData, command, m, {
+      isOwner,
+      isModeration,
+      isAdmin,
+      isBotAdmin
+    })
+    if (!hasPermission) return
+
+    try {
+      updateUserStats(senderJid, pushname, command)
+
+      await cmdData.run({
+        client,
+        m,
+        args,
+        command,
+        text,
+        usedPrefix,
+        prefix: usedPrefix,
+
+        // Contexto
+        isOwner,
+        isAdmin,
+        isBotAdmin,
+        isModeration,
+        isGroup,
+        sender: senderJid,
+        pushname,
+        groupName,
+        metadata,
+        chatId,
+        groupAdmins,
+
+        // Utilidades
+        ownerNumbers,
+        selfId
+      })
+    } catch (err) {
+      console.error(chalk.red(`❌ Error ejecutando comando [${command}]:`), err)
+      // Mantenemos el aviso de error real (crashes de código), pero no el de "comando no encontrado"
+      await m.reply('❌ Error interno al ejecutar el comando.')
+    }
+
+    await runPluginHooks('after', client, m, { usedPrefix }, isOwner)
+
+    if (typeof cmdData.after === 'function') {
+      try {
+        await cmdData.after.call(client, m, { client, command, usedPrefix })
+      } catch (err) {
+        console.error(chalk.red(`❌ Error en AFTER del comando ${command}:`), err)
+      }
+    }
+
+    await runGlobalMiddlewares('after', m, client, isOwner)
+
+  } catch (err) {
+    console.error('🔥 Error fatal en main.js:', err)
+  }
 }
