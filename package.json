@@ -1,6 +1,6 @@
 {
   "name": "lucoa-bot-md",
-  "version": "1.0",
+  "version": "3.5.0",
   "description": "Lucoa-Bot-MD WhatsApp bot using Baileys",
   "main": "index.js",
   "type": "module",
