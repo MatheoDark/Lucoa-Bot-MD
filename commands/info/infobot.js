@@ -6,122 +6,90 @@ function rTime(seconds) {
   const h = Math.floor((seconds % (3600 * 24)) / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = Math.floor(seconds % 60)
-  const dDisplay = d > 0 ? d + (d === 1 ? " día, " : " días, ") : ""
-  const hDisplay = h > 0 ? h + (h === 1 ? " hora, " : " horas, ") : ""
-  const mDisplay = m > 0 ? m + (m === 1 ? " minuto, " : " minutos, ") : ""
-  const sDisplay = s > 0 ? s + (s === 1 ? " segundo" : " segundos") : ""
-  return dDisplay + hDisplay + mDisplay + sDisplay
+  return (d > 0 ? d + (d === 1 ? " día, " : " días, ") : "") +
+         (h > 0 ? h + (h === 1 ? " hora, " : " horas, ") : "") +
+         (m > 0 ? m + (m === 1 ? " minuto, " : " minutos, ") : "") +
+         (s > 0 ? s + (s === 1 ? " segundo" : " segundos") : "")
 }
 
 export default {
   command: ['infobot', 'infosocket'],
   category: 'info',
-  run: async ({client, m}) => {
+  run: async ({ client, m }) => {
+    // 1. Carga segura de configuración
     const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
     const botSettings = global.db.data.settings[botId] || {}
-
+    
+    // Valores por defecto para evitar CRASH
     const botname = botSettings.namebot || 'Lucoa Bot'
     const botname2 = botSettings.namebot2 || 'Lucoa'
     const monedas = botSettings.currency || 'BitCoins'
-    const banner = botSettings.banner
-    const prefijo = botSettings.prefijo
-    const owner = botSettings.owner
-    const canalId = botSettings.id
-    const canalName = botSettings.nameid
-    const link = botSettings.link
+    const banner = botSettings.banner || 'https://i.pinimg.com/736x/2a/39/19/2a39199d63c5a704259b15d21a525d88.jpg'
+    const prefijo = botSettings.prefijo || '#'
+    
+    // Detectar dueño de forma segura
+    const owners = global.owner || []
+    const firstOwner = owners[0] ? owners[0][0] + '@s.whatsapp.net' : ''
+    const owner = botSettings.owner || firstOwner || ''
+    
+    const link = botSettings.link || 'https://github.com/MatheoDark/Lucoa-Bot-MD'
+    
+    // 🔥 AQUÍ FALTABA ESTA VARIABLE:
+    const dev = 'MatheoDark' 
 
-    let desar = 'Oculto'
-    if (owner && !isNaN(owner.replace(/@s\.whatsapp\.net$/, ''))) {
-      const userData = global.db.data.users[owner]
-      desar = userData?.genre || 'Oculto'
-    }
-
+    // 2. Info del Sistema
     const platform = os.type()
-    const now = new Date()
-    const colombianTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-    const nodeVersion = process.version
     const sistemaUptime = rTime(os.uptime())
-
-    const uptime = process.uptime()
-    const uptimeDate = new Date(colombianTime.getTime() - uptime * 1000)
-    const formattedUptimeDate = uptimeDate.toLocaleString('es-ES', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).replace(/^./, m => m.toUpperCase())
-
-    const isOficialBot = botId === global.client.user.id.split(':')[0] + "@s.whatsapp.net"
-
-    const botType = isOficialBot ? 'Principal/Owner' : 'Sub Bot'
+    const nodeVersion = process.version
+    
+    const isOficialBot = botId === (global.client?.user?.id?.split(':')[0] + "@s.whatsapp.net")
+    const botType = isOficialBot ? 'Principal 👑' : 'Sub-Bot 🤖'
 
     try {
-    const message = `🔥 Información del bot *${botname2}!*
+      const message = `🔥 *INFORMACIÓN DEL SISTEMA*
 
-> *Nombre Corto ›* ${botname2}
-> *Nombre Largo ›* ${botname}
-> *Moneda ›* ${monedas}
-> *Prefijo ›* ${prefijo}
+👤 *Nombre:* ${botname2}
+🤖 *Tipo:* ${botType}
+🪙 *Moneda:* ${monedas}
+🔧 *Prefijo:* [ ${prefijo} ]
 
-> *Tipo ›* ${botType}
-> *Plataforma ›* ${platform}
-> *NodeJS ›* ${nodeVersion}
-> *Activo desde ›* ${formattedUptimeDate}
-> *Sistema Activo ›* ${sistemaUptime}
-> *${desar === 'Hombre' ? 'Dueño' : desar === 'Mujer' ? 'Dueña' : 'Dueño(a)'} ›* ${owner ? (!isNaN(owner.replace(/@s\.whatsapp\.net$/, '')) ? `@${owner.split('@')[0]}` : owner) : "Oculto por privacidad"}
+💻 *Plataforma:* ${platform}
+📦 *NodeJS:* ${nodeVersion}
+⏳ *Tiempo Activo:* ${sistemaUptime}
+👑 *Dueño:* ${owner ? `@${owner.split('@')[0]}` : 'Desconocido'}
 
-> \`Enlace:\` ${link}`.trim()
+🔗 *Enlace:* ${link}`.trim()
 
-if (banner.endsWith('.mp4') || banner.endsWith('.gif') || banner.endsWith('.webm')) {
-await client.sendMessage(
-  m.chat,
-  {
-    video: { url: banner },
-    gifPlayback: true,
-    caption: message.trim(),
-    contextInfo: {
-      mentionedJid: [owner, m.sender],
-      isForwarded: true,
-      forwardedNewsletterMessageInfo: {
-        newsletterJid: canalId,
-        serverMessageId: '0',
-        newsletterName: canalName,
+      // 3. Enviar mensaje
+      // Verificamos si es video/gif
+      if (String(banner).match(/\.(mp4|gif|webm)$/i)) {
+        await client.sendMessage(m.chat, { 
+            video: { url: banner }, 
+            caption: message,
+            gifPlayback: true,
+            contextInfo: { mentionedJid: [owner, m.sender] }
+        }, { quoted: m })
+      } else {
+        // Si es imagen, usamos el adReply
+        await client.sendMessage(m.chat, { 
+            text: message,
+            contextInfo: {
+              mentionedJid: [owner, m.sender],
+              externalAdReply: {
+                title: botname,
+                body: `Powered by ${dev}`, // Ahora 'dev' sí existe
+                thumbnailUrl: banner,
+                sourceUrl: link,
+                mediaType: 1,
+                renderLargerThumbnail: true
+              }
+            }
+        }, { quoted: m })
       }
+
+    } catch (e) {
+      console.error("Error en infobot:", e)
+      m.reply('❌ Ocurrió un error al obtener la información.')
     }
-  },
-  { quoted: m }
-)
-} else {
-  await client.sendMessage(
-    m.chat,
-    {
-      text: message.trim(),
-      contextInfo: {
-        mentionedJid: [owner, m.sender],
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-          newsletterJid: canalId,
-          serverMessageId: '0',
-          newsletterName: canalName,
-        },
-        externalAdReply: {
-          title: botname,
-          body: dev,
-          showAdAttribution: false,
-          thumbnailUrl: banner,
-          mediaType: 1,
-          previewType: 0,
-          renderLargerThumbnail: true
-        }
-      }
-    },
-    { quoted: m }
-  )
-}
-   } catch (e) {
-     m.reply(msgglobal)
-   }
   }
 };
