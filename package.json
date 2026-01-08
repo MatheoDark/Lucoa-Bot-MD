@@ -29,6 +29,7 @@
     "canvas": "^2.11.2",
     "cfonts": "^3.3.0",
     "chalk": "^4.1.2",
+    "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "fluent-ffmpeg": "^2.1.2",
     "form-data": "^4.0.0",
