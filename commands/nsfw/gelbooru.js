@@ -1,43 +1,56 @@
-import fetch from 'node-fetch';
+import fetch from 'node-fetch'
 
 export default {
-  command: ['gelbooru', 'gbooru'],
+  command: ['gelbooru', 'gbooru', 'rule34', 'danbooru'],
   category: 'nsfw',
   run: async ({client, m, args}) => {
     const chatId = m.chat
-    const db = global.db
+    
+    // FIX: Usar global.db
+    if (global.db.data.chats[chatId] && !global.db.data.chats[chatId].nsfw) {
+        return m.reply('🚫 Activa el NSFW con `.enable nsfw`')
+    }
+    
+    if (!args[0]) return m.reply('🔍 Ingresa un tag. Ejemplo: `#gelbooru girl`')
 
-    if (!db.data.chats[chatId]?.nsfw)
-      return m.reply(
-        'ꕥ Los comandos de *NSFW* están desactivados en este grupo. Usa `.enable nsfw` para activarlos.',
-      )
+    const tag = args.join('_')
+    m.reply(`⌛ Buscando *${tag}* en servidores seguros...`)
 
-    if (!args[0]) return m.reply('《✧》 Por favor, ingresa un *tag* para realizar la búsqueda.')
+    let url = null
+    let source = ''
 
-    await m.reply(mess.wait)
+    // 1. DANBOORU (Más estable)
+    try {
+        const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
+        const data = await res.json()
+        const valid = data.filter(p => p.file_url || p.large_file_url)
+        if (valid.length > 0) {
+            const post = valid[Math.floor(Math.random() * valid.length)]
+            url = post.file_url || post.large_file_url
+            source = 'Danbooru'
+        }
+    } catch (e) {}
 
-    const tag = args[0]
-    const url = `${api.url}/nsfw/gelbooru?keyword=${tag}&key=${api.key}`
+    // 2. YANDERE (Respaldo)
+    if (!url) {
+        try {
+            const res = await fetch(`https://yande.re/post.json?tags=${tag}&limit=50`)
+            const data = await res.json()
+            const valid = data.filter(p => p.file_url)
+            if (valid.length > 0) {
+                url = valid[Math.floor(Math.random() * valid.length)].file_url
+                source = 'Yandere'
+            }
+        } catch (e) {}
+    }
+
+    if (!url) return m.reply(`❌ No encontré nada para: ${tag}`)
 
     try {
-      const res = await fetch(url)
-      const data = await res.json()
-
-      if (!Array.isArray(data.results) || data.results.length === 0)
-        return m.reply(`ꕥ No se encontraron resultados para *${tag}*. Intenta con otro término.`)
-
-      const randomImage = data.results[Math.floor(Math.random() * data.results.length)]
-
-      await client.sendMessage(
-        chatId,
-        {
-          image: { url: randomImage }
-        },
-        { quoted: m },
-      )
-    } catch (err) {
-      console.error('[Gelbooru Error]', err)
-      return m.reply(msgglobal)
+        await client.sendMessage(chatId, { image: { url: url }, caption: `🔞 *Result*\n🏷️ *Tag:* ${tag}\n📡 *Server:* ${source}` }, { quoted: m })
+    } catch (e) {
+        console.error(e)
+        m.reply('❌ Error al enviar la imagen.')
     }
-  },
-};
+  }
+}
