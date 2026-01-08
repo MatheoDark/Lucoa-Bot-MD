@@ -1,33 +1,60 @@
 export default {
-  command: ['darplata'],
+  command: ['darplata', 'addcoins', 'darcoins', 'givecoins'], // Agregué alias útiles
   category: 'Owner',
-  isOwner:true,
-  run: async ({client, m, text, usedPrefix, args, command}) => {
+  isOwner: true, // Solo tú puedes usarlo
 
-  let [cantidadInput, ...rest] = text.split(' ');
-  let texto = await m.mentionedJid;
-  let who = texto.length > 0 ? texto[0] : false;
+  run: async ({ client, m, text, usedPrefix, command }) => {
+    
+    // 1. Detectar moneda del bot
+    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+    const currency = global.db.data.settings[botId]?.currency || 'Monedas' // Fallback si no hay nombre
 
-  let botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
-  let botSettings = globalThis.db.data.settings[botId];
-  let monedas = botSettings?.currency
+    // 2. Detectar A QUIÉN se le da (Mención O Responder mensaje)
+    let who
+    if (m.isGroup) {
+        if (m.mentionedJid.length > 0) who = m.mentionedJid[0]
+        else if (m.quoted) who = m.quoted.sender
+        else who = false
+    } else {
+        who = m.chat // Si es chat privado, es al otro usuario
+    }
 
-  if (!cantidadInput)
-    return m.reply(`✧ Ingresa una cantidad de *${monedas}* que quieras dar.\n\n📌 Ejemplo:\n> *${usedPrefix + command} 1000 @usuario*`);
+    if (!who) return m.reply(`⚠️ *Error:* Debes mencionar a alguien o responder a su mensaje.\n\n📌 *Uso:* ${usedPrefix + command} 1000 @usuario`)
 
-  if (!who)
-    return m.reply(`✧ Debes mencionar a quien quieras otorgar *${monedas}*.\n\n📌 Ejemplo:\n> *${usedPrefix + command} 1000 @usuario*`);
+    // 3. Detectar CANTIDAD (Limpia el texto quitando la mención para encontrar el número)
+    // Esto permite poner el número antes o después de la etiqueta
+    let txt = text.replace('@' + who.split('@')[0], '').trim()
+    
+    // Soporte para "k" (ej: 1k = 1000)
+    if (txt.toLowerCase().endsWith('k')) {
+        txt = parseFloat(txt) * 1000
+    }
+    
+    let cantidad = parseInt(txt)
 
-  let cantidad = parseInt(cantidadInput);
-  if (isNaN(cantidad) || cantidad <= 0)
-    return m.reply(`✧ Ingresa una cantidad válida de *${monedas}*.`);
+    if (isNaN(cantidad) || cantidad <= 0) {
+        return m.reply(`⚠️ *Error:* Ingresa una cantidad válida.\n\n📌 *Ejemplo:* ${usedPrefix + command} 500 @usuario`)
+    }
 
-    let targetUser = globalThis.db.data.chats[m.chat].users[who];
-  if (!targetUser)
-    return m.reply(`「✎」 El usuario mencionado no está registrado en el bot.`);
+    // 4. Acceder a la Base de Datos GLOBAL (Users, no Chats)
+    let users = global.db.data.users
+    
+    // Si el usuario no existe en la DB, lo iniciamos para que no de error
+    if (!users[who]) {
+        users[who] = { coins: 0, exp: 0, limit: 10 } 
+    }
 
-  targetUser.coins = (targetUser.coins || 0) + cantidad;
+    // 5. Ejecutar transacción
+    users[who].coins = (users[who].coins || 0) + cantidad
 
-  let cantidadFormatted = cantidad.toLocaleString();
-  await client.reply(m.chat, `✅ Has otorgado *¥${cantidadFormatted} ${monedas}* a *@${who.split('@')[0]}*.`, m, { mentions: [who] });
-  }}
+    // 6. Confirmación con estilo
+    await client.sendMessage(m.chat, { 
+        text: `✅ *TRANSACCIÓN EXITOSA*\n\n` +
+              `👤 *Usuario:* @${who.split('@')[0]}\n` +
+              `💰 *Monto:* +${cantidad.toLocaleString()} ${currency}\n` +
+              `🏦 *Nuevo Saldo:* ${(users[who].coins).toLocaleString()} ${currency}\n\n` +
+              `> 🐲 Powered by MatheoDark`,
+        mentions: [who]
+    }, { quoted: m })
+  }
+}
