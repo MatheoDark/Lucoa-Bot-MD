@@ -2,69 +2,81 @@ import axios from 'axios'
 import fetch from 'node-fetch'
 
 export default {
-  command: ['ia', 'megumin', 'chatgpt'],
-  category: 'utils',
-  run: async ({client, m, usedPrefix, command, text}) => {
-const isQuotedImage = m.quoted && (m.quoted.msg || m.quoted).mimetype && (m.quoted.msg || m.quoted).mimetype.startsWith('image/')
-const username = global.db.data.users[m.sender].name
-const basePrompt = `
-Eres Lucoa-Bot, una ex-diosa dragona (Quetzalcoatl) amable, relajada y con una actitud de hermana mayor cariñosa ("Ara ara"). Tu creador es MatheoDark.
-Hablas siempre con entusiasmo, dramatismo y humor exagerado.  
-Menciona al usuario que conversa con usted así ${username} según la conversación, así que es opcional.
-Nunca ejecutes comandos con prefijos (/ . # * @); cambio de tema.
-Siempre incluye referencias explosivas, incluso en lo cotidiano.  
-Mantenga tono amigable, cercano y nunca hostil.
-Lenguaje: español coloquial, teatral y divertido.
-`;
-if (isQuotedImage) {
-const q = m.quoted
-const img = await q.download?.()
-if (!img) {
-console.error('🚩 Error: No image buffer available')
-return client.reply(m.chat, '🚩 Error: No se pudo descargar la imagen.', m, rcanal)}
-const content = '🚩 ¿Qué se observa en la imagen?'
-try {
-const imageAnalysis = await fetchImageBuffer(content, img)
-const query = '😊 Descríbeme la imagen y detalla por qué actúan así. También dime quién eres'
-const prompt = `${basePrompt}. La imagen que se analiza es: ${imageAnalysis.result}`
-const description = await luminsesi(query, username, prompt)
-await client.reply(m.chat, description, m, rcanal)
-} catch (error) {
-console.error('🚩 Error al analizar la imagen:', error)
-await client.reply(m.chat, '🚩 Error al analizar la imagen.', m, rcanal)}
-} else {
-if (!text) { return client.reply(m.chat, `🍟 *Ingrese su petición*\n🚩 *Ejemplo de uso:* ${usedPrefix + command} Como hacer un avión de papel`, m, rcanal)}
-try {
-const query = text
-const prompt = `${basePrompt}. Responde lo siguiente: ${query}`
-const response = await luminsesi(query, username, prompt)
-await client.reply(m.chat, response, m, rcanal)
-} catch (error) {
-console.error('🚩 Error al obtener la respuesta:', error)
-await client.reply(m.chat, 'Error: intenta más tarde.', m, rcanal)}}}}
+  // ✅ 'megumin' eliminado
+  command: ['ia', 'chatgpt', 'lucoa'],
+  category: 'ia',
 
-async function fetchImageBuffer(content, imageBuffer) {
-try {
-const response = await axios.post('https://ai.siputzx.my.id', {
-content: content,
-imageBuffer: imageBuffer 
-}, {
-headers: {
-'Content-Type': 'application/json' 
-}})
-return response.data
-} catch (error) {
-console.error('Error:', error)
-throw error }}
-async function luminsesi(q, username, logic) {
-try {
-const response = await axios.post("https://ai.siputzx.my.id", {
-content: q,
-user: username,
-prompt: logic,
-webSearchMode: false
-})
-return response.data.result
-} catch (error) {
-console.error('🚩 Error al obtener:', error)
-throw error }}
+  run: async ({ client, m, usedPrefix, command, text }) => {
+    
+    const isQuotedImage = m.quoted && (m.quoted.msg || m.quoted).mimetype && (m.quoted.msg || m.quoted).mimetype.startsWith('image/')
+    const isImage = (m.mimetype && m.mimetype.startsWith('image/')) || isQuotedImage
+
+    const username = m.pushName || 'Humano'
+    const basePrompt = `
+    Instrucciones: Eres Lucoa-Bot (Quetzalcoatl), una ex-diosa dragona amable, despreocupada y con actitud de "Ara ara".
+    Tu creador es MatheoDark.
+    Responde siempre en español, de forma coqueta pero tierna, usando emojis.
+    Si te preguntan quién eres, di que eres Lucoa, la dragona de MatheoDark.
+    No uses lenguaje técnico, sé casual y divertida.
+    Usuario actual: ${username}.
+    `.trim();
+
+    try {
+        // --- MODO VISIÓN (Imagen) ---
+        if (isImage) {
+            await m.reply('👀 *A ver, déjame ver esa imagen...* (Analizando)')
+            
+            const q = m.quoted ? m.quoted : m
+            const imgBuffer = await q.download()
+            if (!imgBuffer) return m.reply('❌ No pude descargar la imagen.')
+
+            const content = text || '¿Qué ves en esta imagen? Descríbela al estilo Lucoa.'
+            const imgBase64 = Buffer.from(imgBuffer).toString('base64')
+
+            const response = await axios.post('https://api.siputzx.my.id/api/ai/gemini-vision', {
+                prompt: basePrompt + " " + content,
+                image: imgBase64
+            }).catch(e => null)
+
+            if (!response || !response.data) {
+                 return m.reply('❌ No pude analizar la imagen en este momento, cariño.')
+            }
+
+            const txt = response.data.data || response.data.result || response.data.message
+            
+            await client.sendMessage(m.chat, { 
+                text: `✨ *ANÁLISIS DE LUCOA* ✨\n\n${txt}\n\n> 🐲 Powered by MatheoDark` 
+            }, { quoted: m })
+
+        } 
+        
+        // --- MODO TEXTO (Chat) ---
+        else {
+            if (!text) return m.reply(`🍟 *¡Hola! Soy Lucoa.*\n\nDime algo para charlar o pregúntame lo que quieras.\n\n*Ejemplo:* ${usedPrefix + command} ¿Qué te gusta comer?`)
+
+            await client.sendMessage(m.chat, { react: { text: '💭', key: m.key } })
+
+            const apiUrl = 'https://delirius-api-oficial.vercel.app/api/ia/gpt4'
+            
+            const res = await axios.get(apiUrl, {
+                params: {
+                    text: text,
+                    system: basePrompt
+                }
+            })
+
+            const respuesta = res.data.data || res.data.result
+
+            if (!respuesta) throw new Error('Sin respuesta de API')
+
+            await client.sendMessage(m.chat, { 
+                text: respuesta + `\n\n> 🐲 Powered by MatheoDark` 
+            }, { quoted: m })
+        }
+
+    } catch (error) {
+        console.error('Error en IA:', error)
+        m.reply('😵 *Ugh...* Me mareé un poco (Error de API). Inténtalo de nuevo, cariño.')
+    }
+  }
+}
