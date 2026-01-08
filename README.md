@@ -1,15 +1,16 @@
-<h1 align="center">🐉 LUCOA-BOT-MD 🐉</h1>
+<h1 align="center">🐉 LUCOA-BOT-MD V3.5 🐉</h1>
 
 <p align="center">
   <a href="https://github.com/MatheoDark/Lucoa-Bot-MD">
-    <img src="media/lucoa-anime-waving-ql3s2yfn0dzu4e75.gif" alt="Lucoa Banner" width="100%">
+    <img src="media/lucoa-anime-waving-ql3s2yfn0dzu4e75.gif" alt="Lucoa Banner" width="100%" style="border-radius: 10px;">
   </a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Versión-3.5.0-red?style=for-the-badge&logo=github">
-  <img src="https://img.shields.io/badge/Autor-MatheoDark-blue?style=for-the-badge&logo=whatsapp">
-  <img src="https://img.shields.io/badge/Base-Baileys-green?style=for-the-badge&logo=node.js">
+  <img src="https://img.shields.io/badge/Autor-MatheoDark-blue?style=for-the-badge&logo=visualstudiocode">
+  <img src="https://img.shields.io/badge/Base-Baileys-green?style=for-the-badge&logo=whatsapp">
+  <img src="https://img.shields.io/badge/Node.js-20.x-339933?style=for-the-badge&logo=nodedotjs">
 </p>
 
 <p align="center">
@@ -20,25 +21,58 @@
 
 ---
 
----
-
 ## 📝 Descripción
 
-**Lucoa-Bot-MD** es una versión recodificada, estable y optimizada del bot de WhatsApp. Esta versión (V3.5) se centra en la estabilidad 24/7, la corrección de errores de API y la implementación de **Web Scraping** para comandos NSFW, garantizando funcionamiento sin bloqueos.
+**Lucoa-Bot-MD** es un bot de WhatsApp recodificado, enfocado en la **estabilidad, velocidad y funciones avanzadas**. 
+Esta versión elimina errores comunes de bots públicos, optimiza el consumo de RAM y cuenta con un sistema de instalación automatizado para VPS.
 
-### ✨ Novedades de esta versión (V3.5)
-* 🛠️ **Estructura V3:** Migración completa de comandos a formato `export default { run: ... }`.
-* 🔞 **R34 Mejorado:** Sistema *Anti-Bloqueo* que usa Web Scraping (sin API Key) para saltar restricciones.
-* 📦 **Modo Pack:** El comando `#r34` ahora envía automáticamente packs de 5 fotos/videos.
-* 🎥 **HentaiVid Fix:** Reparado el descargador de videos aleatorios con `node-fetch`.
-* 🛡️ **Seguridad:** Eliminación de archivos inestables (Hangman) y dependencias rotas.
-* 🚀 **PM2 Ready:** Optimizado para correr 24/7 en servidores VPS sin apagarse.
+### ✨ Novedades Épicas (V3.5)
+
+| Característica | Descripción |
+| :--- | :--- |
+| 🐍 **Motor Hydra** | Búsqueda inteligente en `#pinterest` y `#r34`. Si una API falla, salta a la siguiente automáticamente. |
+| 🤫 **Modo Silencioso** | El bot ya no hace spam de "comando no existe". Si te equivocas, simplemente te ignora. |
+| 🕵️‍♂️ **QC Detectivesco** | El comando `#qc` ahora detecta automáticamente el nombre real, apodo o número. ¡Adiós al "Sin Nombre"! |
+| ⚡ **Instalador Mágico** | Nuevo script `setup.sh` que instala FFmpeg, ImageMagick y dependencias con un solo comando. |
+| 🔞 **Anti-Bloqueo** | Scraping directo para comandos NSFW. Funciona incluso sin API Keys. |
+| 🛡️ **Base de Datos** | Sistema `global.db` robusto que evita caídas si se reinicia el bot. |
 
 ---
 
 ## 🛠️ Instalación
 
-### 💻 Termux (Android)
+### 🖥️ Opción 1: VPS / Servidor (Ubuntu/Debian) - ¡RECOMENDADO! 🚀
+
+Olvídate de instalar cosas manualmente. Hemos creado un instalador universal.
+
+1. **Clonar el repositorio:**
+```
+git clone [https://github.com/MatheoDark/Lucoa-Bot-MD](https://github.com/MatheoDark/Lucoa-Bot-MD)
+cd Lucoa-Bot-MD
+
+```
+
+2. **Ejecutar el Instalador Maestro:**
+*(Esto instalará FFmpeg, Node.js, ImageMagick y todas las librerías automáticamente)*
+
+```bash
+chmod +x setup.sh
+./setup.sh
+
+```
+
+3. **Escanear código QR:**
+
+```bash
+npm start
+
+```
+
+---
+
+### 📱 Opción 2: Termux (Android)
+
+Si usas el bot en tu celular:
 
 ```bash
 termux-setup-storage
@@ -48,33 +82,6 @@ git clone [https://github.com/MatheoDark/Lucoa-Bot-MD](https://github.com/Matheo
 cd Lucoa-Bot-MD
 npm install
 npm start
-```
-### 🖥️ VPS / Servidor (Ubuntu/Debian)
-
-1. **Instalar dependencias:**
-
-```bash
-sudo apt update
-sudo apt install nodejs git ffmpeg libwebp -y
-
-```
-
-2. **Clonar e instalar:**
-
-```bash
-git clone [https://github.com/MatheoDark/Lucoa-Bot-MD](https://github.com/MatheoDark/Lucoa-Bot-MD)
-cd Lucoa-Bot-MD
-npm install
-
-```
-
-3. **Ejecutar con PM2 (Recomendado para 24/7):**
-
-```bash
-npm install -g pm2
-pm2 start index.js --name "Lucoa"
-pm2 save
-pm2 startup
 
 ```
 
@@ -82,27 +89,68 @@ pm2 startup
 
 ## ⚙️ Comandos Destacados
 
-| Comando | Descripción | Categoría |
-| --- | --- | --- |
-| `#menu` | Muestra la lista completa de comandos. | Principal |
-| `#r34 <tag>` | Busca packs (5) de imágenes/videos en Rule34 (Anti-Ban). | NSFW |
-| `#hentaivid` | Descarga un video Hentai aleatorio (API V3). | NSFW |
-| `#s` | Convierte imagen/video a Sticker. | Maker |
+<details>
+<summary>🔎 <b>Búsquedas e Imágenes</b></summary>
+
+* `#pinterest <texto>` - Motor Hydra (Multi-API + Scraping).
+* `#imagen <texto>` - Búsqueda en Google Images.
+* `#sticker` - Crea stickers (imágenes o videos).
+* `#qc <texto>` - Crea stickers de texto estilo iPhone.
+
+</details>
+
+<details>
+<summary>🔞 <b>Zona NSFW (Premium)</b></summary>
+
+* `#r34 <tag>` - Busca packs automáticos (5 imágenes) sin censura.
+* `#hentaivid` - Descarga videos aleatorios (API V3 reparada).
+* `#gelbooru` - Buscador avanzado de anime.
+
+</details>
+
+<details>
+<summary>👑 <b>Administración y Utils</b></summary>
+
+* `#setname <nombre>` - Establece tu apodo global para el bot.
+* `#delname` - Borra tu apodo.
+* `#kick @tag` - Expulsar usuarios.
+* `#menu` - Muestra todos los comandos disponibles.
+
+</details>
+
+---
+
+## 📁 Estructura del Proyecto
+
+```text
+Lucoa-Bot-MD/
+├── 📂 commands/       # Plugins y comandos (sistema modular)
+├── 📂 lib/            # Funciones internas y utilidades
+├── 📜 main.js         # Núcleo del bot (Manejador silencioso)
+├── 📜 index.js        # Archivo de conexión (Baileys)
+├── 📜 setup.sh        # 🚀 Script de instalación automática
+└── 📜 settings.js     # Configuración de propietario
+
+```
 
 ---
 
 ## 👑 Créditos & Autores
 
-* **MatheoDark** - *Desarrollador Principal, Fixes V3, Web Scraping R34*
+* **MatheoDark** - *Desarrollador Principal, Fixes V3, Motor Hydra & Setup Script*
 * **David Chian / Megumin** - *Base Original*
-* **Baileys Library** - *Conexión WhatsApp*
+* **Baileys Library** - *Conexión WhatsApp Multi-Device*
 
 ---
 
 <p align="center">
-<i>Desarrollado con ❤️ por MatheoDark</i>
+<i>Desarrollado con ❤️ y mucho café por <b>MatheoDark</b></i>
+
+
+
+
+<i>Copyright © 2025 Lucoa-Bot-MD</i>
 </p>
 
 ```
 
-```
