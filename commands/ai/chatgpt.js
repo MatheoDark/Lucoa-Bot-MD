@@ -1,56 +1,46 @@
 import fetch from 'node-fetch'
 
 export default {
-  // Agregué variaciones para asegurar que responda
   command: ['ia', 'chatgpt', 'lucoa', 'gpt'],
   category: 'ia',
 
   run: async ({ client, m, usedPrefix, command, text }) => {
     
-    // Configuración de Personalidad
     const username = m.pushName || 'Humano'
-    const basePrompt = `
-    Personaje: Lucoa-Bot (Quetzalcoatl).
-    Personalidad: Diosa dragona, hermana mayor, despreocupada, coqueta "Ara ara", amable.
-    Creador: MatheoDark.
-    Contexto: Estás hablando por WhatsApp con ${username}.
-    Instrucción: Responde en español, sé breve y divertida. No uses lenguaje técnico.
-    `.trim();
+    // Personalidad compacta para que la API la entienda mejor
+    const systemPrompt = `Actúa como Lucoa-Bot (Quetzalcoatl). Eres una diosa dragona amable y coqueta ("Ara ara"). Tu creador es MatheoDark. Responde en español de forma divertida a ${username}.`
 
     try {
-        // --- MODO TEXTO (Chat) ---
-        if (!text) return m.reply(`🍟 *¡Hola! Soy Lucoa.*\n\nCuéntame algo o pregúntame lo que quieras.\n\n*Ejemplo:* ${usedPrefix + command} ¿Cómo estás hoy?`)
+        if (!text) return m.reply(`🍟 *¡Hola! Soy Lucoa.*\n\nCuéntame algo.\n*Ejemplo:* ${usedPrefix + command} Hola`)
 
         await client.sendMessage(m.chat, { react: { text: '💭', key: m.key } })
 
-        // 🟢 NUEVA API (Más estable)
-        // Inyectamos la personalidad directamente en el prompt para asegurar que funcione
-        const fullPrompt = `${basePrompt}\n\nUsuario dice: ${text}`;
-        const apiUrl = `https://api.eliasar-yt.com/api/ai/gpt4o?text=${encodeURIComponent(fullPrompt)}`
+        // 🟢 API DE RESPALDO (Skizo/Siputzx) - Muy fiable para chat
+        // Usamos Llama 3 que es muy buena siguiendo roles
+        const apiUrl = `https://api.siputzx.my.id/api/ai/llama3?prompt=${encodeURIComponent(systemPrompt)}&text=${encodeURIComponent(text)}`
         
         const res = await fetch(apiUrl)
         const json = await res.json()
 
-        if (!json.status || !json.results) throw new Error('API sin respuesta')
+        if (!json.status || !json.data) throw new Error('API sin datos')
 
         await client.sendMessage(m.chat, { 
-            text: json.results + `\n\n> 🐲 Powered by MatheoDark` 
+            text: json.data + `\n\n> 🐲 Powered by MatheoDark` 
         }, { quoted: m })
 
     } catch (error) {
         console.error('Error en IA:', error)
-        // Si falla la primera, intentamos una API de respaldo (Backup)
+        // Backup final: API simple de GPT
         try {
-            const backupUrl = `https://api.ryzendesu.vip/api/ai/chatgpt?text=${encodeURIComponent(text)}&prompt=${encodeURIComponent(basePrompt)}`
-            const resBackup = await fetch(backupUrl)
-            const jsonBackup = await resBackup.json()
+            const backupUrl = `https://delirius-api-oficial.vercel.app/api/ia/gptweb?text=${encodeURIComponent(text)}`
+            const res2 = await fetch(backupUrl)
+            const json2 = await res2.json()
             
             await client.sendMessage(m.chat, { 
-                text: jsonBackup.response + `\n\n> 🐲 Powered by MatheoDark` 
+                text: json2.gpt + `\n\n> 🐲 Powered by MatheoDark` 
             }, { quoted: m })
-            
         } catch (e2) {
-            m.reply('😵 *Ugh...* Mis neuronas fallaron. La API está caída, intenta en un rato.')
+             m.reply('😵 Mis servidores están echando humo. Intenta más tarde.')
         }
     }
   }
