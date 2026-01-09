@@ -1,17 +1,19 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
   command: ['gachainfo', 'ginfo', 'infogacha'],
   category: 'gacha',
   run: async ({client, m, args}) => {
     const db = global.db.data
     const chatId = m.chat
-    const userId = m.sender
     const chatData = db.chats[chatId] || {}
     const now = Date.now()
 
     if (chatData.adminonly || !chatData.gacha)
       return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
 
-    // --- MODELO HÍBRIDO ---
+    // --- MODELO HÍBRIDO + Resolución LID/JID ---
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     // Cooldowns desde usuario GLOBAL
     const globalUser = db.users[userId] || {}
     // Personajes desde usuario LOCAL (del grupo)
