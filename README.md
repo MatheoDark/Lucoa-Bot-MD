@@ -153,6 +153,19 @@ Para ver todas las actualizaciones, mejoras y correcciones de errores, consulta 
 <i>Desarrollado con ❤️ y mucho café por <b>MatheoDark</b></i>
 
 
+## 📜 Licencia
+Este proyecto es **software libre** bajo la licencia MIT.
+
+## 🤝 Créditos obligatorios
+Si utilizas este bot, su código o partes del mismo:
+
+- Debes mantener el archivo LICENSE
+- Debes mencionar al autor original: **Matheo-Dark**
+- Debes enlazar el repositorio original
+
+Ejemplo de crédito correcto:
+> Basado en Lucoa-Bot-MD por Matheo-Dark  
+> https://github.com/MatheoDark/lucoa-bot-md
 
 
 <i>Copyright © 2025 Lucoa-Bot-MD</i>
