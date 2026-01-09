@@ -15,14 +15,14 @@ export default {
   run: async ({client, m, args}) => {
     const db = global.db.data
     const chatId = m.chat
-    const chatData = db.chats[chatId]
+    const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.gacha)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
     try {
       const name = args.join(' ')
-      if (!name) return m.reply('《✧》 Por favor especifica un anime.')
+      if (!name) return m.reply('《✧》 Por favor especifica un anime. Ejemplo: *ainfo Naruto*')
 
       const characters = await loadCharacters()
       const animeCharacters = characters.filter(
@@ -33,11 +33,11 @@ export default {
       if (animeCharacters.length === 0)
         return m.reply(`《✧》 No se encontró el anime con nombre: "${name}".`)
 
+      // Contar cuántos están reclamados EN ESTE GRUPO
       const claimedCount = animeCharacters.filter((char) => {
-        const usuarioPoseedor = Object.entries(chatData.users).find(
-          ([_, u]) => Array.isArray(u.characters) && u.characters.some((c) => c.name === char.name),
+        return Object.entries(chatData.users || {}).some(
+          ([_, u]) => Array.isArray(u.characters) && u.characters.some((c) => c.name === char.name)
         )
-        return !!usuarioPoseedor
       }).length
 
       const totalCharacters = animeCharacters.length
@@ -49,7 +49,7 @@ export default {
         `❀ *Reclamados ›* ${claimedCount}/${totalCharacters}\n\n` +
         `✎ *Lista de personajes* \n${animeCharacters
           .map((char) => {
-            const usuarioPoseedor = Object.entries(chatData.users).find(
+            const usuarioPoseedor = Object.entries(chatData.users || {}).find(
               ([_, u]) =>
                 Array.isArray(u.characters) && u.characters.some((c) => c.name === char.name),
             )
@@ -63,7 +63,8 @@ export default {
 
       await client.sendMessage(chatId, { text: message }, { quoted: m })
     } catch (error) {
-      await m.reply(msgglobal)
+      console.error(error)
+      await m.reply("Ocurrió un error al procesar la información de la serie.")
     }
   },
 };
