@@ -1,16 +1,21 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
   command: ['w', 'work'],
   category: 'rpg',
 
   run: async ({client, m}) => {
-    // --- CORRECCIÓN CRÍTICA: Referencias Globales ---
+    // --- CORRECCIÓN CRÍTICA: Referencias Globales + Resolución LID/JID ---
     const chat = global.db.data.chats[m.chat] || {};
     
+    // Resolver LID a JID real para asegurar consistencia
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    
     // Aquí cambiamos 'chat.users' por 'global.db.data.users'
-    if (!global.db.data.users[m.sender]) {
-        global.db.data.users[m.sender] = { coins: 0, workCooldown: 0 };
+    if (!global.db.data.users[userId]) {
+        global.db.data.users[userId] = { coins: 0, workCooldown: 0 };
     }
-    const user = global.db.data.users[m.sender];
+    const user = global.db.data.users[userId];
     
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
     const settings = global.db.data.settings[botId] || {};

@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
   command: ['ppt'],
   category: 'rpg',
@@ -7,11 +9,12 @@ export default {
     if (chatData.adminonly) return m.reply(`❒ Solo administradores.`);
     if (!chatData.rpg) return m.reply(`❒ Economía pausada.`);
 
-    // CORRECCIÓN: Usuario Global
-    let user = global.db.data.users[m.sender]
+    // CORRECCIÓN: Usuario Global + Resolución LID/JID
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    let user = global.db.data.users[userId]
     if (!user) {
-        global.db.data.users[m.sender] = { coins: 0, bank: 0, exp: 0 }
-        user = global.db.data.users[m.sender]
+        global.db.data.users[userId] = { coins: 0, bank: 0, exp: 0 }
+        user = global.db.data.users[userId]
     }
 
     if (!user.pptCooldown) user.pptCooldown = 0;

@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
   command: ['slut'],
   category: 'rpg',
@@ -22,11 +24,12 @@ export default {
       let botSettings = global.db.data.settings[botId] || {}
       let currency = botSettings.currency || 'monedas'
 
-      // CORRECCIÓN: Usuario Global
-      let user = global.db.data.users[m.sender]
+      // CORRECCIÓN: Usuario Global + Resolución LID/JID
+      const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+      let user = global.db.data.users[userId]
       if (!user) {
-         global.db.data.users[m.sender] = { exp: 0, coins: 0, logros: {}, lastProsti: 0 }
-         user = global.db.data.users[m.sender]
+         global.db.data.users[userId] = { exp: 0, coins: 0, logros: {}, lastProsti: 0 }
+         user = global.db.data.users[userId]
       }
 
       if (!user.logros) user.logros = {}
@@ -45,7 +48,7 @@ export default {
 
       let participantes = participants
         .map(v => v.id || v.jid)
-        .filter(id => id && id !== m.sender && id !== botId)
+        .filter(id => id && id !== userId && id !== botId)
       
       if (participantes.length === 0) return client.reply(m.chat, '💔 No hay clientes disponibles ahora mismo...', m)
 

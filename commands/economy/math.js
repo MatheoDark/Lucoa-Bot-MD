@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { resolveLidToRealJid } from '../../lib/utils.js'
 
 global.math = global.math || {};
 
@@ -29,8 +30,9 @@ async function run({client, m, args, command}) {
   const chatId = m.chat;
   const dbChat = global.db.data.chats[chatId] || {};
   
-  // CORRECCIÓN: Usuario Global para la recompensa
-  const user = global.db.data.users[m.sender];
+  // CORRECCIÓN: Usuario Global + Resolución LID/JID
+  const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+  const user = global.db.data.users[userId];
   
   const juego = global.math[chatId];
     if (dbChat.adminonly || !dbChat.rpg)

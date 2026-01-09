@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
   command: ['waittimes', 'cooldowns', 'economyinfo', 'einfo'],
   category: 'rpg',
@@ -10,8 +12,9 @@ export default {
     if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
 
-    // CORRECCIÓN: Usuario Global
-    const user = db.users[m.sender]
+    // CORRECCIÓN: Usuario Global + Resolución LID/JID
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    const user = db.users[userId]
     if (!user) return m.reply("⚠ Usuario no encontrado en la base de datos global.")
 
     const now = Date.now()
@@ -47,7 +50,7 @@ export default {
     }
 
     const coins = user.coins || 0
-    const name = user.name || m.sender.split('@')[0]
+    const name = user.name || userId.split('@')[0]
     const currency = global.db.data.settings[botId]?.currency || 'Coins'
 
     const mensaje = `✿ Usuario \`<${name}>\`

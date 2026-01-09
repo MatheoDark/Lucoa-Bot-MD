@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 const pickRandom = (list) => list[Math.floor(Math.random() * list.length)]
 
 const msToTime = (duration) => {
@@ -16,16 +18,15 @@ export default {
   run: async ({client, m}) => {
     const db = global.db.data
     const chatId = m.chat
-    const senderId = m.sender
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const botSettings = db.settings[botId] || {}
     const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
-    // CORRECCIÓN: Usuario Global
-    const user = db.users[m.sender]
+    // CORRECCIÓN: Usuario Global + Resolución LID/JID
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    const user = db.users[userId]
     if (!user) return m.reply("Usuario no registrado.")
 
     const cooldown = 7 * 24 * 60 * 60 * 1000
@@ -42,7 +43,7 @@ export default {
     user.lastWeekly = Date.now()
     const coins = pickRandom([5000, 10000, 15000, 20000]) // Aumenté los valores porque los originales eran muy bajos
     const exp = Math.floor(Math.random() * 1000)
-    const currency = botSettings.currency || 'Monedas'
+    const currency = db.settings[botId]?.currency || 'Monedas'
     
     // Aumentamos los valores en la DB global
     user.exp += exp
@@ -59,7 +60,7 @@ ${global.dev || ''}`.trim()
       chatId,
       {
         text: message,
-        mentions: [senderId],
+        mentions: [userId],
       },
       { quoted: m },
     )
