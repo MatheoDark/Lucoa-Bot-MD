@@ -1,55 +1,113 @@
-export default {
-  command: ['monthly', 'mensual'],
-  category: 'rpg',
-  run: async ({client, m}) => {
-    const db = global.db.data
-    const chatId = m.chat
-    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const botSettings = db.settings[botId] || {}
-    const monedas = botSettings.currency || 'Coins'
-    const chatData = db.chats[chatId] || {}
+import fs from 'fs';
 
-    if (chatData.adminonly || !chatData.rpg)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+global.math = global.math || {};
 
-    // CORRECCIÓN: Usuario Global
-    const user = db.users[m.sender]
-    if (!user) return m.reply("Usuario no encontrado.")
-
-    // Aumentamos recompensas mensuales para que valgan la pena
-    const coins = pickRandom([50000, 75000, 100000, 125000]) 
-    const exp = Math.floor(Math.random() * 5000)
-
-    const monthlyCooldown = 30 * 24 * 60 * 60 * 1000 // 30 días
-    const lastMonthly = user.lastMonthly || 0
-    const tiempoRestante = msToTime(monthlyCooldown - (Date.now() - lastMonthly))
-
-    if (Date.now() - lastMonthly < monthlyCooldown)
-      return m.reply(
-        `✎ Debes esperar ${tiempoRestante} para volver a reclamar tu recompensa mensual.`,
-      )
-
-    user.lastMonthly = Date.now()
-    user.exp = (user.exp || 0) + exp
-    user.coins = (user.coins || 0) + coins
-
-    const info = `☆ ໌　۟　𝖱𝖾𝖼𝗈𝗆𝗉𝖾𝗇𝗌𝖺　ׅ　팅화　ׄ
-
-> ✿ *Exp ›* ${exp}
-> ⛁ *${monedas} ›* ${coins}
-
-${global.dev || ''}`
-
-    await client.sendMessage(chatId, { text: info }, { quoted: m })
-  },
+const limits = {
+  facil: 10,
+  medio: 50,
+  dificil: 90,
+  imposible: 100,
+  imposible2: 160
 };
 
-function pickRandom(list) {
-  return list[Math.floor(Math.random() * list.length)]
+const generateRandomNumber = (max) => Math.floor(Math.random() * max) + 1;
+const getOperation = () => ['+', '-', '×', '÷'][Math.floor(Math.random() * 4)];
+
+const generarProblema = (dificultad) => {
+  const maxLimit = limits[dificultad] || 30;
+  const num1 = generateRandomNumber(maxLimit);
+  const num2 = generateRandomNumber(maxLimit);
+  const operador = getOperation();
+  const resultado = eval(`${num1} ${operador === '×' ? '*' : operador} ${num2}`);
+  return {
+    problema: `${num1} ${operador} ${num2}`,
+    resultado: operador !== '÷' ? resultado : resultado.toFixed(2)
+  };
+};
+
+async function run({client, m, args, command}) {
+  const chatId = m.chat;
+  const dbChat = global.db.data.chats[chatId] || {};
+  
+  // CORRECCIÓN: Usuario Global para la recompensa
+  const user = global.db.data.users[m.sender];
+  
+  const juego = global.math[chatId];
+    if (dbChat.adminonly || !dbChat.rpg)
+      return m.reply(`✐ Estos comandos estan desactivados en este grupo.`)
+
+  if (command === 'responder') {
+    if (!juego?.juegoActivo) return;
+
+    const quotedId = m.quoted?.key?.id || m.quoted?.id || m.quoted?.stanzaId;
+    if (quotedId !== juego.problemMessageId) return;
+
+    const respuestaUsuario = args[0]?.toLowerCase();
+    if (!respuestaUsuario)
+      return client.reply(chatId, '「✎」Debes escribir tu respuesta. Ejemplo: */responder 42*', m);
+
+    const respuestaCorrecta = juego.respuesta;
+    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
+    const primaryBotId = dbChat.primaryBot;
+
+    if (!primaryBotId || primaryBotId === botId) {
+      if (respuestaUsuario === respuestaCorrecta) {
+        const expaleatorio = Math.floor(Math.random() * 50) + 10;
+        
+        // Asignamos EXP al usuario global
+        if (user) {
+            user.exp = (user.exp || 0) + expaleatorio;
+        }
+
+        clearTimeout(juego.tiempoLimite);
+        delete global.math[chatId];
+
+        return client.reply(chatId, `「❀」Respuesta correcta.\n> *Ganaste ›* ${expaleatorio} Exp`, m);
+      } else {
+        juego.intentos += 1;
+        if (juego.intentos >= 3) {
+          clearTimeout(juego.tiempoLimite);
+          delete global.math[chatId];
+          return client.reply(chatId, '「✎」Te quedaste sin intentos. Suerte a la próxima.', m);
+        } else {
+          const intentosRestantes = 3 - juego.intentos;
+          return client.reply(chatId, `「✎」Respuesta incorrecta, te quedan ${intentosRestantes} intentos.`, m);
+        }
+      }
+    }
+    return;
+  }
+
+  if (command === 'math' || command === 'matematicas') {
+    if (juego?.juegoActivo)
+      return client.reply(chatId, 'ꕥ Ya hay un juego activo. Espera a que termine.', m);
+
+    const dificultad = args[0]?.toLowerCase();
+    if (!limits[dificultad])
+      return client.reply(chatId, '「✎」Especifica una dificultad válida: *facil, medio, dificil, imposible, imposible2*', m);
+
+    const { problema, resultado } = generarProblema(dificultad);
+    const problemMessage = await client.reply(chatId, `「✩」Tienes 1 minuto para resolver:\n\n> ✩ *${problema}*\n\n_✐ Usa » *${global.prefix || '/'}responder* para responder!_`, m);
+
+    global.math[chatId] = {
+      juegoActivo: true,
+      problema,
+      respuesta: resultado.toString(),
+      intentos: 0,
+      timeout: Date.now() + 60000,
+      problemMessageId: problemMessage.key?.id,
+      tiempoLimite: setTimeout(() => {
+        if (global.math[chatId]?.juegoActivo) {
+          delete global.math[chatId];
+          client.reply(chatId, '「✿」Tiempo agotado. El juego ha terminado.', m);
+        }
+      }, 60000)
+    };
+  }
 }
 
-function msToTime(duration) {
-  let days = Math.floor(duration / (1000 * 60 * 60 * 24))
-  let hours = Math.floor((duration / (1000 * 60 * 60)) % 24)
-  return `${days} d ${hours} h`
-}
+export default {
+  command: ['math', 'matematicas', 'responder'],
+  category: 'rpg',
+  run
+};
