@@ -22,16 +22,9 @@ async function saveCharacters(characters) {
 }
 
 function msToTime(duration) {
-  const seconds = Math.floor((duration / 1000) % 60)
   const minutes = Math.floor((duration / (1000 * 60)) % 60)
   const hours = Math.floor((duration / (1000 * 60 * 60)) % 24)
-
-  if (hours === 0 && minutes === 0) return `${seconds} segundo${seconds !== 1 ? 's' : ''}`
-
-  if (hours === 0)
-    return `${minutes} minuto${minutes !== 1 ? 's' : ''}, ${seconds} segundo${seconds !== 1 ? 's' : ''}`
-
-  return `${hours} hora${hours !== 1 ? 's' : ''}, ${minutes} minuto${minutes !== 1 ? 's' : ''}`
+  return `${hours}h ${minutes}m`
 }
 
 export default {
@@ -42,29 +35,32 @@ export default {
     const chatId = m.chat
     const userId = m.sender
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+    
+    // --- LÓGICA HÍBRIDA ---
+    // Usamos usuario global para el cooldown de voto
+    const userGlobal = db.users[userId]
+    const chatConfig = db.chats[chatId] || {}
+
+    // Verificaciones de bot (mantengo tu lógica original)
     const isOficialBot = botId === global.client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const isPremiumBot = global.db.data.settings[botId]?.botprem === true
-    const isModBot = global.db.data.settings[botId]?.botmod === true
+    const isPremiumBot = db.settings[botId]?.botprem === true
+    const isModBot = db.settings[botId]?.botmod === true
 
     if (!isOficialBot && !isPremiumBot && !isModBot) {
       return client.reply(m.chat, `《✧》El comando *${command}* no esta disponible en *Sub-Bots.*`, m)
     }
 
-    const chatConfig = db.chats[chatId]
-    const user = db.users[userId]
-
     if (chatConfig.adminonly || !chatConfig.gacha)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
-    if (!user.voteCooldown) user.voteCooldown = 0
-    const remainingTime = user.voteCooldown - Date.now()
+    // Cooldown Global
+    if (!userGlobal.voteCooldown) userGlobal.voteCooldown = 0
+    const remainingTime = userGlobal.voteCooldown - Date.now()
     if (remainingTime > 0)
-      return m.reply(`✎ Debes esperar *${msToTime(remainingTime)}* para usar *vote* nuevamente`)
+      return m.reply(`✎ Debes esperar *${msToTime(remainingTime)}* para votar nuevamente`)
 
     if (args.length === 0)
-      return m.reply(
-        `✎ Por favor, indica el nombre del personaje.`
-      )
+      return m.reply(`✎ Por favor, indica el nombre del personaje.`)
 
     try {
       const characterName = args.join(' ').toLowerCase().trim()
@@ -72,21 +68,19 @@ export default {
       const character = characters.find((c) => c.name.toLowerCase() === characterName)
 
       if (!character)
-        return m.reply(
-          `《✧》 No se encontró el personaje *${characterName}*. Asegúrate de escribirlo correctamente`,
-        )
+        return m.reply(`《✧》 No se encontró el personaje *${characterName}*.`)
 
-if ((character.votes || 0) >= 10) {
-  return m.reply(`《✧》 El personaje *${character.name}* ya tiene el valor máximo.`)
-}
+      if ((character.votes || 0) >= 10) {
+        // Límite de votos global por personaje (esto afecta a todos los usuarios)
+        // Puedes quitar esto si quieres votos infinitos
+        return m.reply(`《✧》 El personaje *${character.name}* ya tiene el valor máximo.`)
+      }
 
       if (characterVotes.has(characterName)) {
         const expires = characterVotes.get(characterName)
         const cooldownLeft = expires - Date.now()
         if (cooldownLeft > 0)
-          return m.reply(
-            `《✧》 *${character.name}* fue votado recientemente\nEspera *${msToTime(cooldownLeft)}* antes de volver a votar`,
-          )
+          return m.reply(`《✧》 *${character.name}* fue votado recientemente. Espera un poco.`)
       }
 
       const incrementValue = Math.floor(Math.random() * 100) + 1
@@ -96,13 +90,14 @@ if ((character.votes || 0) >= 10) {
 
       await saveCharacters(characters)
 
-      user.voteCooldown = Date.now() + 90 * 60000
-      characterVotes.set(characterName, Date.now() + cooldownTime)
+      userGlobal.voteCooldown = Date.now() + 90 * 60000 // 90 min cooldown para el usuario
+      characterVotes.set(characterName, Date.now() + cooldownTime) // 60 min cooldown para el personaje
 
       const message = `✎ Votaste por *${character.name}*\n\n> ⛁ *Nuevo valor ›* ${character.value.toLocaleString()}\n> ꕥ *Votos totales ›* ${character.votes}`
       await client.sendMessage(chatId, { text: message }, { quoted: m })
     } catch (error) {
-      await client.sendMessage(chatId, { text: msgglobal }, { quoted: m })
+      console.error(error)
+      await client.sendMessage(chatId, { text: "Ocurrió un error al votar." }, { quoted: m })
     }
   },
 };
