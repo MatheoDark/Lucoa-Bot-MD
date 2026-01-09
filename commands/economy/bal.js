@@ -1,37 +1,26 @@
-import { resolveLidToRealJid } from "../../lib/utils.js"
-
 export default {
-  command: ['balance', 'bal'],
-  category: 'rpg',
-  run: async ({client, m, args}) => {
-    const db = global.db.data
-    const chatId = m.chat
-    const chatData = db.chats[chatId]
-    const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
-    const botSettings = db.settings[botId]
-    const monedas = botSettings.currency
+  command: ['bal', 'balance', 'dinero', 'cartera'],
+  category: 'economy',
+  run: async ({client, m}) => {
+    // CAMBIO IMPORTANTE AQUÍ ABAJO 👇
+    const user = global.db.data.users[m.sender]
+    // 👆 Antes decía: global.db.data.chats[m.chat].users[m.sender]
 
-    if (chatData.adminonly || !chatData.rpg)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+    const settings = global.db.data.settings[botId] || {}
+    const currency = settings.currency || 'monedas'
 
-    const mentioned = m.mentionedJid
-    const who2 = mentioned.length > 0 ? mentioned[0] : (m.quoted ? m.quoted.sender : m.sender)
-    const who = await resolveLidToRealJid(who2, client, m.chat);
+    const wallet = user.coins || 0
+    const bank = user.bank || 0
+    const total = wallet + bank
 
-    if (!chatData.users?.[who2])
-      return m.reply(`「✎」 El usuario mencionado no está registrado en el bot.`)
+    const txt = `
+👤 *Usuario:* ${m.pushName || 'Desconocido'}
+💳 *Cartera:* ${wallet.toLocaleString()} ${currency}
+🏦 *Banco:* ${bank.toLocaleString()} ${currency}
+💰 *Total:* ${total.toLocaleString()} ${currency}
+`.trim()
 
-    const user = chatData.users[who]
-    const total = (user.coins || 0) + (user.bank || 0)
-
-    const bal = `✿ Usuario \`<${global.db.data.users[who].name}>\`
-
-⛀ Dinero › *¥${user.coins?.toLocaleString() || 0} ${monedas}*
-⚿ Banco › *¥${user.bank?.toLocaleString() || 0} ${monedas}*
-⛁ Total › *¥${total.toLocaleString()} ${monedas}*
-
-> _Para proteger tu dinero, ¡depósitalo en el banco usando ${prefa}deposit!_`
-
-    await client.sendMessage(chatId, { text: bal }, { quoted: m })
+    m.reply(txt)
   }
-};
+}
