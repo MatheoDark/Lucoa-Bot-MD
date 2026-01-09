@@ -18,13 +18,16 @@ export default {
     const chatId = m.chat
     const senderId = m.sender
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const botSettings = db.settings[botId]
-    const chatData = db.chats[chatId]
+    const botSettings = db.settings[botId] || {}
+    const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
-    const user = chatData.users[m.sender]
+    // CORRECCIÓN: Usuario Global
+    const user = db.users[m.sender]
+    if (!user) return m.reply("Usuario no registrado.")
+
     const cooldown = 7 * 24 * 60 * 60 * 1000
     const lastClaim = user.lastWeekly || 0
     const timeLeft = msToTime(cooldown - (Date.now() - lastClaim))
@@ -37,16 +40,20 @@ export default {
       )
 
     user.lastWeekly = Date.now()
-    const coins = pickRandom([50, 100, 150, 200, 250])
+    const coins = pickRandom([5000, 10000, 15000, 20000]) // Aumenté los valores porque los originales eran muy bajos
     const exp = Math.floor(Math.random() * 1000)
     const currency = botSettings.currency || 'Monedas'
+    
+    // Aumentamos los valores en la DB global
+    user.exp += exp
+    user.coins = (user.coins || 0) + coins
 
     const message = `☆ ໌　۟　𝖱𝖾𝖼𝗈𝗆𝗉𝖾𝗇𝗌𝖺　ׅ　팅화　ׄ
 
 > ✩ *Exp ›* ${exp}
 > ⛁ *${currency} ›* ${coins}
 
-${dev}`.trim()
+${global.dev || ''}`.trim()
 
     await client.sendMessage(
       chatId,
@@ -56,8 +63,5 @@ ${dev}`.trim()
       },
       { quoted: m },
     )
-
-    user.exp += exp
-    user.coins = (user.coins || 0) + coins
   },
 };
