@@ -74,15 +74,7 @@ const ago = videoInfo.ago || 'Desconocido';
         title = 'Desconocido';
       }
     }
-      let qu = ['128', '255', '320'];
-      let randomQuality = qu[Math.floor(Math.random() * qu.length)];
-    const primaryApi = {
-      url: (url) => `${global.api.url}/dl/${['play', 'mp3', 'playaudio', 'ytmp3'].includes(command) ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(url)}&quality=${randomQuality}&key=${global.api.key}`,
-      validate: (result) => result.status && result.data && result.data.dl && result.data.title,
-      parse: (result) => ({ dl: result.data.dl, title: result.data.title })
-    };
-
-const nekolabsApi = {
+    const nekolabsApi = {
   url: (url) =>
     `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(
       url
@@ -117,7 +109,7 @@ const nekolabsApi = {
     };
 
 const { dl, title: apiTitle } = 
-  await fetchWithFallback(url, primaryApi, [nekolabsApi, aioApi]);
+  await fetchWithFallback(url, nekolabsApi, [aioApi]);
   let thumbBuffer;
 try {
   const response = await fetch(videoInfo.thumbnail);
@@ -160,7 +152,7 @@ await client.sendMessage(
         document: { url: dl },
         fileName: `${apiTitle || title}.mp4`,
         mimetype: 'video/mp4',
-        caption: global.dev
+        caption: globalThis.dev
       },
       { quoted: m }
     );
