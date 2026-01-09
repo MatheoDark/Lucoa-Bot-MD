@@ -3,7 +3,7 @@ import fetch from 'node-fetch'
 // 🧠 LÓGICA DE PENSAMIENTO
 async function pensarComoLucoa(text, username, m, client) {
     const system = `Actúa como Lucoa-Bot (Quetzalcoatl). Eres una diosa dragona amable, despreocupada y coqueta ("Ara ara"). Tu creador es MatheoDark. Responde en español de forma divertida y breve. Usuario: ${username}.`
-    
+
     // Reacción inicial
     await client.sendMessage(m.chat, { react: { text: '🐲', key: m.key } })
 
@@ -12,15 +12,11 @@ async function pensarComoLucoa(text, username, m, client) {
         const url = `https://text.pollinations.ai/${encodeURIComponent(promptCompleto)}?model=openai`
         
         const res = await fetch(url)
-        
-        // 1. VERIFICAMOS EL ESTADO DE LA PÁGINA
-        if (res.status !== 200) throw new Error(`API Caída (Status: ${res.status})`)
-
         const respuestaTexto = await res.text()
 
-        // 2. VERIFICAMOS QUE NO SEA UN ERROR DE CLOUDFLARE
-        if (!respuestaTexto || respuestaTexto.includes('Bad Gateway') || respuestaTexto.includes('cloudflared')) {
-            throw new Error("API devolvió error 502")
+        // 🛡️ FILTRO ANTI-ERRORES (Para que no publique el JSON feo)
+        if (respuestaTexto.includes('"error"') || respuestaTexto.includes('Queue full') || res.status !== 200) {
+            throw new Error("API Saturada o Error")
         }
 
         // Si todo está bien, enviamos la respuesta
@@ -31,7 +27,8 @@ async function pensarComoLucoa(text, username, m, client) {
     } catch (e) {
         console.error("Error en IA:", e.message)
         
-        // 3. RESPUESTA DE EMERGENCIA
+        // 3. RESPUESTA DE EMERGENCIA SILENCIOSA
+        // Si falla, mandamos una frase random, PERO solo si no fue un bucle reciente.
         const frasesError = [
             "Ara ara~ Me duele un poco la cabeza, inténtalo más tarde.",
             "Zzz... Estoy tomando una siesta, despiértame luego.",
@@ -55,14 +52,14 @@ export default {
 
     if (args[0] === 'on') {
         chat.chatbot = true
-        return m.reply('✅ *Auto-Lucoa ACTIVADO.* (Responderé a todo en este chat)')
+        return m.reply('✅ *Auto-Lucoa ACTIVADO.*')
     }
     if (args[0] === 'off') {
         chat.chatbot = false
-        return m.reply('❌ *Auto-Lucoa DESACTIVADO.* (Solo responderé si me etiquetas/respondes)')
+        return m.reply('❌ *Auto-Lucoa DESACTIVADO.*')
     }
 
-    if (!text) return m.reply(`🍟 *Hola soy Lucoa.*\n\nComandos:\n• *#${command} on* (Modo Auto)\n• *#${command} off* (Modo Manual)\n• *#${command} hola* (Hablar directo)`)
+    if (!text) return m.reply(`🍟 *Hola soy Lucoa.*\n\nComandos:\n• *#${command} on* (Activar)\n• *#${command} off* (Desactivar)\n• *#${command} hola* (Hablar)`)
     
     const username = m.pushName || 'Humano'
     await pensarComoLucoa(text, username, m, client)
@@ -70,36 +67,32 @@ export default {
 
   before: async (m, { client }) => {
     try {
+        // 🛑 ANTI-BUCLE SUPREMO (CRÍTICO) 🛑
+        // 1. Si el mensaje es del propio bot, IGNORAR.
+        if (m.key.fromMe) return false
+        
+        // 2. Si no es texto o es mensaje de sistema, IGNORAR.
         if (m.isBaileys || !m.text) return false
 
-        // 1. DETECTAR SI ES UN COMANDO (Para no responder al comando mismo)
-        // Detecta prefijos comunes: ., #, /, !, etc.
-        const isCommand = /^[\\/!#.+%]/i.test(m.text)
-        if (isCommand) return false
+        // 3. Si el mensaje empieza con un comando (., #, /), IGNORAR (dejar que lo maneje el handler de comandos).
+        if (/^[.!#\/]/.test(m.text)) return false
 
         const chat = global.db.data.chats[m.chat] || {}
-        
-        // Validación del ID del bot
+        if (!chat.chatbot) return false
+
+        // Validación segura del ID del bot
         const botId = client.user?.jid || client.user?.id
-        if (!botId) return false
-        
         const botNumber = botId.split('@')[0]
         const senderNumber = m.quoted?.sender?.split('@')[0] || ''
 
-        // CONDICIONES PARA RESPONDER:
-        // A) Es una respuesta citada al mensaje del bot
+        // Condición: Es respuesta al bot
         const isReplyToBot = m.quoted && senderNumber === botNumber
-        
-        // B) El modo "Chatbot" está activado en el grupo/chat
-        const isAutoMode = chat.chatbot
 
-        // Si cumple alguna de las dos condiciones, responde
-        if (isReplyToBot || isAutoMode) {
+        if (isReplyToBot) {
             const username = m.pushName || 'Humano'
             await pensarComoLucoa(m.text, username, m, client)
-            return true // Detiene el bucle para evitar conflictos
+            return true // 🛑 ESTO EVITA QUE OTROS HANDLERS SE ACTIVEN
         }
-
     } catch (e) {
         console.error(e)
     }
