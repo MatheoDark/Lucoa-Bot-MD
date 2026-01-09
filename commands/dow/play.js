@@ -6,6 +6,45 @@ const limit = 100; // Max file size in MB
 
 const isYTUrl = (url) => /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/|live\/)|youtu\.be\/).+$/i.test(url);
 
+// API configurations moved outside for better performance
+const createApiConfigs = (command) => {
+  const nekolabsApi = {
+    url: (url) =>
+      `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(
+        url
+      )}&format=${
+        ['play', 'mp3', 'playaudio', 'ytmp3'].includes(command)
+          ? 'mp3'
+          : '720'
+      }`,
+    validate: (result) =>
+      result.success &&
+      result.result &&
+      result.result.downloadUrl,
+    parse: (result) => ({
+      dl: result.result.downloadUrl,
+      title: result.result.title,
+      thumb: result.result.cover
+    })
+  };
+
+  const aioApi = {
+    url: (url) => `https://anabot.my.id/api/download/aio?url=${encodeURIComponent(url)}&apikey=freeApikey`,
+    validate: (result) => !result.error && result.medias && result.medias.length > 0,
+    parse: (result) => {
+      const isAudio = ['play', 'mp3', 'playaudio', 'ytmp3'].includes(command);
+      const media = result.medias.find(m => 
+        isAudio ? m.type === 'audio' && ['m4a', 'opus'].includes(m.ext) : 
+        m.type === 'video' && m.ext === 'mp4' && m.height <= 720
+      );
+      if (!media) throw new Error('No suitable media format found');
+      return { dl: media.url, title: result.title };
+    }
+  };
+
+  return { nekolabsApi, aioApi };
+};
+
 const fetchWithFallback = async (url, primaryApi, fallbackApis) => {
   for (const api of [primaryApi, ...fallbackApis]) {
     try {
@@ -96,39 +135,8 @@ const ago = videoInfo.ago || 'Desconocido';
       }
     }
     
-    const nekolabsApi = {
-  url: (url) =>
-    `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(
-      url
-    )}&format=${
-      ['play', 'mp3', 'playaudio', 'ytmp3'].includes(command)
-        ? 'mp3'
-        : '720'
-    }`,
-  validate: (result) =>
-    result.success &&
-    result.result &&
-    result.result.downloadUrl,
-  parse: (result) => ({
-    dl: result.result.downloadUrl,
-    title: result.result.title,
-    thumb: result.result.cover
-  })
-};
-
-    const aioApi = {
-      url: (url) => `https://anabot.my.id/api/download/aio?url=${encodeURIComponent(url)}&apikey=freeApikey`,
-      validate: (result) => !result.error && result.medias && result.medias.length > 0,
-      parse: (result) => {
-        const isAudio = ['play', 'mp3', 'playaudio', 'ytmp3'].includes(command);
-        const media = result.medias.find(m => 
-          isAudio ? m.type === 'audio' && ['m4a', 'opus'].includes(m.ext) : 
-          m.type === 'video' && m.ext === 'mp4' && m.height <= 720
-        );
-        if (!media) throw new Error('No suitable media format found');
-        return { dl: media.url, title: result.title };
-      }
-    };
+    // Obtener configuraciones de API
+    const { nekolabsApi, aioApi } = createApiConfigs(command);
 
 const { dl, title: apiTitle } = 
   await fetchWithFallback(url, nekolabsApi, [aioApi]);
