@@ -3,27 +3,24 @@ export default {
   category: 'rpg',
   run: async ({client, m}) => {
     const botId = client?.user?.id.split(':')[0] + '@s.whatsapp.net'
-    const botSettings = global.db.data.settings[botId]
+    const botSettings = global.db.data.settings[botId] || {}
     const monedas = botSettings?.currency || 'Coins'
 
     const chat = global.db.data.chats[m.chat]
+    if (chat.adminonly || !chat.rpg) return m.reply(`✎ Desactivado.`)
 
-    if (chat.adminonly || !chat.rpg)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
-
-    const user = chat.users[m.sender]
+    // CORRECCIÓN: Usuario Global
+    const user = global.db.data.users[m.sender]
 
     const remaining = user.mineCooldown - Date.now()
     if (remaining > 0) {
-      return m.reply(`ꕥ Debes esperar *${msToTime(remaining)}* para minar de nuevo.`)
+      return m.reply(`ꕥ Espera *${msToTime(remaining)}*.`)
     }
 
     user.mineCooldown = Date.now() + 10 * 60000
 
     let isLegendary = Math.random() < 0.02
-    let reward,
-      narration,
-      bonusMsg = ''
+    let reward, narration, bonusMsg = ''
 
     if (isLegendary) {
       reward = Math.floor(Math.random() * 50000) + 50000
@@ -37,7 +34,7 @@ export default {
       if (Math.random() < 0.1) {
         const bonus = Math.floor(Math.random() * 3000) + 500
         reward += bonus
-        bonusMsg = `\n「✿」 ¡Bonus de aventura! Ganaste *${bonus.toLocaleString()}* ${monedas} extra`
+        bonusMsg = `\n「✿」 ¡Bonus! Ganaste *${bonus.toLocaleString()}* extra`
       }
     }
 
@@ -53,38 +50,13 @@ export default {
 function msToTime(duration) {
   let seconds = Math.floor((duration / 1000) % 60)
   let minutes = Math.floor((duration / (1000 * 60)) % 60)
-  minutes = minutes < 10 ? '0' + minutes : minutes
-  seconds = seconds < 10 ? '0' + seconds : seconds
-  if (minutes === '00') return `${seconds} segundo${seconds > 1 ? 's' : ''}`
-  return `${minutes} minuto${minutes > 1 ? 's' : ''}, ${seconds} segundo${seconds > 1 ? 's' : ''}`
+  return `${minutes}m ${seconds}s`
 }
 
 function pickRandom(list) {
   return list[Math.floor(list.length * Math.random())]
 }
 
-const escenarios = [
-  'una cueva oscura y húmeda',
-  'la cima de una montaña nevada',
-  'un bosque misterioso lleno de raíces',
-  'un río cristalino y caudaloso',
-  'una mina abandonada de carbón',
-  'las ruinas de un antiguo castillo',
-  'una playa desierta con arena dorada',
-  'un valle escondido entre colinas',
-  'un arbusto espinoso al borde del camino',
-  'un tronco hueco en medio del bosque',
-]
-
-const mineria = [
-  'encontraste un antiguo cofre con',
-  'hallaste una bolsa llena de',
-  'descubriste un saco de',
-  'desenterraste monedas antiguas que contienen',
-  'rompiste una roca y adentro estaba',
-  'cavando profundo, hallaste',
-  'entre las raíces, encontraste',
-  'dentro de una caja olvidada, hallaste',
-  'bajo unas piedras, descubriste',
-  'entre los escombros de un lugar viejo, encontraste',
+const escenarios = ['una cueva oscura', 'una montaña nevada', 'un bosque misterioso', 'un río cristalino', 'una mina abandonada'];
+const mineria = ['encontraste un cofre con', 'hallaste una bolsa de', 'descubriste oro por valor de', 'picaste una gema que vale'];
 ]
