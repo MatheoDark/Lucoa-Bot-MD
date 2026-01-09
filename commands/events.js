@@ -1,6 +1,13 @@
 import chalk from 'chalk'
 import moment from 'moment-timezone'
 
+// Función helper para extraer número de teléfono del participante
+function extractPhoneNumber(participant) {
+  const jid = participant?.phoneNumber || participant
+  const phone = (typeof jid === 'string' ? jid : '').split('@')[0] || 'Usuario'
+  return { jid, phone }
+}
+
 export default async (client, m) => {
   client.ev.on('group-participants.update', async (anu) => {
     try {
@@ -22,8 +29,7 @@ export default async (client, m) => {
       const memberCount = metadata?.participants?.length || 0
 
       for (const p of anu.participants) {
-        const jid = p.phoneNumber || p
-        const phone = (typeof jid === 'string' ? jid : '').split('@')[0] || 'Usuario'
+        const { jid, phone } = extractPhoneNumber(p)
         const pp = await client.profilePictureUrl(jid, 'image').catch(() => 'https://cdn.stellarwa.xyz/files/1755559736781.jpeg')
 
         const fakeContext = {

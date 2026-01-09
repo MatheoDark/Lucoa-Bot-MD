@@ -1,6 +1,17 @@
 import fs from 'fs'
 import { createCanvas, loadImage } from 'canvas'
 
+// Función helper para eliminar archivos de forma segura
+function safeDeleteFile(filePath) {
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath)
+    }
+  } catch {
+    // Ignorar errores de eliminación de archivos temporales
+  }
+}
+
 function msToTime(ms) {
     const h = Math.floor(ms / 3600000)
     const m = Math.floor((ms % 3600000) / 60000)
@@ -77,7 +88,7 @@ if (/image/.test(mime)) {
     m,
     { packname: text1, author: text2 }
   )
-  if (enc && fs.existsSync(enc)) fs.unlinkSync(enc)
+  safeDeleteFile(enc)
 } else if (/video/.test(mime)) {
   if ((q.msg || q).seconds > 20)
     return m.reply('El video es muy largo.')
@@ -90,19 +101,19 @@ if (/image/.test(mime)) {
     { packname: text1, author: text2 }
   )
   await new Promise(r => setTimeout(r, 2000))
-  if (enc && fs.existsSync(enc)) fs.unlinkSync(enc)
+  safeDeleteFile(enc)
 } else if (args.length) {
   let texto = args.join(' ')
   if (texto.length > 30) return m.reply('El texto no puede tener más de 30 caracteres.')
   let buffer = await generarStickerConTexto(texto)
   let enc = await client.sendImageAsSticker(m.chat, buffer, m, { packname: text1, author: text2 })
-  if (enc && fs.existsSync(enc)) fs.unlinkSync(enc)
+  safeDeleteFile(enc)
 } else if (q.text && q.text !== m.text) {
   let texto = q.text
   if (texto.length > 30) return m.reply('El texto no puede tener más de 30 caracteres.')
   let buffer = await generarStickerConTexto(texto)
   let enc = await client.sendImageAsSticker(m.chat, buffer, m, { packname: text1, author: text2 })
-  if (enc && fs.existsSync(enc)) fs.unlinkSync(enc)
+  safeDeleteFile(enc)
 
 } else {
   return client.reply(m.chat, 'Envía imagen, video o texto para hacer sticker.', m)

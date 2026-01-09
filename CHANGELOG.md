@@ -41,15 +41,16 @@ Todas las modificaciones notables de este proyecto serán documentadas en este a
 
 #### 🔧 Correcciones de Código
 - **antilink.js:** Eliminado código duplicado en la eliminación de mensajes con enlaces.
-- **sticker.js:** Mejorado el manejo de archivos temporales con validación `fs.existsSync()` antes de eliminar.
+- **sticker.js:** Nueva función helper `safeDeleteFile()` para eliminar archivos temporales de forma segura.
 - **sticker.js:** Añadidas validaciones null-safe para `botSettings`, `user` y `chatUsers` evitando crashes.
 - **ping.js:** Añadido acceso null-safe a `global.db.data.settings` con fallback a 'Lucoa-Bot'.
 - **events.js:** Mejorada la obtención de configuración del bot con operador optional chaining (`?.`).
-- **events.js:** Corregido el acceso a `jid` de participantes para evitar errores cuando `phoneNumber` es undefined.
+- **events.js:** Nueva función helper `extractPhoneNumber()` para extraer número de teléfono de participantes.
 
 #### 🛡️ Prevención de Memory Leaks
 - **lib/utils.js:** Añadido sistema de límite de cache (`MAX_CACHE_SIZE = 2000`) para `groupMetadataCache` y `lidCache`.
-- **lib/utils.js:** Nueva función `limitCacheSize()` que elimina entradas antiguas cuando el cache excede el límite.
+- **lib/utils.js:** Nueva función `addToCache()` con limpieza periódica cada 100 inserciones para mejor rendimiento.
+- **lib/utils.js:** Función `limitCacheSize()` que elimina entradas antiguas cuando el cache excede el límite.
 
 #### 🔒 Validaciones de Base de Datos
 - **lib/system/initDB.js:** Añadida validación para `m.sender` y `m.chat` antes de inicializar.
