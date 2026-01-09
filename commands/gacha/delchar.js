@@ -6,13 +6,15 @@ export default {
     const chatId = m.chat
     const userId = m.sender
     const chatData = db.chats[chatId]
+    
+    // --- MODELO HÍBRIDO (Personajes Locales) ---
     const userData = chatData?.users[userId]
 
     if (chatData.adminonly || !chatData.gacha)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
     if (!userData?.characters?.length)
-      return m.reply('《✧》 No tienes personajes reclamados en tu inventario.')
+      return m.reply('《✧》 No tienes personajes reclamados en este grupo.')
 
     if (!args[0])
       return m.reply(
@@ -25,12 +27,12 @@ export default {
     )
 
     if (characterIndex === -1)
-      return m.reply(`《✧》 El personaje *${args.join(' ')}* no está en tu inventario.`)
+      return m.reply(`《✧》 El personaje *${args.join(' ')}* no está en tu inventario local.`)
 
     const removed = userData.characters.splice(characterIndex, 1)[0]
 
     return m.reply(
-      `✐ El personaje *${removed.name}* ha sido eliminado exitosamente de tu inventario.`,
+      `✐ El personaje *${removed.name}* ha sido eliminado exitosamente.`,
     )
   },
 };
