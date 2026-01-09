@@ -1,26 +1,44 @@
+import { resolveLidToRealJid } from "../../lib/utils.js"
+
 export default {
-  command: ['bal', 'balance', 'dinero', 'cartera'],
-  category: 'economy',
-  run: async ({client, m}) => {
-    // CAMBIO IMPORTANTE AQUÍ ABAJO 👇
-    const user = global.db.data.users[m.sender]
-    // 👆 Antes decía: global.db.data.chats[m.chat].users[m.sender]
+  command: ['balance', 'bal'],
+  category: 'rpg',
+  run: async ({client, m, args}) => {
+    const db = global.db.data
+    const chatId = m.chat
+    const chatData = db.chats[chatId]
+    const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
+    const botSettings = db.settings[botId] || {}
+    const monedas = botSettings.currency || 'Coins'
 
-    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const settings = global.db.data.settings[botId] || {}
-    const currency = settings.currency || 'monedas'
+    // Verificación de permisos del grupo
+    if (chatData.adminonly || !chatData.rpg)
+      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
-    const wallet = user.coins || 0
-    const bank = user.bank || 0
-    const total = wallet + bank
+    // Resolver a quién estamos mirando (mencionado o uno mismo)
+    const mentioned = m.mentionedJid
+    const who2 = mentioned.length > 0 ? mentioned[0] : (m.quoted ? m.quoted.sender : m.sender)
+    const who = await resolveLidToRealJid(who2, client, m.chat);
 
-    const txt = `
-👤 *Usuario:* ${m.pushName || 'Desconocido'}
-💳 *Cartera:* ${wallet.toLocaleString()} ${currency}
-🏦 *Banco:* ${bank.toLocaleString()} ${currency}
-💰 *Total:* ${total.toLocaleString()} ${currency}
-`.trim()
+    // --- CORRECCIÓN CRÍTICA: Leemos del usuario GLOBAL ---
+    // Si el usuario no existe en la DB global, lo inicializamos básico para evitar errores
+    if (!global.db.data.users[who]) {
+        global.db.data.users[who] = { coins: 0, bank: 0, exp: 0, level: 0 }
+    }
+    
+    const user = global.db.data.users[who]
+    const name = user.name || who.split('@')[0] // Fallback para el nombre
 
-    m.reply(txt)
+    const total = (user.coins || 0) + (user.bank || 0)
+
+    const bal = `✿ Usuario \`<${name}>\`
+
+⛀ Dinero › *¥${(user.coins || 0).toLocaleString()} ${monedas}*
+⚿ Banco › *¥${(user.bank || 0).toLocaleString()} ${monedas}*
+⛁ Total › *¥${total.toLocaleString()} ${monedas}*
+
+> _Para proteger tu dinero, ¡depósitalo en el banco usando #deposit!_`
+
+    await client.sendMessage(chatId, { text: bal }, { quoted: m })
   }
-}
+};
