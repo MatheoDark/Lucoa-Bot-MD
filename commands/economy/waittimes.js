@@ -5,12 +5,15 @@ export default {
     const db = global.db.data
     const chatId = m.chat
     const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
-    const chatData = db.chats[chatId]
+    const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
 
-    const user = chatData.users[m.sender]
+    // CORRECCIÓN: Usuario Global
+    const user = db.users[m.sender]
+    if (!user) return m.reply("⚠ Usuario no encontrado en la base de datos global.")
+
     const now = Date.now()
     const oneDay = 24 * 60 * 60 * 1000
 
@@ -44,7 +47,9 @@ export default {
     }
 
     const coins = user.coins || 0
-    const name = db.users[m.sender]?.name || m.sender.split('@')[0]
+    const name = user.name || m.sender.split('@')[0]
+    const currency = global.db.data.settings[botId]?.currency || 'Coins'
+
     const mensaje = `✿ Usuario \`<${name}>\`
 
 ⴵ Work » *${formatTime(cooldowns.work)}*
@@ -59,7 +64,7 @@ export default {
 ⴵ Weekly » *${formatTime(cooldowns.weekly)}*
 ⴵ Monthly » *${formatTime(cooldowns.monthly)}*
 
-⛁ Coins totales » ¥${coins.toLocaleString()} ${global.db.data.settings[botId].currency}`
+⛁ Coins totales » ¥${coins.toLocaleString()} ${currency}`
 
     await client.sendMessage(chatId, {
       text: mensaje
