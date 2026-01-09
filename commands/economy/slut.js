@@ -2,113 +2,96 @@ export default {
   command: ['slut'],
   category: 'rpg',
   run: async ({client, m, groupMetadata}) => {
-  try {
-    if (!m.isGroup) return client.reply(m.chat, '❌ Este comando solo funciona en grupos.', m)
+    try {
+      if (!m.isGroup) return client.reply(m.chat, '❌ Este comando solo funciona en grupos.', m)
 
-async function getGroupParticipants(client, m, groupMetadata) {
-  if (groupMetadata?.participants?.length) {
-    return groupMetadata.participants
+      async function getGroupParticipants(client, m, groupMetadata) {
+        if (groupMetadata?.participants?.length) return groupMetadata.participants
+        try {
+          const meta = await client.groupMetadata(m.chat)
+          if (meta?.participants?.length) return meta.participants
+        } catch {}
+        if (m?.participants?.length) return m.participants
+        return []
+      }
+
+      const participants = await getGroupParticipants(client, m, groupMetadata)
+      if (!participants.length) return client.reply(m.chat, '⚠️ No pude obtener los participantes.', m)
+
+      let botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
+      let botSettings = global.db.data.settings[botId] || {}
+      let currency = botSettings.currency || 'monedas'
+
+      // CORRECCIÓN: Usuario Global
+      let user = global.db.data.users[m.sender]
+      if (!user) {
+         global.db.data.users[m.sender] = { exp: 0, coins: 0, logros: {}, lastProsti: 0 }
+         user = global.db.data.users[m.sender]
+      }
+
+      if (!user.logros) user.logros = {}
+      user.lastProsti = user.lastProsti || 0
+      user.coins = user.coins || 0
+      user.exp = user.exp || 0
+
+      let cooldown = 10 * 60 * 1000
+      let tiempoRestante = user.lastProsti + cooldown - Date.now()
+      if (tiempoRestante > 0) {
+        const tiempo2 = segundosAHMS(Math.ceil(tiempoRestante / 1000))
+        return client.reply(m.chat, `💋 Debes esperar ⏱️ *${tiempo2}* para volver a prostituirte.`, m)
+      }
+
+      user.lastProsti = Date.now()
+
+      let participantes = participants
+        .map(v => v.id || v.jid)
+        .filter(id => id && id !== m.sender && id !== botId)
+      
+      if (participantes.length === 0) return client.reply(m.chat, '💔 No hay clientes disponibles ahora mismo...', m)
+
+      let clienteId = participantes[Math.floor(Math.random() * participantes.length)]
+      let clienteTag = '@' + clienteId.split('@')[0]
+
+      let exito = Math.random() < 0.7
+
+      if (exito) {
+        let xpGanado = Math.floor(Math.random() * (5000 - 500 + 1)) + 500
+        let dulcesGanados = Math.floor(Math.random() * (5000 - 5 + 1)) + 5
+        let texto = pickRandom(aventurasExito).replace('{cliente}', clienteTag).replace('{currency}', currency)
+
+        user.exp += xpGanado
+        user.coins += dulcesGanados
+
+        return client.reply(
+          m.chat,
+          `💄 ${texto} y ganaste *${toNum(xpGanado)} XP* + *${dulcesGanados} ${currency}*.`,
+          m,
+          { mentions: [clienteId] }
+        )
+      } else {
+        let xpPerdido = Math.floor(Math.random() * (4000 - 200 + 1)) + 200
+        let dulcesPerdidos = Math.floor(Math.random() * (4000 - 2 + 1)) + 2
+        let texto = pickRandom(aventurasFracaso).replace('{cliente}', clienteTag).replace('{currency}', currency)
+
+        user.exp = Math.max(0, user.exp - xpPerdido)
+        user.coins = Math.max(0, user.coins - dulcesPerdidos)
+
+        return client.reply(
+          m.chat,
+          `💔 ${texto} Perdiste *${toNum(xpPerdido)} XP* y *${dulcesPerdidos} ${currency}*...`,
+          m,
+          { mentions: [clienteId] }
+        )
+      }
+    } catch (error) {
+      m.reply(`Error:\n${error.message}`)
+    }
   }
-  try {
-    const meta = await client.groupMetadata(m.chat)
-    if (meta?.participants?.length) {
-      return meta.participants
-    }
-  } catch {}
-  if (m?.participants?.length) {
-    return m.participants
-  }
-  return []
-}
-
-const participants = await getGroupParticipants(client, m, groupMetadata)
-
-if (!participants.length) {
-  return client.reply(
-    m.chat,
-    '⚠️ No pude obtener los participantes del grupo en este momento.\nIntenta de nuevo en unos segundos.',
-    m
-  )
-}
-
-
-    let botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
-    let botSettings = global.db.data.settings[botId]
-    let currency = botSettings.currency
-
-    if (!global.db.data.chats[m.chat]) global.db.data.chats[m.chat] = { users: {} }
-    if (!global.db.data.chats[m.chat].users[m.sender]) {
-      global.db.data.chats[m.chat].users[m.sender] = { exp: 0, coins: 0, logros: { prostituirse: 0 }, lastProsti: 0 }
-    }
-
-    let user = global.db.data.chats[m.chat].users[m.sender]
-    if (!user.logros) user.logros = {}
-    if (typeof user.logros.prostituirse !== 'number') user.logros.prostituirse = 0
-
-    let cooldown = 10 * 60 * 1000
-    let tiempoRestante = user.lastProsti + cooldown - Date.now()
-    if (tiempoRestante > 0) {
-      const tiempo2 = segundosAHMS(Math.ceil(tiempoRestante / 1000))
-      return client.reply(m.chat, `💋 Debes esperar ⏱️ *${tiempo2}* para volver a prostituirte.`, m)
-    }
-
-    user.lastProsti = Date.now()
-
-    let participantes = participants
-  .map(v => v.id || v.jid)
-  .filter(id => id && id !== m.sender && id !== botId)
-    if (participantes.length === 0) return client.reply(m.chat, '💔 No hay clientes disponibles ahora mismo...', m)
-
-    let clienteId = participantes[Math.floor(Math.random() * participantes.length)]
-    let clienteTag = toM(clienteId)
-
-    let exito = Math.random() < 0.7
-
-    if (exito) {
-      let xpGanado = Math.floor(Math.random() * (5000 - 500 + 1)) + 500
-      let dulcesGanados = Math.floor(Math.random() * (5000 - 5 + 1)) + 5
-      let texto = pickRandom(aventurasExito).replace('{cliente}', clienteTag).replace('{currency}', currency)
-
-      user.exp += xpGanado
-      user.coins += dulcesGanados
-
-      return client.reply(
-        m.chat,
-        `💄 ${texto} y ganaste *${toNum(xpGanado)} XP* + *${dulcesGanados} ${currency}*.`,
-        m,
-        { mentions: [clienteId] }
-      )
-    } else {
-      let xpPerdido = Math.floor(Math.random() * (4000 - 200 + 1)) + 200
-      let dulcesPerdidos = Math.floor(Math.random() * (4000 - 2 + 1)) + 2
-      let texto = pickRandom(aventurasFracaso)
-  .replace('{cliente}', clienteTag)
-  .replace('{currency}', currency)
-
-      user.exp = Math.max(0, user.exp - xpPerdido)
-      user.coins = Math.max(0, user.coins - dulcesPerdidos)
-
-      return client.reply(
-        m.chat,
-        `💔 ${texto} Perdiste *${toNum(xpPerdido)} XP* y *${dulcesPerdidos} ${currency}*...`,
-        m,
-        { mentions: [clienteId] }
-      )
-    }
-  } catch (error) {
-    m.reply(`Error:\n${error.message}\n${error?.stack || error}`)
-  }
-}
-}
-function toM(a) {
-  return '@' + a.split('@')[0]
 }
 
 function toNum(number) {
   if (number >= 1000 && number < 1000000) return (number / 1000).toFixed(1) + 'k'
   if (number >= 1000000) return (number / 1000000).toFixed(1) + 'M'
-  if (number <= -1000 && number > -1000000) return (number / 1000).toFixed(1) + 'k'
-  if (number <= -1000000) return (number / 1000000).toFixed(1) + 'M'
   return number.toString()
 }
 
