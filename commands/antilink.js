@@ -33,6 +33,7 @@ export async function before(m, { client }) {
 
   if (hasAllowedLink || !isGroupLink || !chat?.antilinks || isAdmin || !isBotAdmin || !isPrimary) return
 
+  // Delete the message containing the link
   await client.sendMessage(m.chat, {
     delete: {
       remoteJid: m.chat,
@@ -42,15 +43,8 @@ export async function before(m, { client }) {
     }
   })
 
+  // If not an invite command, remove the user from the group
   if (!joinCommands.includes(command)) {
-  await client.sendMessage(m.chat, {
-    delete: {
-      remoteJid: m.chat,
-      fromMe: false,
-      id: m.key.id,
-      participant: m.key.participant
-    }
-  })
     const userName = global.db.data.users[m.sender]?.name || 'Usuario'
     await client.reply(m.chat, `❖ *${userName}* eliminado por \`Anti-Link\``, null)
     await client.groupParticipantsUpdate(m.chat, [m.sender], 'remove')

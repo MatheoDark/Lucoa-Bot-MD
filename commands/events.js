@@ -3,11 +3,11 @@ import moment from 'moment-timezone'
 
 export default async (client, m) => {
   client.ev.on('group-participants.update', async (anu) => {
-  //  console.log(anu)
     try {
       const metadata = await client.groupMetadata(anu.id)
-      const chat = global.db.data.chats[anu.id]
+      const chat = global.db.data.chats?.[anu.id] || {}
       const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+      const botSettings = global.db.data.settings?.[botId] || {}
       const primaryBotId = chat?.primaryBot
 
       const now = new Date()
@@ -19,29 +19,29 @@ export default async (client, m) => {
       }).replace(/,/g, '')
       const tiempo2 = moment.tz('America/Bogota').format('hh:mm A')
 
-      const memberCount = metadata.participants.length
+      const memberCount = metadata?.participants?.length || 0
 
       for (const p of anu.participants) {
-        const jid = p.phoneNumber
-        const phone = p.phoneNumber?.split('@')[0] || jid.split('@')[0]
-        const pp = await client.profilePictureUrl(jid, 'image').catch(_ => 'https://cdn.stellarwa.xyz/files/1755559736781.jpeg')
+        const jid = p.phoneNumber || p
+        const phone = (typeof jid === 'string' ? jid : '').split('@')[0] || 'Usuario'
+        const pp = await client.profilePictureUrl(jid, 'image').catch(() => 'https://cdn.stellarwa.xyz/files/1755559736781.jpeg')
 
         const fakeContext = {
           contextInfo: {
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
-              newsletterJid: global.db.data.settings[botId].id,
+              newsletterJid: botSettings.id || '',
               serverMessageId: '0',
-              newsletterName: global.db.data.settings[botId].nameid
+              newsletterName: botSettings.nameid || 'Lucoa-Bot'
             },
             externalAdReply: {
-              title: global.db.data.settings[botId].namebot,
+              title: botSettings.namebot || 'Lucoa-Bot',
               body: dev,
               mediaUrl: null,
               description: null,
               previewType: 'PHOTO',
-              thumbnailUrl: global.db.data.settings[botId].icon,
-              sourceUrl: global.db.data.settings[client.user.id.split(':')[0] + "@s.whatsapp.net"].link,
+              thumbnailUrl: botSettings.icon || '',
+              sourceUrl: botSettings.link || '',
               mediaType: 1,
               renderLargerThumbnail: false
             },

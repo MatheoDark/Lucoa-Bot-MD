@@ -53,13 +53,13 @@ export default {
   run: async ({client, m, args}) => {
     try {
       const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-      let botSettings = global.db.data.settings[botId]
-      let botname = botSettings.namebot
-      let user = global.db.data.users[m.sender]
-      let user2 = global.db.data.chats[m.chat].users[m.sender]
-      const name = user.name
-      let text1 = user.metadatos || `♯𝐓꯭̱𝔥̱𝑒̱ . ㌦‥ꪱ꯭̱ꪆ꯭̱LUCoa ──͟͞🄱̱ǿ̱𝔱…ꤩꤨ‧💎`
-      let text2 = user.metadatos2 || `Socket:\n↳@${botname}\n👹Usuario:\n↳@${name}`
+      const botSettings = global.db.data.settings?.[botId] || {}
+      const botname = botSettings.namebot || 'Lucoa-Bot'
+      const user = global.db.data.users?.[m.sender] || {}
+      const chatUsers = global.db.data.chats?.[m.chat]?.users || {}
+      const name = user.name || m.pushName || 'Usuario'
+      const text1 = user.metadatos || `♯𝐓꯭̱𝔥̱𝑒̱ . ㌦‥ꪱ꯭̱ꪆ꯭̱LUCoa ──͟͞🄱̱ǿ̱𝔱…ꤩꤨ‧💎`
+      const text2 = user.metadatos2 || `Socket:\n↳@${botname}\n👹Usuario:\n↳@${name}`
       
       const q = m.quoted || m
       const mime = (q.msg || q).mimetype || ''
@@ -77,7 +77,7 @@ if (/image/.test(mime)) {
     m,
     { packname: text1, author: text2 }
   )
-  await fs.unlinkSync(enc)
+  if (enc && fs.existsSync(enc)) fs.unlinkSync(enc)
 } else if (/video/.test(mime)) {
   if ((q.msg || q).seconds > 20)
     return m.reply('El video es muy largo.')
@@ -90,19 +90,19 @@ if (/image/.test(mime)) {
     { packname: text1, author: text2 }
   )
   await new Promise(r => setTimeout(r, 2000))
-  await fs.unlinkSync(enc)
+  if (enc && fs.existsSync(enc)) fs.unlinkSync(enc)
 } else if (args.length) {
   let texto = args.join(' ')
   if (texto.length > 30) return m.reply('El texto no puede tener más de 30 caracteres.')
   let buffer = await generarStickerConTexto(texto)
   let enc = await client.sendImageAsSticker(m.chat, buffer, m, { packname: text1, author: text2 })
-  await fs.unlinkSync(enc)
+  if (enc && fs.existsSync(enc)) fs.unlinkSync(enc)
 } else if (q.text && q.text !== m.text) {
   let texto = q.text
   if (texto.length > 30) return m.reply('El texto no puede tener más de 30 caracteres.')
   let buffer = await generarStickerConTexto(texto)
   let enc = await client.sendImageAsSticker(m.chat, buffer, m, { packname: text1, author: text2 })
-  await fs.unlinkSync(enc)
+  if (enc && fs.existsSync(enc)) fs.unlinkSync(enc)
 
 } else {
   return client.reply(m.chat, 'Envía imagen, video o texto para hacer sticker.', m)
