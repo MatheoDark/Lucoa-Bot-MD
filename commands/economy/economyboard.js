@@ -7,27 +7,31 @@ export default {
     const db = global.db.data
     const chatId = m.chat
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const botSettings = db.settings[botId]
-    const monedas = botSettings.currency
+    const botSettings = db.settings[botId] || {}
+    const monedas = botSettings.currency || 'Coins'
 
-    const chatData = db.chats[chatId]
+    const chatData = db.chats[chatId] || {}
     if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
 
     try {
-      const users = Object.entries(chatData.users || {})
+      // CORRECCIÓN CRÍTICA: Iteramos sobre los usuarios GLOBALES, no los del grupo
+      const allUsers = db.users || {}
+
+      const users = Object.entries(allUsers)
         .filter(([_, data]) => {
           const total = (data.coins || 0) + (data.bank || 0)
-          return total >= 1000
+          return total >= 100 // Filtramos los que tengan algo de dinero
         })
         .map(([key, data]) => ({
           jid: key,
           coins: data.coins || 0,
-          bank: data.bank || 0
+          bank: data.bank || 0,
+          name: data.name
         }))
 
       if (users.length === 0)
-        return m.reply(`ꕥ No hay usuarios en el grupo con más de 1,000 ${monedas}.`)
+        return m.reply(`ꕥ No hay usuarios en el sistema con dinero.`)
 
       const sorted = users.sort(
         (a, b) => (b.coins + b.bank) - (a.coins + a.bank)
@@ -38,39 +42,29 @@ export default {
       const totalPages = Math.ceil(sorted.length / pageSize)
 
       if (page < 1 || page > totalPages)
-        return m.reply(`《✧》 La página *\( {page}* no existe. Hay * \){totalPages}* páginas.`)
+        return m.reply(`《✧》 La página *${page}* no existe. Hay *${totalPages}* páginas.`)
 
       const start = (page - 1) * pageSize
       const end = start + pageSize
 
-      let text = `*✩ EconomyBoard (✿◡‿◡)*\n\n`
-      const mentions = []
-
-      const topUsers = await Promise.all(
-  sorted.slice(start, end).map(async (user, i) => {
-    const realJid = await resolveLidToRealJid(user.jid, client, chatId)
-    const total = user.coins + user.bank
-
-    const globalUser = db.users?.[realJid] || {}
-    const name = globalUser.name || realJid.split('@')[0]
-
-    return `✩ ${start + i + 1} › *${name}*\n     Total → *¥ ${total.toLocaleString()} ${monedas}*`
-  })
-)
+      let text = `*✩ Top Global Economy (✿◡‿◡)*\n\n`
+      
+      const topUsers = sorted.slice(start, end).map((user, i) => {
+        const total = user.coins + user.bank
+        const name = user.name || user.jid.split('@')[0]
+        return `✩ ${start + i + 1} › *${name}*\n     Total → *¥ ${total.toLocaleString()} ${monedas}*`
+      })
 
       text += topUsers.join('\n')
-      text += `\n\n> ⌦ Página *${page}* de * ${totalPages}*`
+      text += `\n\n> ⌦ Página *${page}* de *${totalPages}*`
       if (page < totalPages)
-        text += `\n> Para ver la siguiente página › *${prefa || '/'}economyboard ${page + 1}*`
+        text += `\n> Para ver la siguiente página › */eboard ${page + 1}*`
 
-      await client.sendMessage(
-        chatId,
-        { text, mentions },
-        { quoted: m }
-      )
+      await client.sendMessage(chatId, { text }, { quoted: m })
+
     } catch (e) {
-      console.log(e)
-      await m.reply('Ocurrió un error.')
+      console.error(e)
+      await m.reply('Ocurrió un error al obtener el top.')
     }
   }
 }
