@@ -4,7 +4,6 @@ import { promisify } from 'util'
 const exec = promisify(cp.exec)
 
 export default {
-  // AHORA SÍ responde a '$' y 'exec'
   command: ['$', 'exec', 'bash'], 
   category: 'owner',
   isOwner: true,
