@@ -19,36 +19,30 @@ export default {
     if (!who2 || mentionedJid === senderId)
       return m.reply('✎ Menciona al usuario al que deseas regalar todos tus personajes.')
 
-    if (!chatData.users?.[senderId]?.characters?.length)
-      return m.reply('《✧》 No tienes personajes en tu inventario.')
-
-   const user2 = global.db.data.chats[m.chat].users[mentionedJid]
-
-    if (!user2) {
-      return m.reply('《✧》 El usuario *mencionado* no está *registrado* en el bot')
-    }
-
-    chatData.users[mentionedJid] = {
-      characters: [],
-      characterCount: 0,
-      totalRwcoins: 0,
-    }
-
+    // --- MODELO HÍBRIDO (Personajes Locales) ---
     const fromUser = chatData.users[senderId]
-    const toUser = chatData.users[mentionedJid]
+    
+    if (!fromUser?.characters?.length)
+      return m.reply('《✧》 No tienes personajes en tu inventario de este grupo.')
 
+    // Inicializar receptor si no existe
+    if (!chatData.users[mentionedJid]) {
+       chatData.users[mentionedJid] = { characters: [], coins: 0 }
+    }
+    const toUser = chatData.users[mentionedJid]
+    if (!toUser.characters) toUser.characters = []
+
+    // Mover personajes
     fromUser.characters.forEach((c) => {
       toUser.characters.push(c)
-      toUser.characterCount++
-      toUser.totalRwcoins += c.value || 0
+      // toUser.characterCount++ (si usas contadores, actúalizalos, pero length es más seguro)
     })
 
+    // Vaciar emisor
     fromUser.characters = []
-    fromUser.characterCount = 0
-    fromUser.totalRwcoins = 0
 
     const nameReceiver = db.users[mentionedJid]?.name || mentionedJid.split('@')[0]
-    const message = `✎ Regalaste todos tus personajes al usuario *${nameReceiver}*.`
+    const message = `✎ Regalaste todos tus personajes de este grupo al usuario *${nameReceiver}*.`
 
     await client.sendMessage(chatId, { text: message }, { quoted: m })
   },
