@@ -1,44 +1,43 @@
 export default {
-  command: ['withdraw', 'with'],
+  command: ['withdraw', 'retirar', 'wd'],
   category: 'rpg',
   run: async ({client, m, args}) => {
-    const db = global.db.data
-    const chatId = m.chat
-    const senderId = m.sender
-    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const botSettings = db.settings[botId]
-    const chatData = db.chats[chatId]
+    // CORRECCIÓN: Usuario global
+    const user = global.db.data.users[m.sender]
+    
+    const idBot = client.user.id.split(':')[0] + '@s.whatsapp.net'
+    const settings = global.db.data.settings[idBot] || {}
+    const monedas = settings.currency || 'monedas'
 
+    const chatData = global.db.data.chats[m.chat]
     if (chatData.adminonly || !chatData.rpg)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`✐ Estos comandos están desactivados en este grupo.`)
 
-    const user = chatData.users[m.sender]
-    const currency = botSettings.currency || 'Monedas'
-
-    if (!args[0]) return m.reply(`《✧》 Ingresa la cantidad de *${currency}* que quieras retirar.`)
+    if (!args[0]) {
+      return m.reply(`《✧》 Ingresa la cantidad de *${monedas}* que quieras *retirar*.`)
+    }
 
     if (args[0].toLowerCase() === 'all') {
-      if ((user.bank || 0) <= 0)
-        return m.reply(`《✧》 No tienes *${currency}* para retirar de tu Banco.`)
+      if (user.bank <= 0) return m.reply(`✎ No tienes *${monedas}* en tu *banco* para retirar`)
 
-      const amount = user.bank
+      const count = user.bank
       user.bank = 0
-      user.coins = (user.coins || 0) + amount
+      user.coins += count
+      await m.reply(`ꕥ Has retirado *¥${count.toLocaleString()} ${monedas}* de tu Banco`)
+      return
+    }
 
-      return m.reply(`✎ Has retirado *¥${amount.toLocaleString()} ${currency}* de tu Banco.`)
+    if (!Number(args[0]) || parseInt(args[0]) < 1) {
+      return m.reply('《✧》 Ingresa una cantidad *válida* para retirar')
     }
 
     const count = parseInt(args[0])
-    if (isNaN(count) || count < 1) return m.reply(`《✧》 Ingresa una cantidad válida para retirar.`)
-
-    if ((user.bank || 0) < count)
-      return m.reply(
-        `《✧》 No tienes suficientes *${currency}* en tu banco para retirar esa cantidad.`,
-      )
+    if (user.bank < count) {
+      return m.reply(`❀ No tienes suficientes *${monedas}* en el banco para retirar`)
+    }
 
     user.bank -= count
-    user.coins = (user.coins || 0) + count
-
-    await m.reply(`✎ Has retirado *¥${count.toLocaleString()} ${currency}* de tu Banco.`)
+    user.coins += count
+    await m.reply(`ꕥ Has retirado *¥${count.toLocaleString()} ${monedas}* de tu Banco`)
   },
 };
