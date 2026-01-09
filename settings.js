@@ -26,7 +26,7 @@ global.bot = {
   web: 'https://studio.diamondbots.xyz'
 }
 
-global.prefa = ['/', '#', '.', '!', '$']
+global.prefa = ['/', '#', '.', '!', '$', '=>']
 
 // --- MODERADORES ---
 global.mods = [
