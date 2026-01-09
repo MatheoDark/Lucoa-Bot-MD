@@ -24,24 +24,19 @@ const obtenerPersonajes = () => {
     const contenido = fs.readFileSync('./lib/characters.json', 'utf-8')
     return JSON.parse(contenido)
   } catch (error) {
-    console.error('[Error] characters.json:', error)
     return []
   }
 }
 
 const reservarPersonaje = (chatId, userId, personaje, db) => {
-  // db.chats[chatId].personajesReservados ||= []
+  if (!db.chats[chatId].personajesReservados) db.chats[chatId].personajesReservados = []
   db.chats[chatId].personajesReservados.push({ userId, ...personaje })
 }
 
 const msToTime = (duration) => {
   const seconds = Math.floor((duration / 1000) % 60)
   const minutes = Math.floor((duration / (1000 * 60)) % 60)
-  const s = seconds.toString().padStart(2, '0')
-  const m = minutes.toString().padStart(2, '0')
-  return m === '00'
-    ? `${s} segundo${s > 1 ? 's' : ''}`
-    : `${m} minuto${m > 1 ? 's' : ''}, ${s} segundo${s > 1 ? 's' : ''}`
+  return `${minutes}m ${seconds}s`
 }
 
 export default {
@@ -51,17 +46,19 @@ export default {
     const db = global.db.data
     const chatId = m.chat
     const userId = m.sender
-    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const chat = db.chats[chatId] || {}
-   // chat.users ||= {}
-    // chat.personajesReservados ||= []
-    const user = chat.users[userId] || {}
+    
+    // --- MODELO HÍBRIDO ---
+    const globalUser = db.users[userId] || {} // Para dinero y cooldowns
+    const localUser = chat.users[userId] || {} // Para inventario de personajes del grupo
+    
     const now = Date.now()
 
     if (chat.adminonly || !chat.gacha)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
-    const cooldown = user.rwCooldown || 0
+    // Usamos cooldown global para no spammear en todos los grupos
+    const cooldown = globalUser.rwCooldown || 0
     const restante = cooldown - now
     if (restante > 0) {
       return m.reply(`ꕥ Espera *${msToTime(restante)}* para volver a usar este comando.`)
@@ -72,50 +69,53 @@ export default {
     if (!personaje) return m.reply('《✧》 No se encontró ningún personaje disponible.')
 
     const idUnico = uuidv4().slice(0, 8)
+    
+    // Verificar si está reservado en el chat
     const reservado = Array.isArray(chat.personajesReservados)
       ? chat.personajesReservados.find((p) => p.name === personaje.name)
       : null
 
+    // Verificar si alguien DEL GRUPO ya lo tiene
     const poseedor = Object.entries(chat.users).find(
-      ([_, u]) =>
-        Array.isArray(u.characters) && u.characters.some((c) => c.name === personaje.name),
+      ([_, u]) => Array.isArray(u.characters) && u.characters.some((c) => c.name === personaje.name),
     )
 
-    try {
-      let estado = 'Libre'
-      if (poseedor) {
+    let estado = 'Libre'
+    if (poseedor) {
         const [id] = poseedor
-        estado = `Reclamado por ${db.users[id]?.name || 'Alguien'}`
-      } else if (reservado) {
-        estado = `Reservado por ${db.users[reservado.userId]?.name || 'Alguien'}`
-      }
+        const nombrePoseedor = db.users[id]?.name || id.split('@')[0]
+        estado = `Reclamado por ${nombrePoseedor}`
+    } else if (reservado) {
+        const nombreReservador = db.users[reservado.userId]?.name || 'Alguien'
+        estado = `Reservado por ${nombreReservador}`
+    }
 
-      user.rwCooldown = now + 15 * 60000
+    // Guardamos cooldown en globalUser
+    globalUser.rwCooldown = now + 15 * 60000
 
-      const valorPersonaje =
-        typeof personaje.value === 'number' ? personaje.value.toLocaleString() : '0'
-      const mensaje = `➩ Nombre › *${personaje.name || 'Desconocido'}*
+    const valorPersonaje = typeof personaje.value === 'number' ? personaje.value.toLocaleString() : '0'
+    const mensaje = `➩ Nombre › *${personaje.name || 'Desconocido'}*
 
 ⚥ Género › *${personaje.gender || 'Desconocido'}*
 ⛁ Valor › *${valorPersonaje}*
 ♡ Estado › *${estado}*
 ❖ Fuente › *${personaje.source || 'Desconocido'}*
 
-${dev}`
+${global.dev || ''}`
 
-      const imagenUrl = await obtenerImagenGelbooru(personaje.keyword)
+    const imagenUrl = await obtenerImagenGelbooru(personaje.keyword)
 
-      await client.sendMessage(
-        chatId,
-        {
-          image: { url: imagenUrl },
-          caption: mensaje,
-          mimetype: 'image/jpeg',
-        },
-        { quoted: m },
-      )
+    await client.sendMessage(
+      chatId,
+      {
+        image: { url: imagenUrl },
+        caption: mensaje,
+        mimetype: 'image/jpeg',
+      },
+      { quoted: m },
+    )
 
-      if (!poseedor) {
+    if (!poseedor) {
         reservarPersonaje(
           chatId,
           userId,
@@ -128,10 +128,6 @@ ${dev}`
           },
           db,
         )
-      }
-    } catch (e) {
-      user.rwCooldown = 0
-      return m.reply(msgglobal)
     }
   },
 };
