@@ -2,12 +2,15 @@ export default {
   command: ['crime'],
   category: 'rpg',
   run: async ({client, m}) => {
-    const chat = global.db.data.chats[m.chat]
-    const user = chat.users[m.sender]
+    // CORRECCIÓN: Usuario global
+    const user = global.db.data.users[m.sender]
+    
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const monedas = global.db.data.settings[botId].currency
+    const settings = global.db.data.settings[botId] || {}
+    const monedas = settings.currency || 'monedas'
 
-    if (chat.adminonly || !chat.rpg)
+    const chatData = global.db.data.chats[m.chat]
+    if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✐ Estos comandos estan desactivados en este grupo.`)
 
     if (!user.crimeCooldown) user.crimeCooldown = 0
