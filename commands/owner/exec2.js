@@ -4,51 +4,62 @@ import { promisify } from 'util'
 const exec = promisify(cp.exec)
 
 export default {
-  // 🔥 TRUCO: Usamos Regex /^(\$|exec)/
-  // Esto le dice al bot: "Actívate si el mensaje empieza con $ o con exec, ignora el prefijo normal"
-  command: /^(\$|exec)/i, 
+  // 1. Ponemos un array normal para que NO crashee el bot
+  command: ['exec'], 
   category: 'owner',
   isOwner: true,
 
-  run: async ({ client, m, usedPrefix, command }) => {
-    
-    // Como usamos Regex, tenemos que limpiar el texto manualmente
-    // m.text es el mensaje completo (ej: "$ ls -lh")
-    let fullText = m.text.trim()
-    let text = ''
+  // 2. Usamos 'before' para detectar el signo '$' manualmente
+  // Esto se ejecuta en CADA mensaje antes de buscar comandos normales
+  before: async (m, { client, isOwner }) => {
+    // Si no es dueño o no hay texto, ignoramos
+    if (!isOwner || !m.text) return false
 
-    // Si empieza con $, quitamos el $
-    if (fullText.startsWith('$')) {
-        text = fullText.slice(1).trim()
-    } 
-    // Si empieza con exec, quitamos "exec" y el prefijo si lo hubiera
-    else {
-         // Eliminamos la primera palabra (el comando) para quedarnos con los argumentos
-         text = fullText.split(' ').slice(1).join(' ').trim()
+    // Si el mensaje empieza con "$ " (ej: $ ls)
+    if (m.text.startsWith('$')) {
+        // Obtenemos el comando quitando el "$"
+        const commandText = m.text.slice(1).trim()
+        if (!commandText) return false
+
+        await client.sendMessage(m.chat, { react: { text: '💻', key: m.key } })
+
+        // Ejecutamos la lógica de terminal aquí mismo
+        let o
+        try {
+            o = await exec(commandText, { maxBuffer: 20 * 1024 * 1024 })
+        } catch (e) {
+            o = e
+        } finally {
+            let { stdout, stderr } = o
+            if (stdout) stdout = stdout.trim()
+            if (stderr) stderr = stderr.trim()
+
+            if (stdout || stderr) {
+                await m.reply(`root@server:~# ${commandText}\n\n${stdout || ''}\n${stderr ? '⚠️ ERROR:\n' + stderr : ''}`.trim())
+            } else {
+                await m.reply('✅')
+            }
+        }
+        return true // Retornamos true para detener el bot aquí (que no busque más comandos)
     }
+    
+    return false // Si no empezaba con $, dejamos pasar el mensaje
+  },
 
-    if (!text) return m.reply(`💻 *Terminal Linux*\n\nEscribe un comando.\nEjemplo: *$ ls -lh*`)
-
-    await client.sendMessage(m.chat, { react: { text: '⚙️', key: m.key } })
-
+  // 3. Mantenemos el 'run' por si quieres usar /exec
+  run: async ({ client, m, text }) => {
+    if (!text) return m.reply('Escribe un comando.')
+    // (Misma lógica, solo como respaldo)
     let o
     try {
-      // Ejecutamos el comando
-      o = await exec(text, { maxBuffer: 20 * 1024 * 1024 })
+        o = await exec(text.trim(), { maxBuffer: 20 * 1024 * 1024 })
     } catch (e) {
-      o = e
+        o = e
     } finally {
-      let { stdout, stderr } = o
-      
-      if (stdout) stdout = stdout.trim()
-      if (stderr) stderr = stderr.trim()
-      
-      // Enviamos la respuesta bonita
-      if (stdout || stderr) {
-          await m.reply(`root@server:~# ${text}\n\n${stdout || ''}\n${stderr ? '⚠️ ERROR:\n' + stderr : ''}`.trim())
-      } else {
-          await m.reply(`✅ Ejecutado (Sin salida).`)
-      }
+        let { stdout, stderr } = o
+        if (stdout) stdout = stdout.trim()
+        if (stderr) stderr = stderr.trim()
+        if (stdout || stderr) await m.reply(`root@server:~# ${text}\n\n${stdout || ''}\n${stderr ? '⚠️ ERROR:\n' + stderr : ''}`.trim())
     }
   }
 }
