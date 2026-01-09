@@ -3,10 +3,18 @@ export default {
   category: 'rpg',
 
   run: async ({client, m}) => {
-    const chat = global.db.data.chats[m.chat];
-    const user = chat.users[m.sender];
+    // --- CORRECCIÓN CRÍTICA: Referencias Globales ---
+    const chat = global.db.data.chats[m.chat] || {};
+    
+    // Aquí cambiamos 'chat.users' por 'global.db.data.users'
+    if (!global.db.data.users[m.sender]) {
+        global.db.data.users[m.sender] = { coins: 0, workCooldown: 0 };
+    }
+    const user = global.db.data.users[m.sender];
+    
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
-    const monedas = global.db.data.settings[botId].currency;
+    const settings = global.db.data.settings[botId] || {};
+    const monedas = settings.currency || 'Coins';
 
     if (chat.adminonly || !chat.rpg)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
@@ -18,7 +26,7 @@ export default {
       return m.reply(`✿ Debes esperar *${msToTime(remainingTime)}* para trabajar de nuevo.`);
     }
 
-    const rsl = Math.floor(Math.random() * 5000);
+    const rsl = Math.floor(Math.random() * 5000) + 500; // Agregué un mínimo de 500 para que valga la pena
     user.workCooldown = Date.now() + 10 * 60 * 1000; // 10 minutos
     user.coins += rsl;
 
@@ -51,7 +59,7 @@ const trabajo = [
   "Eres fotógrafo de bodas y recibes",
   "Trabajas en una tienda de mascotas y ganas",
   "Eres narrador de audiolibros y obtienes",
-  "Hemostras en el departamento de arte y ganas",
+  "Demuestras en el departamento de arte y ganas",
   "Trabajas como jardinero en un parque y recibes",
   "Eres un DJ en fiestas y ganas",
   "Hiciste un mural en una cafetería y te dieron",
