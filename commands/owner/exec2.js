@@ -4,34 +4,31 @@ import { promisify } from 'util'
 const exec = promisify(cp.exec)
 
 export default {
-  command: ['$', 'exec', 'bash'], 
+  // Acepta el símbolo '$' y la palabra 'exec'
+  command: ['$', 'exec'], 
   category: 'owner',
   isOwner: true,
 
-  run: async ({ client, m, text, command }) => {
-    
-    // Si escribes solo "$" te avisa cómo usarlo
-    if (!text) return m.reply(`💻 *Terminal Linux*\n\nEjemplo: *${command} ls -lh*`)
+  run: async ({ client, m, text, command, usedPrefix }) => {
+        
+    if (!text) return m.reply(`💻 *Terminal*\nEjemplo: *${usedPrefix + command} ls -lh*`)
 
-    await client.sendMessage(m.chat, { react: { text: '💻', key: m.key } })
+    await client.sendMessage(m.chat, { react: { text: '⚙️', key: m.key } })
 
-    let o
+    let output
     try {
-      // Ejecuta el comando (con límite de memoria para no colgar el bot)
-      o = await exec(text.trim(), { maxBuffer: 10 * 1024 * 1024 })
+      // Ejecutamos con un buffer grande para que no se corte
+      output = await exec(text.trim(), { maxBuffer: 20 * 1024 * 1024 })
     } catch (e) {
-      o = e
+      output = e
     } finally {
-      let { stdout, stderr } = o
-      
+      let { stdout, stderr } = output
       if (stdout) stdout = stdout.trim()
       if (stderr) stderr = stderr.trim()
       
-      if (stdout || stderr) {
-          await m.reply(`root@server:~# ${text}\n\n${stdout || ''}\n${stderr ? '⚠️ ERROR:\n' + stderr : ''}`.trim())
-      } else {
-          await m.reply(`✅ Ejecutado.`)
-      }
+      const respuesta = `root@server:~# ${text}\n\n${stdout || ''}\n${stderr ? '⚠️ ERROR:\n' + stderr : ''}`
+      
+      await m.reply(respuesta.trim())
     }
   }
 }
