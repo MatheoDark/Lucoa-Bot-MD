@@ -2,47 +2,53 @@ export default {
   command: ['daily'],
   category: 'rpg',
   run: async ({client, m}) => {
-    const chat = global.db.data.chats[m.chat]
-    const user = chat.users[m.sender]
+    // CORRECCIÓN: Usuario global
+    const user = global.db.data.users[m.sender]
+    
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const monedas = global.db.data.settings[botId].currency
+    const settings = global.db.data.settings[botId] || {}
+    const monedas = settings.currency || 'monedas'
+    
+    const chatData = global.db.data.chats[m.chat]
+    if (chatData.adminonly || !chatData.rpg)
+      return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
 
     const now = Date.now()
     const oneDay = 24 * 60 * 60 * 1000
     const twoDays = oneDay * 2
 
-    if (chat.adminonly || !chat.rpg)
-      return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
-
-user.dailyStreak = user.dailyStreak ?? 0
-user.lastDaily = user.lastDaily ?? 0
-user.coins = user.coins ?? 0
+    // Inicializar valores si no existen
+    user.dailyStreak = user.dailyStreak ?? 0
+    user.lastDaily = user.lastDaily ?? 0
+    user.coins = user.coins ?? 0
 
     const timeSinceLast = now - user.lastDaily
 
     if (timeSinceLast < oneDay) {
       const restante = formatRemainingTime(oneDay - timeSinceLast)
-     return m.reply(
+      return m.reply(
         `✐ Ya has reclamado tu *Daily* de hoy.\n` +
         `> Puedes reclamarlo de nuevo en *${restante}*`
       ) 
     }
 
-   if (timeSinceLast > twoDays) {
-  const perdioRacha = user.dailyStreak >= 10
-  user.dailyStreak = 1
-  user.lastDaily = now
-  const recompensa = calcularRecompensa(user.dailyStreak)
-  const siguiente = calcularRecompensa(user.dailyStreak + 1)
-  user.coins += recompensa
+    // Lógica de racha perdida
+    if (timeSinceLast > twoDays) {
+      const perdioRacha = user.dailyStreak >= 10
+      user.dailyStreak = 1
+      user.lastDaily = now
+      const recompensa = calcularRecompensa(1)
+      const siguiente = calcularRecompensa(2)
+      user.coins += recompensa
 
-  return m.reply(
-    `「✿」Has reclamado tu recompensa diaria de *${recompensa.toLocaleString()} ${monedas}*! (Día *1*)\n` +
-    `> Día *2* » *¥${siguiente.toLocaleString()}*` +
-    (perdioRacha ? `\n> ☆ ¡Has perdido tu racha de días!` : '')
-  )
-}
+      return m.reply(
+        `「✿」Has reclamado tu recompensa diaria de *${recompensa.toLocaleString()} ${monedas}*! (Día *1*)\n` +
+        `> Día *2* » *¥${siguiente.toLocaleString()}*` +
+        (perdioRacha ? `\n> ☆ ¡Has perdido tu racha de días!` : '')
+      )
+    }
 
+    // Reclamar normal
     user.dailyStreak += 1
     user.lastDaily = now
     const recompensa = calcularRecompensa(user.dailyStreak)
