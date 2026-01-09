@@ -9,12 +9,6 @@ async function loadCharacters() {
   }
 }
 
-function findCharacterMatch(char, charactersData) {
-  return Object.values(charactersData)
-    .flatMap(s => Array.isArray(s.characters) ? s.characters : [])
-    .find(c => c.name === char.name)
-}
-
 export default {
   command: ['harem', 'miswaifus', 'claims'],
   category: 'gacha',
@@ -27,21 +21,24 @@ export default {
 
     const name = db.users[userId]?.name || userId.split('@')[0]
     const chatConfig = db.chats[chatId] || {}
-    const userData = chatConfig.users?.[userId]
+    
+    // --- MODELO HÍBRIDO: Personajes LOCALES ---
+    // Usamos chatConfig.users (local) para ver las waifus de ESTE grupo
+    const localUser = chatConfig.users?.[userId]
 
     if (chatConfig.adminonly || !chatConfig.gacha)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
-    if (!userData?.characters?.length) {
+    if (!localUser?.characters?.length) {
       return m.reply(
         userId === m.sender
-          ? `ꕥ No tienes personajes reclamados en tu inventario.`
-          : `ꕥ *${name}* no tiene personajes reclamados en su inventario.`
+          ? `ꕥ No tienes personajes en este grupo.`
+          : `ꕥ *${name}* no tiene personajes en este grupo.`
       )
     }
 
     const charactersData = await loadCharacters()
-    const total = userData.characters.length
+    const total = localUser.characters.length
     const perPage = 20
     const page = Math.max(1, parseInt(args[0]) || 1)
     const pages = Math.ceil(total / perPage)
@@ -51,16 +48,16 @@ export default {
 
     const start = (page - 1) * perPage
     const end = Math.min(start + perPage, total)
-    const charactersOnPage = userData.characters.slice(start, end)
+    const charactersOnPage = localUser.characters.slice(start, end)
 
-    let message = `❀ Personajes reclamados ❀
+    let message = `❀ Harén del Grupo ❀
 ⌦ Usuario: *${name}*
 ♡ Personajes: *(${total}):*\n\n`
 
     charactersOnPage.forEach((char, i) => {
-      const match = findCharacterMatch(char, charactersData)
-      const value = match?.value?.toLocaleString() || char.value?.toLocaleString() || 'Desconocido'
-      const label = match?.name || char.name || 'Desconocido'
+      const match = charactersData.find(c => c.name === char.name)
+      const value = match?.value?.toLocaleString() || char.value?.toLocaleString() || '?'
+      const label = match?.name || char.name || '?'
       message += `> ${start + i + 1}. *${label}* (${value})\n`
     })
 
