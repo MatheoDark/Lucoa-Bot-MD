@@ -1,10 +1,6 @@
 import fetch from 'node-fetch'
-import 'dotenv/config'
 
-const GOOGLE_API_KEY = process.env.GEMINI_API_KEY
-
-// 🧠 CEREBRO DE LUCOA (Lógica compartida)
-// Esta función se usa tanto para el comando como para las respuestas automáticas
+// 🧠 LÓGICA ÚNICA (Pollinations)
 async function pensarComoLucoa(text, username, m, client) {
     
     // Personalidad
@@ -12,52 +8,23 @@ async function pensarComoLucoa(text, username, m, client) {
 
     await client.sendMessage(m.chat, { react: { text: '🐲', key: m.key } })
 
-    // 🛡️ INTENTO 1: Google Gemini
     try {
-        if (!GOOGLE_API_KEY) throw new Error("Sin Key")
+        const promptCompleto = `${system}\n\nUsuario: ${text}`
+        // Usamos Pollinations directamente como pediste
+        const url = `https://text.pollinations.ai/${encodeURIComponent(promptCompleto)}?model=openai`
         
-        const models = ["gemini-1.5-flash", "gemini-pro", "gemini-1.0-pro"]
-        let googleResponse = null
+        const res = await fetch(url)
+        const respuestaTexto = await res.text()
 
-        for (const model of models) {
-            try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_API_KEY}`
-                const req = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: system + "\n\nUsuario: " + text }] }] })
-                })
-                if (!req.ok) continue
-                const json = await req.json()
-                const txt = json.candidates?.[0]?.content?.parts?.[0]?.text
-                if (txt) { googleResponse = txt; break }
-            } catch (e) {}
-        }
+        if (!respuestaTexto || respuestaTexto.length < 1) throw new Error("Sin respuesta")
 
-        if (googleResponse) {
-            return await client.sendMessage(m.chat, { text: googleResponse.trim() + `\n\n> 🐲 Powered by MatheoDark` }, { quoted: m })
-        }
-        throw new Error("Google falló")
+        await client.sendMessage(m.chat, { 
+            text: respuestaTexto.trim() + `\n\n> 🐲 Powered by MatheoDark` 
+        }, { quoted: m })
 
     } catch (e) {
-        console.log("⚠️ Falló Google, activando Pollinations...")
-        
-        // 🛡️ INTENTO 2: Pollinations AI (Texto Inmortal)
-        try {
-            const promptCompleto = `${system}\n\nPregunta del usuario: ${text}`
-            const url = `https://text.pollinations.ai/${encodeURIComponent(promptCompleto)}?model=openai`
-            const res = await fetch(url)
-            const respuestaTexto = await res.text()
-
-            if (!respuestaTexto || respuestaTexto.length < 2) throw new Error("Sin respuesta")
-
-            await client.sendMessage(m.chat, { 
-                text: respuestaTexto.trim() + `\n\n> 🐲 Powered by MatheoDark` 
-            }, { quoted: m })
-
-        } catch (e2) {
-            console.error(e2)
-        }
+        console.error("Error en IA Pollinations:", e)
+        m.reply('😵 Me dio un mareo... (Error de API)')
     }
 }
 
@@ -65,39 +32,54 @@ export default {
   command: ['ia', 'chatgpt', 'lucoa', 'gpt'],
   category: 'ia',
 
-  // 1️⃣ MODO NORMAL (Con comando #lucoa)
-  run: async ({ client, m, text }) => {
-    if (!text) return m.reply(`🍟 *¡Hola! Soy Lucoa.*\n\nDime algo.`)
+  // 1️⃣ COMANDO MANUAL (#lucoa hola / #lucoa on)
+  run: async ({ client, m, text, args, command }) => {
+    
+    // Obtenemos los datos del chat para guardar la configuración
+    const chat = global.db.data.chats[m.chat] || {}
+
+    // --- MODO CONFIGURACIÓN (ON/OFF) ---
+    if (args[0] === 'on') {
+        chat.chatbot = true
+        return m.reply('✅ *Auto-Lucoa ACTIVADO en este chat.*\nAhora responderé si respondes a mis mensajes.')
+    }
+    
+    if (args[0] === 'off') {
+        chat.chatbot = false
+        return m.reply('❌ *Auto-Lucoa DESACTIVADO.*\nSolo responderé si usas el comando.')
+    }
+
+    // --- MODO CONVERSACIÓN ---
+    if (!text) return m.reply(`🍟 *Hola soy Lucoa.*\n\nComandos:\n• *#${command} on* (Activar auto-respuesta)\n• *#${command} off* (Desactivar)\n• *#${command} hola* (Hablar)`)
+    
     const username = m.pushName || 'Humano'
     await pensarComoLucoa(text, username, m, client)
   },
 
-  // 2️⃣ MODO AUTOMÁTICO (Sin prefijo)
-  // Esta función 'before' se ejecuta en CADA mensaje que llega
+  // 2️⃣ MODO AUTOMÁTICO (Respuesta al responder)
   before: async (m, { client }) => {
     try {
-        // Si el mensaje no es de texto o es del propio bot, ignoramos
+        // Si el mensaje no es texto o es del propio bot, ignoramos
         if (m.isBaileys || !m.text) return false
 
-        // VERIFICACIÓN CLAVE: ¿Es una respuesta a un mensaje del Bot?
-        // m.quoted = el mensaje al que respondiste
-        // m.quoted.sender = quién envió ese mensaje
-        // client.user.jid = el número del bot
+        // 🔒 VERIFICACIÓN DE ACTIVACIÓN
+        // Si el chat no tiene el modo 'chatbot' activado, ignoramos
+        const chat = global.db.data.chats[m.chat] || {}
+        if (!chat.chatbot) return false
+
+        // VERIFICACIÓN DE RESPUESTA
         const botNumber = client.user.jid || client.user.id
         const isReplyToBot = m.quoted && m.quoted.sender.includes(botNumber.split('@')[0])
 
-        // Si es una respuesta al bot Y NO empieza con comando (para evitar doble respuesta)
-        if (isReplyToBot && !m.text.startsWith('.') && !m.text.startsWith('#')) {
+        // Si es respuesta al bot Y no es un comando
+        if (isReplyToBot && !m.text.startsWith('.') && !m.text.startsWith('#') && !m.text.startsWith('/')) {
             const username = m.pushName || 'Humano'
-            
-            // Llamamos a la misma lógica de IA
             await pensarComoLucoa(m.text, username, m, client)
-            
-            return true // Retornamos true para indicar que ya manejamos el mensaje
+            return true
         }
     } catch (e) {
         console.error(e)
     }
-    return false // Si no era respuesta al bot, dejamos pasar el mensaje
+    return false
   }
 }
