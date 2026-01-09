@@ -4,15 +4,16 @@ export default {
   run: async ({client, m}) => {
     const botId = client?.user?.id.split(':')[0] + '@s.whatsapp.net'
     const botSettings = global.db.data.settings[botId] || {}
-    const monedas = botSettings?.currency || 'Coins'
+    const monedas = botSettings.currency || 'Coins'
 
-    const chat = global.db.data.chats[m.chat]
+    const chat = global.db.data.chats[m.chat] || {}
     if (chat.adminonly || !chat.rpg) return m.reply(`✎ Desactivado.`)
 
     // CORRECCIÓN: Usuario Global
     const user = global.db.data.users[m.sender]
+    if (!user) return m.reply("⚠ Usuario no registrado.")
 
-    const remaining = user.mineCooldown - Date.now()
+    const remaining = (user.mineCooldown || 0) - Date.now()
     if (remaining > 0) {
       return m.reply(`ꕥ Espera *${msToTime(remaining)}*.`)
     }
@@ -38,13 +39,13 @@ export default {
       }
     }
 
-    user.coins += reward
+    user.coins = (user.coins || 0) + reward
 
     let msg = `「✿」 ${narration} *${reward.toLocaleString()} ${monedas}*`
     if (bonusMsg) msg += `\n${bonusMsg}`
 
     await client.reply(m.chat, msg, m)
-  },
+  }
 };
 
 function msToTime(duration) {
@@ -57,6 +58,17 @@ function pickRandom(list) {
   return list[Math.floor(list.length * Math.random())]
 }
 
-const escenarios = ['una cueva oscura', 'una montaña nevada', 'un bosque misterioso', 'un río cristalino', 'una mina abandonada'];
-const mineria = ['encontraste un cofre con', 'hallaste una bolsa de', 'descubriste oro por valor de', 'picaste una gema que vale'];
-]
+const escenarios = [
+  'una cueva oscura', 
+  'una montaña nevada', 
+  'un bosque misterioso', 
+  'un río cristalino', 
+  'una mina abandonada'
+];
+
+const mineria = [
+  'encontraste un cofre con', 
+  'hallaste una bolsa de', 
+  'descubriste oro por valor de', 
+  'picaste una gema que vale'
+];
