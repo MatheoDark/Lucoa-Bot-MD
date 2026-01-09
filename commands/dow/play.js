@@ -64,7 +64,7 @@ const ago = videoInfo.ago || 'Desconocido';
         console.error('Error fetching thumbnail:', e);
       }
       
-      // Si es comando genérico 'play', mostrar botones
+      // Si es comando genérico 'play', mostrar botones y terminar
       if (command === 'play') {
         const buttons = [
           ['🎵 Audio (MP3)', `.mp3 ${url}`],
@@ -80,6 +80,7 @@ const ago = videoInfo.ago || 'Desconocido';
           null,
           m
         );
+        return; // Terminar aquí para comando genérico
       } else {
         // Para comandos específicos, solo mostrar info
         await client.sendMessage(m.chat, thumb ? { image: thumb, caption: infoMessage } : { text: infoMessage }, { quoted: m });
@@ -93,11 +94,6 @@ const ago = videoInfo.ago || 'Desconocido';
         console.error('Error fetching metadata for URL:', e);
         title = 'Desconocido';
       }
-    }
-    
-    // Si es comando genérico 'play' sin URL directa, solo mostrar botones (ya se hizo arriba)
-    if (command === 'play' && !esURL) {
-      return; // Terminar aquí, ya mostramos los botones
     }
     
     const nekolabsApi = {
