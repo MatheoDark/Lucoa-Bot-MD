@@ -30,13 +30,6 @@ function findSimilarCharacter(name, characters) {
   )
 }
 
-function formatDate(timestamp) {
-  const date = new Date(timestamp)
-  const daysOfWeek = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]
-  const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-  return `${daysOfWeek[date.getDay()]}, ${date.getDate()} de ${months[date.getMonth()]} de ${date.getFullYear()}`
-}
-
 export default {
   command: ['winfo', 'charinfo', 'cinfo'],
   category: 'gacha',
@@ -44,7 +37,7 @@ export default {
   run: async ({client, m, args}) => {
     const db = global.db.data
     const chatId = m.chat
-    const chatData = db.chats[chatId]
+    const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.gacha)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
@@ -63,21 +56,27 @@ export default {
     const lastVoteTime = character.lastVoteTime || null
     const timeAgo = lastVoteTime ? 'hace ' + msToTime(Date.now() - lastVoteTime) : 'Aún no ha sido votado.'
 
+    // --- MODELO HÍBRIDO (Búsqueda Local) ---
+    // Buscamos si alguien EN ESTE GRUPO tiene el personaje
     const reservado = chatData.personajesReservados?.find(p => p.name === character.name)
+    
     const usuarioPoseedor = Object.entries(chatData.users || {}).find(([_, user]) =>
       user.characters?.some(c => c.name === character.name)
     )
 
-    const ownerId = usuarioPoseedor?.[0] || m.sender
+    const ownerId = usuarioPoseedor?.[0]
     const ownerData = chatData.users?.[ownerId]
     const characterInstance = ownerData?.characters?.find(c => c.name.toLowerCase() === character.name.toLowerCase())
     const claimStatus = characterInstance?.claim || 'Desconocido'
 
-    let estado = '*Libre*'
-    if (usuarioPoseedor)
-      estado = `*Reclamado por ${db.users[ownerId]?.name || ownerId.split('@')[0]}*\n☆ Fecha de reclamo › *${claimStatus}*`
-    else if (reservado)
-      estado = `*Reservado por ${db.users[reservado.userId]?.name || reservado.userId.split('@')[0]}*`
+    let estado = '*Libre (en este grupo)*'
+    if (usuarioPoseedor) {
+      const ownerName = db.users[ownerId]?.name || ownerId.split('@')[0]
+      estado = `*Reclamado por ${ownerName}*\n☆ Fecha de reclamo › *${claimStatus}*`
+    } else if (reservado) {
+      const reserverName = db.users[reservado.userId]?.name || reservado.userId.split('@')[0]
+      estado = `*Reservado por ${reserverName}*`
+    }
 
     const message = `➭ Nombre › *${character.name}*\n\n⚥ Género › *${character.gender || 'Desconocido'}*\n✰ Valor › *${character.value.toLocaleString()}*\n♡ Estado › ${estado}\n✧ Votos › *${character.votes || 0}*\n❀ Fuente › *${character.source || 'Desconocida'}*\n✩ Puesto › *#${rank}*\nⴵ Último voto › *${timeAgo}*`
 
