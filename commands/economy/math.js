@@ -27,19 +27,20 @@ const generarProblema = (dificultad) => {
 
 async function run({client, m, args, command}) {
   const chatId = m.chat;
-  const db = global.db.data.chats[chatId];
-  const user = global.db.data.users[m.sender]
+  const dbChat = global.db.data.chats[chatId] || {};
+  
+  // CORRECCIÓN: Usuario Global para la recompensa
+  const user = global.db.data.users[m.sender];
+  
   const juego = global.math[chatId];
-    if (db.adminonly || !db.rpg)
+    if (dbChat.adminonly || !dbChat.rpg)
       return m.reply(`✐ Estos comandos estan desactivados en este grupo.`)
 
   if (command === 'responder') {
-    if (!juego?.juegoActivo)
-      return // client.reply(chatId, '「✎」No hay ningún juego activo. Usa *math <dificultad>* para comenzar uno.', m);
+    if (!juego?.juegoActivo) return;
 
     const quotedId = m.quoted?.key?.id || m.quoted?.id || m.quoted?.stanzaId;
-    if (quotedId !== juego.problemMessageId)
-      return // client.reply(chatId, '「✎」Debes responder citando el mensaje del problema matemático.', m);
+    if (quotedId !== juego.problemMessageId) return;
 
     const respuestaUsuario = args[0]?.toLowerCase();
     if (!respuestaUsuario)
@@ -47,12 +48,16 @@ async function run({client, m, args, command}) {
 
     const respuestaCorrecta = juego.respuesta;
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
-    const primaryBotId = db.primaryBot;
+    const primaryBotId = dbChat.primaryBot;
 
     if (!primaryBotId || primaryBotId === botId) {
       if (respuestaUsuario === respuestaCorrecta) {
         const expaleatorio = Math.floor(Math.random() * 50) + 10;
-        user.exp = expaleatorio;
+        
+        // Asignamos EXP al usuario global
+        if (user) {
+            user.exp = (user.exp || 0) + expaleatorio;
+        }
 
         clearTimeout(juego.tiempoLimite);
         delete global.math[chatId];
@@ -73,7 +78,7 @@ async function run({client, m, args, command}) {
     return;
   }
 
-  if (command === 'math') {
+  if (command === 'math' || command === 'matematicas') {
     if (juego?.juegoActivo)
       return client.reply(chatId, 'ꕥ Ya hay un juego activo. Espera a que termine.', m);
 
@@ -82,9 +87,9 @@ async function run({client, m, args, command}) {
       return client.reply(chatId, '「✎」Especifica una dificultad válida: *facil, medio, dificil, imposible, imposible2*', m);
 
     const { problema, resultado } = generarProblema(dificultad);
-    const problemMessage = await client.reply(chatId, `「✩」Tienes 1 minuto para resolver:\n\n> ✩ *${problema}*\n\n_✐ Usa » *${prefa}responder* para responder!_`, m);
+    const problemMessage = await client.reply(chatId, `「✩」Tienes 1 minuto para resolver:\n\n> ✩ *${problema}*\n\n_✐ Usa » *${global.prefix || '/'}responder* para responder!_`, m);
 
-    globalThis.math[chatId] = {
+    global.math[chatId] = {
       juegoActivo: true,
       problema,
       respuesta: resultado.toString(),
@@ -93,7 +98,7 @@ async function run({client, m, args, command}) {
       problemMessageId: problemMessage.key?.id,
       tiempoLimite: setTimeout(() => {
         if (global.math[chatId]?.juegoActivo) {
-          delete globalThis.math[chatId];
+          delete global.math[chatId];
           client.reply(chatId, '「✿」Tiempo agotado. El juego ha terminado.', m);
         }
       }, 60000)
