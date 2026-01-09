@@ -1,30 +1,47 @@
 import fetch from 'node-fetch'
 
-// 🧠 LÓGICA ÚNICA (Pollinations)
+// 🧠 LÓGICA DE PENSAMIENTO
 async function pensarComoLucoa(text, username, m, client) {
-    
-    // Personalidad
     const system = `Actúa como Lucoa-Bot (Quetzalcoatl). Eres una diosa dragona amable, despreocupada y coqueta ("Ara ara"). Tu creador es MatheoDark. Responde en español de forma divertida y breve. Usuario: ${username}.`
-
+    
+    // Reacción inicial
     await client.sendMessage(m.chat, { react: { text: '🐲', key: m.key } })
 
     try {
         const promptCompleto = `${system}\n\nUsuario: ${text}`
-        // Usamos Pollinations directamente como pediste
         const url = `https://text.pollinations.ai/${encodeURIComponent(promptCompleto)}?model=openai`
         
         const res = await fetch(url)
+        
+        // 1. VERIFICAMOS EL ESTADO DE LA PÁGINA
+        if (res.status !== 200) throw new Error(`API Caída (Status: ${res.status})`)
+
         const respuestaTexto = await res.text()
 
-        if (!respuestaTexto || respuestaTexto.length < 1) throw new Error("Sin respuesta")
+        // 2. VERIFICAMOS QUE NO SEA UN ERROR DE CLOUDFLARE (El 502 que te salió)
+        if (!respuestaTexto || respuestaTexto.includes('Bad Gateway') || respuestaTexto.includes('cloudflared')) {
+            throw new Error("API devolvió error 502")
+        }
 
+        // Si todo está bien, enviamos la respuesta
         await client.sendMessage(m.chat, { 
             text: respuestaTexto.trim() + `\n\n> 🐲 Powered by MatheoDark` 
         }, { quoted: m })
 
     } catch (e) {
-        console.error("Error en IA Pollinations:", e)
-        m.reply('😵 Me dio un mareo... (Error de API)')
+        console.error("Error en IA:", e.message)
+        
+        // 3. RESPUESTA DE EMERGENCIA (Si la IA está muerta)
+        // En vez de mandar el error 502, Lucoa dirá algo coherente.
+        const frasesError = [
+            "Ara ara~ Me duele un poco la cabeza, inténtalo más tarde.",
+            "Zzz... Estoy tomando una siesta, despiértame luego.",
+            "¡El mundo de los dragones está desconectado! (Error de servidor)",
+            "No te escuché bien, ¿puedes repetirlo en un rato?"
+        ]
+        const fraseRandom = frasesError[Math.floor(Math.random() * frasesError.length)]
+        
+        await client.sendMessage(m.chat, { text: fraseRandom }, { quoted: m })
     }
 }
 
@@ -32,54 +49,48 @@ export default {
   command: ['ia', 'chatgpt', 'lucoa', 'gpt'],
   category: 'ia',
 
-  // 1️⃣ COMANDO MANUAL (#lucoa hola / #lucoa on)
   run: async ({ client, m, text, args, command }) => {
-    
-    // Obtenemos los datos del chat para guardar la configuración
-    const chat = global.db.data.chats[m.chat] || {}
+    // Asegurar que exista el objeto del chat
+    if (!global.db.data.chats[m.chat]) global.db.data.chats[m.chat] = {}
+    const chat = global.db.data.chats[m.chat]
 
-    // --- MODO CONFIGURACIÓN (ON/OFF) ---
     if (args[0] === 'on') {
         chat.chatbot = true
-        return m.reply('✅ *Auto-Lucoa ACTIVADO en este chat.*\nAhora responderé si respondes a mis mensajes.')
+        return m.reply('✅ *Auto-Lucoa ACTIVADO.*')
     }
-    
     if (args[0] === 'off') {
         chat.chatbot = false
-        return m.reply('❌ *Auto-Lucoa DESACTIVADO.*\nSolo responderé si usas el comando.')
+        return m.reply('❌ *Auto-Lucoa DESACTIVADO.*')
     }
 
-    // --- MODO CONVERSACIÓN ---
-    if (!text) return m.reply(`🍟 *Hola soy Lucoa.*\n\nComandos:\n• *#${command} on* (Activar auto-respuesta)\n• *#${command} off* (Desactivar)\n• *#${command} hola* (Hablar)`)
+    if (!text) return m.reply(`🍟 *Hola soy Lucoa.*\n\nComandos:\n• *#${command} on* (Activar)\n• *#${command} off* (Desactivar)\n• *#${command} hola* (Hablar)`)
     
     const username = m.pushName || 'Humano'
     await pensarComoLucoa(text, username, m, client)
   },
 
-  // 2️⃣ MODO AUTOMÁTICO (Respuesta al responder)
   before: async (m, { client }) => {
     try {
-        // Si el mensaje no es texto o es del propio bot, ignoramos
         if (m.isBaileys || !m.text) return false
 
-        // 🔒 VERIFICACIÓN DE ACTIVACIÓN
-        // Si el chat no tiene el modo 'chatbot' activado, ignoramos
         const chat = global.db.data.chats[m.chat] || {}
         if (!chat.chatbot) return false
 
-        // VERIFICACIÓN DE RESPUESTA
-        const botNumber = client.user.jid || client.user.id
-        const isReplyToBot = m.quoted && m.quoted.sender.includes(botNumber.split('@')[0])
+        // Validación segura del ID del bot
+        const botId = client.user?.jid || client.user?.id
+        if (!botId) return false
 
-        // Si es respuesta al bot Y no es un comando
+        const botNumber = botId.split('@')[0]
+        const senderNumber = m.quoted?.sender?.split('@')[0] || ''
+
+        const isReplyToBot = m.quoted && senderNumber === botNumber
+
         if (isReplyToBot && !m.text.startsWith('.') && !m.text.startsWith('#') && !m.text.startsWith('/')) {
             const username = m.pushName || 'Humano'
             await pensarComoLucoa(m.text, username, m, client)
             return true
         }
-    } catch (e) {
-        console.error(e)
-    }
+    } catch (e) {}
     return false
   }
 }
