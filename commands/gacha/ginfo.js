@@ -2,19 +2,25 @@ export default {
   command: ['gachainfo', 'ginfo', 'infogacha'],
   category: 'gacha',
   run: async ({client, m, args}) => {
+    const db = global.db.data
     const chatId = m.chat
     const userId = m.sender
-    const chatData = db.data.chats[chatId]
-    const user = chatData.users[userId]
+    const chatData = db.chats[chatId] || {}
     const now = Date.now()
 
     if (chatData.adminonly || !chatData.gacha)
       return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
 
+    // --- MODELO HÍBRIDO ---
+    // Cooldowns desde usuario GLOBAL
+    const globalUser = db.users[userId] || {}
+    // Personajes desde usuario LOCAL (del grupo)
+    const localUser = chatData.users?.[userId] || {}
+
     const cooldowns = {
-      vote: Math.max(0, (user.voteCooldown || 0) - now),
-      roll: Math.max(0, (user.rwCooldown || 0) - now),
-      claim: Math.max(0, (user.claimCooldown || 0) - now)
+      vote: Math.max(0, (globalUser.voteCooldown || 0) - now),
+      roll: Math.max(0, (globalUser.rwCooldown || 0) - now),
+      claim: Math.max(0, (globalUser.buyCooldown || 0) - now)
     }
 
     const formatTime = (ms) => {
@@ -30,8 +36,8 @@ export default {
       return parts.join(' ')
     }
 
-    const nombre = db.data.users[userId]?.name || userId.split('@')[0]
-    const personajes = user.characters || []
+    const nombre = globalUser.name || userId.split('@')[0]
+    const personajes = localUser.characters || []
     const valorTotal = personajes.reduce((acc, char) => acc + (char.value || 0), 0)
 
     const mensaje = `❀ Usuario \`<${nombre}>\`
@@ -40,8 +46,8 @@ export default {
 ⴵ Claim » *${cooldowns.claim > 0 ? formatTime(cooldowns.claim) : 'Ahora.'}*
 ⴵ Vote » *${cooldowns.vote > 0 ? formatTime(cooldowns.vote) : 'Ahora.'}*
 
-♡ Personajes reclamados » *${personajes.length}*
-✰ Valor total » *${valorTotal.toLocaleString()}*`
+♡ Personajes reclamados (Grupo) » *${personajes.length}*
+✰ Valor total (Grupo) » *${valorTotal.toLocaleString()}*`
 
     await client.sendMessage(chatId, { text: mensaje }, { quoted: m })
   }

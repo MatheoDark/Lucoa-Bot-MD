@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
   command: ['rt', 'roulette', 'ruleta'],
   category: 'rpg',
@@ -8,8 +10,9 @@ export default {
     if (!global.db.data.chats[m.chat].rpg)   
       return m.reply(`❒ Economía desactivada en este grupo.`)
 
-    // CORRECCIÓN: Usuario Global
-    let user = global.db.data.users[m.sender]
+    // CORRECCIÓN: Usuario Global + Resolución LID/JID
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    let user = global.db.data.users[userId]
     if (!user.coins) user.coins = 0  
     if (!user.rtCooldown) user.rtCooldown = 0  
     

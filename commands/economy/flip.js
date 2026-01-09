@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
   command: ['cf', 'flip', 'coinflip'],
   category: 'rpg',
@@ -9,8 +11,9 @@ export default {
     if (!global.db.data.chats[m.chat].rpg)
       return m.reply(`❒ Economía pausada.`)
 
-    // CORRECCIÓN: Usuario Global
-    let user = global.db.data.users[m.sender]
+    // CORRECCIÓN: Usuario Global + Resolución LID/JID
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    let user = global.db.data.users[userId]
     if (!user.coinfCooldown) user.coinfCooldown = 0;
     let remainingTime = user.coinfCooldown - Date.now();
 

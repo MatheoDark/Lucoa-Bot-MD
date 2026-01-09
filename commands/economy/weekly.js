@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 const pickRandom = (list) => list[Math.floor(Math.random() * list.length)]
 
 const msToTime = (duration) => {
@@ -16,7 +18,6 @@ export default {
   run: async ({client, m}) => {
     const db = global.db.data
     const chatId = m.chat
-    const senderId = m.sender
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const botSettings = db.settings[botId] || {}
     const chatData = db.chats[chatId] || {}
@@ -24,8 +25,9 @@ export default {
     if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
 
-    // CORRECCIÓN: Usuario Global
-    const user = db.users[m.sender]
+    // CORRECCIÓN: Usuario Global + Resolución LID/JID
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    const user = db.users[userId]
     if (!user) return m.reply("Usuario no registrado.")
 
     const cooldown = 7 * 24 * 60 * 60 * 1000
@@ -59,7 +61,7 @@ ${global.dev || ''}`.trim()
       chatId,
       {
         text: message,
-        mentions: [senderId],
+        mentions: [userId],
       },
       { quoted: m },
     )

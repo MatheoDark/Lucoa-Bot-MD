@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
   command: ['mine'],
   category: 'rpg',
@@ -9,8 +11,9 @@ export default {
     const chat = global.db.data.chats[m.chat] || {}
     if (chat.adminonly || !chat.rpg) return m.reply(`✎ Desactivado.`)
 
-    // CORRECCIÓN: Usuario Global
-    const user = global.db.data.users[m.sender]
+    // CORRECCIÓN: Usuario Global + Resolución LID/JID
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    const user = global.db.data.users[userId]
     if (!user) return m.reply("⚠ Usuario no registrado.")
 
     const remaining = (user.mineCooldown || 0) - Date.now()
