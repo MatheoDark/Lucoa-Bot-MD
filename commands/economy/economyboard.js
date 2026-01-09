@@ -1,3 +1,5 @@
+import { resolveLidToRealJid } from '../../lib/utils.js';
+
 export default {
   command: ['economyboard', 'eboard', 'baltop'],
   category: 'rpg',
@@ -12,34 +14,34 @@ export default {
     if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
 
-    if (!m.isGroup) return m.reply('Este comando solo funciona en grupos.')
-
     try {
-      // 1. Obtenemos los participantes REALES del grupo actual
-      const groupMetadata = await client.groupMetadata(chatId)
-      const participants = groupMetadata.participants
+      // 1. Obtener participantes del GRUPO ACTUAL
+      let participants = []
+      try {
+        const groupMetadata = await client.groupMetadata(chatId)
+        participants = groupMetadata.participants.map(p => p.id)
+      } catch (e) {
+        // Fallback: Si falla (no es grupo o bot no admin), usamos la lista local de chats
+        participants = Object.keys(chatData.users || {})
+      }
 
-      // 2. Mapeamos los participantes buscando sus datos en la DB GLOBAL
-      const users = participants.map(p => {
-        const userId = p.id
-        const globalUser = db.users[userId] || { coins: 0, bank: 0, name: null }
-        
+      // 2. Mapear participantes con su dinero GLOBAL
+      const users = participants.map(jid => {
+        const globalUser = db.users[jid] || { coins: 0, bank: 0 } // Leemos DB Global
         return {
-            jid: userId,
-            coins: globalUser.coins || 0,
-            bank: globalUser.bank || 0,
-            total: (globalUser.coins || 0) + (globalUser.bank || 0),
-            name: globalUser.name || userId.split('@')[0]
+          jid: jid,
+          coins: globalUser.coins || 0,
+          bank: globalUser.bank || 0,
+          name: globalUser.name || jid.split('@')[0]
         }
-      })
+      }).filter(u => (u.coins + u.bank) > 0) // Filtramos gente sin dinero
 
-      // 3. Filtramos los que tienen dinero y Ordenamos
-      const sorted = users
-        .filter(u => u.total > 0) // Opcional: mostrar solo los que tienen algo
-        .sort((a, b) => b.total - a.total)
+      if (users.length === 0)
+        return m.reply(`ꕥ No hay usuarios con dinero en este grupo.`)
 
-      if (sorted.length === 0)
-        return m.reply(`ꕥ Nadie en este grupo tiene dinero aún.`)
+      const sorted = users.sort(
+        (a, b) => (b.coins + b.bank) - (a.coins + a.bank)
+      )
 
       const page = parseInt(args[0]) || 1
       const pageSize = 10
@@ -51,11 +53,11 @@ export default {
       const start = (page - 1) * pageSize
       const end = start + pageSize
 
-      // Título cambiado para reflejar que es el Top del Grupo
-      let text = `*✩ Top Economy (Grupo) ✩*\n\n`
+      let text = `*✩ EconomyBoard (Grupo) (✿◡‿◡)*\n\n`
       
       const topUsers = sorted.slice(start, end).map((user, i) => {
-        return `✩ ${start + i + 1} › *${user.name}*\n     Total → *¥ ${user.total.toLocaleString()} ${monedas}*`
+        const total = user.coins + user.bank
+        return `✩ ${start + i + 1} › *${user.name}*\n     Total → *¥ ${total.toLocaleString()} ${monedas}*`
       })
 
       text += topUsers.join('\n')
@@ -67,7 +69,7 @@ export default {
 
     } catch (e) {
       console.error(e)
-      await m.reply('Ocurrió un error al obtener el top del grupo.')
+      await m.reply('Ocurrió un error al obtener el top.')
     }
   }
 }
