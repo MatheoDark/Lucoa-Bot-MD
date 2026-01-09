@@ -1,43 +1,60 @@
 import fetch from 'node-fetch'
 
-// 🧠 LÓGICA DE PENSAMIENTO
+// 🧠 LÓGICA DE PENSAMIENTO CENTRALIZADA
 async function pensarComoLucoa(text, username, m, client) {
-    const system = `Actúa como Lucoa-Bot (Quetzalcoatl). Eres una diosa dragona amable, despreocupada y coqueta ("Ara ara"). Tu creador es MatheoDark. Responde en español de forma divertida y breve. Usuario: ${username}.`
-    
-    // Reacción inicial
-    await client.sendMessage(m.chat, { react: { text: '🐲', key: m.key } })
+    // Definición del sistema (Personalidad)
+    // Puedes editar esto para cambiar qué tan coqueta o divertida es
+    const system = `Instrucciones: Actúa como Lucoa (Quetzalcoatl) de Kobayashi-san Chi no Maid Dragon.
+Personalidad: Ara ara~, coqueta, relajada, diosa dragona, hermana mayor cariñosa, despreocupada.
+Usuario: ${username}.
+Idioma: Español.
+Regla: Respuestas cortas (máximo 2 oraciones), divertidas y coquetas. Usa emojis.`
 
     try {
-        const promptCompleto = `${system}\n\nUsuario: ${text}`
+        // 1. Reacción inmediata para que sepa que leíste
+        await client.sendMessage(m.chat, { react: { text: '🐲', key: m.key } })
+
+        // 2. Construcción del Prompt y Petición
+        const promptCompleto = `${system}\n\nUsuario dice: ${text}\n\nLucoa responde:`
         const url = `https://text.pollinations.ai/${encodeURIComponent(promptCompleto)}?model=openai`
         
         const res = await fetch(url)
         
-        // 1. VERIFICAMOS EL ESTADO DE LA PÁGINA
-        if (res.status !== 200) throw new Error(`API Caída (Status: ${res.status})`)
+        // Validación básica
+        if (!res.ok) throw new Error(`API Error: ${res.status}`)
 
         const respuestaTexto = await res.text()
 
-        // 2. VERIFICAMOS QUE NO SEA UN ERROR DE CLOUDFLARE (El 502 que te salió)
-        if (!respuestaTexto || respuestaTexto.includes('Bad Gateway') || respuestaTexto.includes('cloudflared')) {
-            throw new Error("API devolvió error 502")
+        // 3. Verificación de errores de la API (Cloudflare, Bad Gateway, etc.)
+        if (!respuestaTexto || respuestaTexto.includes('Bad Gateway') || respuestaTexto.includes('cloudflared') || respuestaTexto.length < 2) {
+            throw new Error("Respuesta inválida de la IA")
         }
 
-        // Si todo está bien, enviamos la respuesta
+        // 4. Enviamos la respuesta con estilo
         await client.sendMessage(m.chat, { 
-            text: respuestaTexto.trim() + `\n\n> 🐲 Powered by MatheoDark` 
+            text: respuestaTexto.trim(),
+            contextInfo: {
+                externalAdReply: {
+                    title: "🐲 Lucoa-Bot AI",
+                    body: "Ara ara~",
+                    thumbnailUrl: "https://i.pinimg.com/736x/c8/ee/2b/c8ee2b24019e072b226503ba67b9319b.jpg", // Link directo a imagen de Lucoa
+                    sourceUrl: "https://github.com/MatheoDark",
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            }
         }, { quoted: m })
 
     } catch (e) {
-        console.error("Error en IA:", e.message)
+        console.error("Error en Lucoa Brain:", e)
         
-        // 3. RESPUESTA DE EMERGENCIA (Si la IA está muerta)
-        // En vez de mandar el error 502, Lucoa dirá algo coherente.
+        // 5. RESPUESTA DE EMERGENCIA (Fallback)
+        // Si la IA falla, usamos frases predefinidas para no romper la inmersión.
         const frasesError = [
-            "Ara ara~ Me duele un poco la cabeza, inténtalo más tarde.",
-            "Zzz... Estoy tomando una siesta, despiértame luego.",
-            "¡El mundo de los dragones está desconectado! (Error de servidor)",
-            "No te escuché bien, ¿puedes repetirlo en un rato?"
+            "Ara ara~ Me duele un poco la cabeza, ¿me lo repites cariño?",
+            "¡Ups! Me distraje pensando en Shouta-kun. ¿Qué decías?",
+            "Zzz... (Lucoa se quedó dormida, inténtalo de nuevo)",
+            "Parece que mis poderes de diosa están recargándose... espera un momento."
         ]
         const fraseRandom = frasesError[Math.floor(Math.random() * frasesError.length)]
         
@@ -46,51 +63,68 @@ async function pensarComoLucoa(text, username, m, client) {
 }
 
 export default {
-  command: ['ia', 'chatgpt', 'lucoa', 'gpt'],
-  category: 'ia',
+    // Definimos los comandos que activan al bot manualmente
+    command: ['ia', 'chatgpt', 'lucoa', 'gpt', 'ai'],
+    category: 'ia',
 
-  run: async ({ client, m, text, args, command }) => {
-    // Asegurar que exista el objeto del chat
-    if (!global.db.data.chats[m.chat]) global.db.data.chats[m.chat] = {}
-    const chat = global.db.data.chats[m.chat]
+    // --- EJECUCIÓN POR COMANDO (Ej: #lucoa hola) ---
+    run: async ({ client, m, text, args, command }) => {
+        // Aseguramos que chat exista en la DB
+        if (!global.db.data.chats[m.chat]) global.db.data.chats[m.chat] = {}
+        const chat = global.db.data.chats[m.chat]
 
-    if (args[0] === 'on') {
-        chat.chatbot = true
-        return m.reply('✅ *Auto-Lucoa ACTIVADO.*')
-    }
-    if (args[0] === 'off') {
-        chat.chatbot = false
-        return m.reply('❌ *Auto-Lucoa DESACTIVADO.*')
-    }
-
-    if (!text) return m.reply(`🍟 *Hola soy Lucoa.*\n\nComandos:\n• *#${command} on* (Activar)\n• *#${command} off* (Desactivar)\n• *#${command} hola* (Hablar)`)
-    
-    const username = m.pushName || 'Humano'
-    await pensarComoLucoa(text, username, m, client)
-  },
-
-  before: async (m, { client }) => {
-    try {
-        if (m.isBaileys || !m.text) return false
-
-        const chat = global.db.data.chats[m.chat] || {}
-        if (!chat.chatbot) return false
-
-        // Validación segura del ID del bot
-        const botId = client.user?.jid || client.user?.id
-        if (!botId) return false
-
-        const botNumber = botId.split('@')[0]
-        const senderNumber = m.quoted?.sender?.split('@')[0] || ''
-
-        const isReplyToBot = m.quoted && senderNumber === botNumber
-
-        if (isReplyToBot && !m.text.startsWith('.') && !m.text.startsWith('#') && !m.text.startsWith('/')) {
-            const username = m.pushName || 'Humano'
-            await pensarComoLucoa(m.text, username, m, client)
-            return true
+        // Comandos de configuración
+        if (args[0] === 'on') {
+            chat.chatbot = true
+            return m.reply('🐲 *Ara ara~ Auto-Lucoa activado.* Ahora responderé a quienes me respondan.')
         }
-    } catch (e) {}
-    return false
-  }
+        if (args[0] === 'off') {
+            chat.chatbot = false
+            return m.reply('💤 *Auto-Lucoa desactivado.*')
+        }
+
+        // Si no hay texto, mostramos ayuda
+        if (!text) return m.reply(`🐲 *Hola soy Lucoa-Bot* 🐲\n\n*Comandos:*\n• *${command} on* (Activar chat continuo)\n• *${command} off* (Desactivar)\n• *${command} <texto>* (Hablar directamente)\n\n_Ara ara~ dime algo interesante..._`)
+
+        // Ejecutar lógica manual
+        const username = m.pushName || 'Humano'
+        await pensarComoLucoa(text, username, m, client)
+    },
+
+    // --- EJECUCIÓN AUTOMÁTICA (Auto-Respuesta) ---
+    before: async (m, { client }) => {
+        try {
+            // Ignorar mensajes de sistema, vacíos o del propio bot
+            if (m.isBaileys || !m.text) return false
+            
+            const chat = global.db.data.chats[m.chat] || {}
+            
+            // Solo actuar si el modo chatbot está ACTIVO
+            if (!chat.chatbot) return false
+
+            // Lógica para detectar si deben responder
+            const botId = client.user?.jid || client.user?.id
+            const botNumber = botId?.split('@')[0]
+            const senderNumber = m.quoted?.sender?.split('@')[0] || ''
+            
+            // Condición: Es respuesta al bot O mencionan al bot
+            const isReplyToBot = m.quoted && senderNumber === botNumber
+            const isMentioned = m.text.includes(botNumber)
+
+            // Filtro Anti-Comandos: Si empieza con . # / no es charla, es comando.
+            if ((isReplyToBot || isMentioned) && !m.text.startsWith('.') && !m.text.startsWith('#') && !m.text.startsWith('/')) {
+                
+                const username = m.pushName || 'Humano'
+                await pensarComoLucoa(m.text, username, m, client)
+                
+                // CRÍTICO: return true detiene el procesamiento. 
+                // Esto evita que OTROS plugins de chatbot (como simsimi.js) respondan también.
+                return true
+            }
+
+        } catch (e) {
+            console.error(e)
+        }
+        return false
+    }
 }
