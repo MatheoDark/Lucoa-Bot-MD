@@ -77,7 +77,7 @@ const ago = videoInfo.ago || 'Desconocido';
       let qu = ['128', '255', '320'];
       let randomQuality = qu[Math.floor(Math.random() * qu.length)];
     const primaryApi = {
-      url: (url) => `${api.url}/dl/${['play', 'mp3', 'playaudio', 'ytmp3'].includes(command) ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(url)}&quality=${randomQuality}&key=${api.key}`,
+      url: (url) => `${global.api.url}/dl/${['play', 'mp3', 'playaudio', 'ytmp3'].includes(command) ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(url)}&quality=${randomQuality}&key=${global.api.key}`,
       validate: (result) => result.status && result.data && result.data.dl && result.data.title,
       parse: (result) => ({ dl: result.data.dl, title: result.data.title })
     };
@@ -160,7 +160,7 @@ await client.sendMessage(
         document: { url: dl },
         fileName: `${apiTitle || title}.mp4`,
         mimetype: 'video/mp4',
-        caption: dev
+        caption: global.dev
       },
       { quoted: m }
     );
