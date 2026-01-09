@@ -9,45 +9,39 @@ export default {
     const who2 = texto.length > 0 ? texto[0] : m.quoted ? m.quoted.sender : m.sender
     const userId = await resolveLidToRealJid(who2, client, m.chat);
 
-    const chat = global.db.data.chats[m.chat] || {}
-    const chatUsers = chat.users || {}
+    // CORRECCIÓN FINAL: Referencias unificadas
+    // Ya no usamos chatUsers para la economía, solo globalUsers
     const globalUsers = global.db.data.users || {}
-   const userss = global.db.data.chats[m.chat].users[userId] || {}
+    const user = globalUsers[userId]
 
-    if (!userss) {
-      return m.reply('✎ El usuario *mencionado* no está *registrado* en el bot')
-    }
+    if (!user) return m.reply('✎ Usuario no registrado.')
 
     const idBot = client.user.id.split(':')[0] + '@s.whatsapp.net' || ''
     const settings = global.db.data.settings[idBot] || {}
     const currency = settings.currency || ''
 
-    const user = chatUsers[userId] || {}
-    const user2 = globalUsers[userId] || {}
-
-    const name = user2.name || ''
-    const birth = user2.birth || 'Sin especificar'
-    const genero = user2.genre || 'Oculto'
-    const comandos = user2.usedcommands || '0'
-    const pareja = user2.marry ? `${globalUsers[user2.marry].name}` : 'Nadie'
-    const estadoCivil =
-      genero === 'Mujer' ? 'Casada con' : genero === 'Hombre' ? 'Casado con' : 'Casadx con'
-    const desc = user2.description ? `\n\n${user2.description}` : ''
-    const pasatiempo = user2.pasatiempo ? `${user2.pasatiempo}` : 'No definido'
-    const exp = user2.exp || 0
-    const nivel = user2.level || 0
+    const name = user.name || 'Sin Nombre'
+    const birth = user.birth || 'Sin especificar'
+    const genero = user.genre || 'Oculto'
+    const comandos = user.usedcommands || 0
+    const pareja = user.marry ? `${globalUsers[user.marry]?.name || 'Alguien'}` : 'Nadie'
+    const estadoCivil = genero === 'Mujer' ? 'Casada con' : 'Casado con'
+    const desc = user.description ? `\n\n${user.description}` : ''
+    const pasatiempo = user.pasatiempo || 'No definido'
+    
+    // Economía GLOBAL
+    const exp = user.exp || 0
+    const nivel = user.level || 0
     const chocolates = user.coins || 0
     const banco = user.bank || 0
     const totalCoins = chocolates + banco
-    const harem = user?.characters?.length || 0
+    const harem = user.characters?.length || 0
 
-    const perfil = await client
-      .profilePictureUrl(userId, 'image')
-      .catch((_) => 'https://cdn.stellarwa.xyz/files/1751246122292.jpg')
+    const perfil = await client.profilePictureUrl(userId, 'image').catch((_) => 'https://cdn.stellarwa.xyz/files/1751246122292.jpg')
 
-    const users = Object.entries(globalUsers).map(([key, value]) => ({ ...value, jid: key }))
-    const sortedLevel = users.sort((a, b) => (b.level || 0) - (a.level || 0))
-    try {
+    // Calcular Rank Global
+    const usersArr = Object.entries(globalUsers).map(([key, value]) => ({ ...value, jid: key }))
+    const sortedLevel = usersArr.sort((a, b) => (b.level || 0) - (a.level || 0))
     const rank = sortedLevel.findIndex((u) => u.jid === userId) + 1
 
     const profileText = `「✿」 *Perfil* ◢ ${name} ◤
@@ -65,16 +59,6 @@ export default {
 ✰ Dinero Total › *¥${totalCoins.toLocaleString()} ${currency}*
 ❒ Comandos ejecutados › *${comandos.toLocaleString()}*`
 
-    await client.sendMessage(
-      m.chat,
-      {
-        image: { url: perfil },
-        caption: profileText,
-      },
-      { quoted: m },
-    )
-  } catch (e) {
-  m.reply(msgglobal)
-  }
+    await client.sendMessage(m.chat, { image: { url: perfil }, caption: profileText }, { quoted: m })
   }
 };
