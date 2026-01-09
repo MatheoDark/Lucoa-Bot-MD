@@ -63,7 +63,27 @@ const ago = videoInfo.ago || 'Desconocido';
       } catch (e) {
         console.error('Error fetching thumbnail:', e);
       }
-      await client.sendMessage(m.chat, thumb ? { image: thumb, caption: infoMessage } : { text: infoMessage }, { quoted: m });
+      
+      // Si es comando genérico 'play', mostrar botones
+      if (command === 'play') {
+        const buttons = [
+          ['🎵 Audio (MP3)', `.mp3 ${url}`],
+          ['🎥 Video (MP4)', `.mp4 ${url}`]
+        ];
+        await client.sendButton(
+          m.chat,
+          infoMessage,
+          globalThis.dev || '© Lucoa Bot',
+          thumb || videoInfo.thumbnail,
+          buttons,
+          null,
+          null,
+          m
+        );
+      } else {
+        // Para comandos específicos, solo mostrar info
+        await client.sendMessage(m.chat, thumb ? { image: thumb, caption: infoMessage } : { text: infoMessage }, { quoted: m });
+      }
     } else {
       url = text;
       try {
@@ -74,6 +94,12 @@ const ago = videoInfo.ago || 'Desconocido';
         title = 'Desconocido';
       }
     }
+    
+    // Si es comando genérico 'play' sin URL directa, solo mostrar botones (ya se hizo arriba)
+    if (command === 'play' && !esURL) {
+      return; // Terminar aquí, ya mostramos los botones
+    }
+    
     const nekolabsApi = {
   url: (url) =>
     `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(
