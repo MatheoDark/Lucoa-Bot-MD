@@ -1,25 +1,4 @@
-import {readFileSync} from 'fs';
 import { resolveLidToRealJid } from "../../lib/utils.js"
-
-function formatDate(timestamp) {
-  const date = new Date(timestamp)
-  const daysOfWeek = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
-  const months = [
-    'enero',
-    'febrero',
-    'marzo',
-    'abril',
-    'mayo',
-    'junio',
-    'julio',
-    'agosto',
-    'septiembre',
-    'octubre',
-    'noviembre',
-    'diciembre',
-  ]
-  return `${daysOfWeek[date.getDay()]}, ${date.getDate()} de ${months[date.getMonth()]} de ${date.getFullYear()}`
-}
 
 export default {
   command: ['givechar', 'givewaifu', 'regalar'],
@@ -28,83 +7,42 @@ export default {
     const db = global.db.data
     const chatId = m.chat
     const senderId = m.sender
-    const chatData = db.chats[chatId]
-    const senderData = chatData.users[senderId]
+    const chatData = db.chats[chatId] || {}
+    
+    // --- MODELO HÍBRIDO: Waifus LOCALES ---
+    const senderLocal = chatData.users[senderId] || {}
+    
     const mentioned = m.mentionedJid
     const who2 = mentioned.length > 0 ? mentioned[0] : m.quoted ? m.quoted.sender : false
     const mentionedJid = await resolveLidToRealJid(who2, client, m.chat);
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`✎ Desactivado.`)
 
-    if (!who2 || mentionedJid === senderId)
-      return m.reply('✎ Menciona al usuario y el nombre de la waifu que deseas regalar.')
+    if (!senderLocal.characters?.length) return m.reply('《✧》 No tienes personajes en este grupo.')
 
-    if (!senderData?.characters?.length) return m.reply('《✧》 No tienes personajes en tu inventario.')
-
-   const user2 = global.db.data.chats[m.chat].users[mentionedJid]
-
-    if (!user2) {
-      return m.reply('《✧》 El usuario *mencionado* no está *registrado* en el bot')
+    // Usuario receptor LOCAL
+    let receiverLocal = chatData.users[mentionedJid]
+    if (!receiverLocal) {
+       chatData.users[mentionedJid] = { characters: [] }
+       receiverLocal = chatData.users[mentionedJid]
     }
 
-    const characterName = args
-      .filter((arg) => !arg.includes(mentionedJid.split('@')[0]))
-      .join(' ')
-      .toLowerCase()
-      .trim()
-    const characterIndex = senderData.characters.findIndex(
-      (c) => c.name?.toLowerCase() === characterName,
-    )
+    const characterName = args.filter((arg) => !arg.includes('@')).join(' ').toLowerCase().trim()
+    const characterIndex = senderLocal.characters.findIndex((c) => c.name?.toLowerCase() === characterName)
 
     if (characterIndex === -1)
-      return m.reply(`《✧》 No tienes el personaje *${characterName}* en tu inventario.`)
+      return m.reply(`《✧》 No tienes a *${characterName}* aquí.`)
 
-    try {
-      const characterDetails = JSON.parse(readFileSync('./lib/characters.json', 'utf8'))
-      const original = characterDetails.find((c) => c.name.toLowerCase() === characterName)
+    const character = senderLocal.characters[characterIndex]
+    
+    // Mover personaje
+    if (!receiverLocal.characters) receiverLocal.characters = []
+    receiverLocal.characters.push(character)
+    
+    senderLocal.characters.splice(characterIndex, 1)
 
-      if (!original)
-        return m.reply(`✎ No se encontró el personaje *${characterName}* en la base de datos.`)
-
-      const reservedCharacter = {
-        name: original.name,
-        value: original.value,
-        gender: original.gender,
-        source: original.source,
-        keyword: original.keyword,
-        claim: formatDate(Date.now()),
-      }
-
-      if (!chatData.users[mentionedJid]) {
-        chatData.users[mentionedJid] = {
-          characters: [],
-          characterCount: 0,
-          totalRwcoins: 0,
-          chocolates: 0,
-        }
-      }
-
-      const receiver = chatData.users[mentionedJid]
-
-      if (!Array.isArray(receiver.characters)) {
-        receiver.characters = []
-      }
-
-      receiver.characters.push(reservedCharacter)
-      receiver.characterCount++
-      receiver.totalRwcoins += reservedCharacter.value || 0
-
-      senderData.characters.splice(characterIndex, 1)
-      senderData.characterCount--
-      senderData.totalRwcoins -= reservedCharacter.value || 0
-
-      const receiverName = db.users[mentionedJid]?.name || mentionedJid.split('@')[0]
-      const message = `✎ *${reservedCharacter.name}* ha sido regalado a *${receiverName}*.`
-
-      await client.sendMessage(chatId, { text: message }, { quoted: m })
-    } catch (e) {
-      await client.sendMessage(chatId, { text: msgglobal }, { quoted: m })
-    }
+    const receiverName = db.users[mentionedJid]?.name || mentionedJid.split('@')[0]
+    await client.sendMessage(chatId, { text: `✎ *${character.name}* regalado a *${receiverName}*.` }, { quoted: m })
   },
 };
