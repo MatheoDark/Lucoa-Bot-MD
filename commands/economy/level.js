@@ -8,7 +8,8 @@ export default {
     const mentioned = m.mentionedJid
     const who2 = mentioned.length > 0 ? mentioned[0] : (m.quoted ? m.quoted.sender : m.sender)
     const who = await resolveLidToRealJid(who2, client, m.chat);
-    const name = who
+    
+    // Usuario Global (Ya estaba bien, pero aseguramos)
     const user = db.users[who]
 
     if (!user)
@@ -22,14 +23,14 @@ export default {
     const sortedLevel = users.sort((a, b) => (b.level || 0) - (a.level || 0))
     const rank = sortedLevel.findIndex(u => u.jid === who) + 1
 
-    const txt = `*「✿」Usuario* ◢ ${db.users[who].name} ◤
+    const txt = `*「✿」Usuario* ◢ ${user.name || who.split('@')[0]} ◤
 
-☆ Experiencia › *${user.exp?.toLocaleString() || 0}*
+☆ Experiencia › *${(user.exp || 0).toLocaleString()}*
 ❖ Nivel › *${user.level || 0}*
 ✐ Puesto › *#${rank}*
 
-❒ Comandos totales › *${user.usedcommands?.toLocaleString() || 0}*`
+❒ Comandos totales › *${(user.usedcommands || 0).toLocaleString()}*`
 
-    await client.sendMessage(chatId, { text: txt, mentions: [name] }, { quoted: m })
+    await client.sendMessage(chatId, { text: txt, mentions: [who] }, { quoted: m })
   }
 };
