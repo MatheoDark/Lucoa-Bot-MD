@@ -143,6 +143,12 @@ Lucoa-Bot-MD/
 
 ---
 
+## 📜 Historial de Cambios
+
+Para ver todas las actualizaciones, mejoras y correcciones de errores, consulta el archivo **[CHANGELOG.md](CHANGELOG.md)**.
+
+---
+
 <p align="center">
 <i>Desarrollado con ❤️ y mucho café por <b>MatheoDark</b></i>
 
@@ -151,6 +157,4 @@ Lucoa-Bot-MD/
 
 <i>Copyright © 2025 Lucoa-Bot-MD</i>
 </p>
-
-```
 

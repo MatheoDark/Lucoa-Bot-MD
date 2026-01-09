@@ -33,3 +33,25 @@ Todas las modificaciones notables de este proyecto serán documentadas en este a
 - Base portada completamente a ESM (ECMAScript Modules).
 - Sistema de Plugins modular.
 - Base de datos JSON ligera.
+
+---
+
+## [3.5.1] - 2026-01-09
+### 🛠️ Mejoras de Estabilidad y Seguridad
+
+#### 🔧 Correcciones de Código
+- **antilink.js:** Eliminado código duplicado en la eliminación de mensajes con enlaces.
+- **sticker.js:** Nueva función helper `safeDeleteFile()` para eliminar archivos temporales de forma segura.
+- **sticker.js:** Añadidas validaciones null-safe para `botSettings`, `user` y `chatUsers` evitando crashes.
+- **ping.js:** Añadido acceso null-safe a `global.db.data.settings` con fallback a 'Lucoa-Bot'.
+- **events.js:** Mejorada la obtención de configuración del bot con operador optional chaining (`?.`).
+- **events.js:** Nueva función helper `extractPhoneNumber()` para extraer número de teléfono de participantes.
+
+#### 🛡️ Prevención de Memory Leaks
+- **lib/utils.js:** Añadido sistema de límite de cache (`MAX_CACHE_SIZE = 2000`) para `groupMetadataCache` y `lidCache`.
+- **lib/utils.js:** Nueva función `addToCache()` con limpieza periódica cada 100 inserciones para mejor rendimiento.
+- **lib/utils.js:** Función `limitCacheSize()` que elimina entradas antiguas cuando el cache excede el límite.
+
+#### 🔒 Validaciones de Base de Datos
+- **lib/system/initDB.js:** Añadida validación para `m.sender` y `m.chat` antes de inicializar.
+- **lib/system/initDB.js:** Asegurada la existencia de `global.db.data.settings`, `users` y `chats` antes de acceder.
