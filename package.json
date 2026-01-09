@@ -4,18 +4,27 @@
   "description": "Lucoa-Bot-MD WhatsApp bot using Baileys",
   "main": "index.js",
   "type": "module",
+
+  "author": "Matheo-Dark",
+  "license": "MIT",
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MatheoDark/lucoa-bot-md"
+  },
+
   "scripts": {
     "format": "prettier --write .",
     "start": "node index.js"
   },
+
   "keywords": [
     "whatsapp-bot",
     "baileys-md",
     "bot-wa",
     "multi-device"
   ],
-  "author": "Matheo-Dark",
-  "license": "MIT",
+
   "engines": {
     "node": ">=21.7.3",
     "npm": ">=10.9.4"
