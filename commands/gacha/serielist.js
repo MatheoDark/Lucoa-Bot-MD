@@ -15,7 +15,7 @@ export default {
   run: async ({client, m, args}) => {
     const db = global.db.data
     const chatId = m.chat
-    const chatData = db.chats[chatId]
+    const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.gacha)
       return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
@@ -48,7 +48,8 @@ export default {
 
       await client.sendMessage(chatId, { text: message }, { quoted: m })
     } catch (error) {
-      await client.sendMessage(chatId, { text: msgglobal }, { quoted: m })
+      console.error(error)
+      await client.sendMessage(chatId, { text: "Error al cargar la lista." }, { quoted: m })
     }
   },
 };
