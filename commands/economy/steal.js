@@ -4,48 +4,39 @@ export default {
   command: ['steal', 'rob', 'robar'],
   category: 'rpg',
   run: async ({ client, m }) => {
-    const db = global.db.data
     const chatId = m.chat
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const botSettings = db.settings[botId]
-    const monedas = botSettings.currency
-    const chatData = db.chats[chatId]
+    const botSettings = global.db.data.settings[botId] || {}
+    const monedas = botSettings.currency || 'coins'
+    const chatData = global.db.data.chats[chatId]
 
     if (chatData.adminonly || !chatData.rpg)
-      return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
+      return m.reply(`✎ Desactivado.`)
 
     const mentioned = m.mentionedJid || []
     const who2 = mentioned[0] || (m.quoted ? m.quoted.sender : null)
 
-    if (!who2)
-      return m.reply(`《✧》 Debes mencionar a quien quieras robarle *${monedas}*.`)
+    if (!who2) return m.reply(`《✧》 Menciona a alguien para robar.`)
 
     const target = await resolveLidToRealJid(who2, client, chatId)
-    if (!target)
-      return m.reply(`《✧》 No se pudo obtener el usuario correctamente.`)
+    if (target === m.sender) return m.reply(`《✧》 No puedes robarte a ti mismo.`)
 
-    if (target === m.sender)
-      return m.reply(`《✧》 No puedes robarte a ti mismo.`)
+    // CORRECCIÓN: Usuarios Globales
+    const senderData = global.db.data.users[m.sender]
+    const targetData = global.db.data.users[target]
 
-    const senderData = chatData.users[m.sender] 
-    const targetData = chatData.users[target]
+    if (!targetData) return m.reply('《✧》 Usuario no registrado.')
 
-    if (!targetData)
-      return m.reply('《✧》 El usuario *mencionado* no está *registrado* en el bot.')
+    if ((targetData.coins || 0) < 50)
+      return m.reply(`《✧》 La víctima es muy pobre.`)
 
-    if (targetData.coins < 50)
-      return m.reply(
-        `《✧》 *${db.users[target]?.name || target.split('@')[0]}* no tiene suficiente *${monedas}* para robarle.`
-      )
-    senderData.roboCooldown
+    senderData.roboCooldown = senderData.roboCooldown || 0
     const remainingTime = senderData.roboCooldown - Date.now()
 
     if (remainingTime > 0)
-      return m.reply(
-        `ꕥ Debes esperar *${msToTime(remainingTime)}* antes de intentar robar nuevamente.`
-      )
+      return m.reply(`ꕥ Espera *${msToTime(remainingTime)}*.`)
 
-    const cooldown = 30 * 60 * 1000 // 30 minutos
+    const cooldown = 30 * 60 * 1000 
     const now = Date.now()
 
     senderData.roboCooldown = now + cooldown
@@ -53,40 +44,30 @@ export default {
 
     if (!success) {
       const fine = Math.floor(senderData.coins * 0.15)
-
       senderData.coins = Math.max(0, senderData.coins - fine)
       senderData.roboCooldown = now + cooldown * 2
 
-      return client.sendMessage(
-        chatId,
-        {
-          text: `🚔 ¡FBI OPEN UP!\n\nꕥ *@${m.sender.split('@')[0]}* intentó robar a *${db.users[target]?.name || target.split('@')[0]}* pero fue atrapado.\n\n💸 Multa: *-${fine.toLocaleString()} ${monedas}*`,
+      return client.sendMessage(chatId, {
+          text: `🚔 ¡ATRAPADO!\n\nꕥ Intentaste robar a *@${target.split('@')[0]}* y fallaste.\n💸 Multa: *-${fine.toLocaleString()} ${monedas}*`,
           mentions: [m.sender, target],
-        },
-        { quoted: m }
+        }, { quoted: m }
       )
     }
-    const cantidadRobada = Math.min(
-      Math.floor(Math.random() * 5000) + 50,
-      targetData.coins
-    )
 
+    const cantidadRobada = Math.min(Math.floor(Math.random() * 5000) + 50, targetData.coins)
     senderData.coins += cantidadRobada
     targetData.coins -= cantidadRobada
 
-    await client.sendMessage(
-      chatId,
-      {
-        text: `ꕥ Le robaste *${cantidadRobada.toLocaleString()} ${monedas}* a *${db.users[target]?.name || target.split('@')[0]}*.`,
+    await client.sendMessage(chatId, {
+        text: `ꕥ Le robaste *${cantidadRobada.toLocaleString()} ${monedas}* a *@${target.split('@')[0]}*.`,
         mentions: [target],
-      },
-      { quoted: m }
+      }, { quoted: m }
     )
   },
 }
 
 function msToTime(duration) {
-  const seconds = Math.floor((duration / 1000) % 60)
-  const minutes = Math.floor((duration / (1000 * 60)) % 60)
-  return `${minutes} minuto${minutes !== 1 ? 's' : ''}, ${seconds} segundo${seconds !== 1 ? 's' : ''}`
+  let seconds = Math.floor((duration / 1000) % 60)
+  let minutes = Math.floor((duration / (1000 * 60)) % 60)
+  return `${minutes}m ${seconds}s`
 }
