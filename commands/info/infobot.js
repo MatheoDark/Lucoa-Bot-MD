@@ -24,7 +24,7 @@ export default {
     const botname = botSettings.namebot || 'Lucoa Bot'
     const botname2 = botSettings.namebot2 || 'Lucoa'
     const monedas = botSettings.currency || 'BitCoins'
-    const banner = botSettings.banner || 'https://i.pinimg.com/736x/2a/39/19/2a39199d63c5a704259b15d21a525d88.jpg'
+    const banner = botSettings.banner || 'https://github.com/MatheoDark/Lucoa-Bot-MD/blob/main/media/banner2.jpg?raw=true'
     const prefijo = botSettings.prefijo || '#'
     
     // Detectar dueño de forma segura
