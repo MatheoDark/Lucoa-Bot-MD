@@ -1,84 +1,122 @@
 import fetch from 'node-fetch'
+import * as cheerio from 'cheerio'
+
+// ───────────────────────────────────────────────
+// 🕵️ MOTOR DE BÚSQUEDA XNXX (Local)
+// ───────────────────────────────────────────────
+
+async function xnxxSearch(query) {
+    try {
+        const res = await fetch(`https://www.xnxx.com/search/${encodeURIComponent(query)}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
+        })
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const results = []
+        
+        $('div.mozaique').find('div.thumb-block').each((i, element) => {
+            const linkTag = $(element).find('div.thumb-under a')
+            const link = linkTag.attr('href')
+            const title = linkTag.attr('title')
+            if (link && title) {
+                results.push({ 
+                    title: title, 
+                    url: link.startsWith('http') ? link : 'https://www.xnxx.com' + link 
+                })
+            }
+        })
+        return results
+    } catch (e) {
+        return []
+    }
+}
+
+async function xnxxDownload(url) {
+    try {
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
+        })
+        const html = await res.text()
+        const urlHigh = html.match(/html5player\.setVideoUrlHigh\('([^']+)'\)/)?.[1]
+        const urlLow = html.match(/html5player\.setVideoUrlLow\('([^']+)'\)/)?.[1]
+        return urlHigh || urlLow
+    } catch (e) {
+        return null
+    }
+}
+
+// ───────────────────────────────────────────────
+// 🚀 COMANDO PRINCIPAL
+// ───────────────────────────────────────────────
 
 export default {
     command: ['hentaivideo', 'hentaivid', 'hentai'],
     category: 'nsfw',
     run: async ({ client, m }) => {
         try {
-            // 1. SEGURIDAD: Solo grupos permitidos
+            // 1. SEGURIDAD
             if (m.isGroup && global.db.data.chats[m.chat]?.nsfw === false) {
                 return m.reply('🚫 *NSFW desactivado.*')
             }
             
-            await m.reply('⏳ *Buscando animación 3D en XNXX...*')
+            await m.reply('⏳ *Preparando ráfaga de 4 videos...*')
             
-            let videoData = null
-
-            // ───────────────────────────────────────────────
-            // 🔍 ESTRATEGIA: BUSCAR EN XNXX (Puros Videos)
-            // ───────────────────────────────────────────────
+            // 2. LISTA DE BÚSQUEDA (Mucha Variedad)
+            const queries = [
+                '3d hentai animation', 'sfm hentai compilation', 'overwatch hentai 3d', 
+                'uncensored hentai', 'blender hentai', 'anime sex hd', 
+                'hentai compilation', 'rule34 3d video', 'hentai short', 
+                'final fantasy hentai', 'nieR automata hentai', 'genshin impact hentai 3d',
+                'league of legends hentai', 'hentai creampie animation', 'hentai full hd'
+            ]
             
-            // Lista de términos para variar los resultados
-            const queries = ['3d hentai', 'overwatch hentai', 'sfm hentai', 'blender hentai', 'uncensored hentai']
+            // Elegimos un tema al azar
             const randomQuery = queries[Math.floor(Math.random() * queries.length)]
-
-            // API 1: AGATZ (Búsqueda + Descarga)
-            try {
-                console.log(`Buscando: ${randomQuery}...`)
-                // Paso A: Buscar
-                const searchRes = await fetch(`https://api.agatz.xyz/api/xnxx?message=${encodeURIComponent(randomQuery)}`)
-                const searchJson = await searchRes.json()
-
-                if (searchJson.status === 200 && searchJson.data && searchJson.data.length > 0) {
-                    // Paso B: Elegir uno al azar
-                    const randomVideo = searchJson.data[Math.floor(Math.random() * searchJson.data.length)]
-                    
-                    // Paso C: Obtener link de descarga directo
-                    const dlRes = await fetch(`https://api.agatz.xyz/api/xnxxdl?url=${randomVideo.link}`)
-                    const dlJson = await dlRes.json()
-
-                    if (dlJson.status === 200 && dlJson.data) {
-                        videoData = {
-                            url: dlJson.data.high || dlJson.data.low, // Preferir calidad alta
-                            title: randomVideo.title,
-                            source: 'XNXX'
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log("Falló API Agatz")
+            console.log(`Buscando: ${randomQuery}`)
+            
+            const results = await xnxxSearch(randomQuery)
+            
+            if (!results || results.length === 0) {
+                return m.reply('❌ No encontré resultados. Intenta de nuevo.')
             }
 
-            // ───────────────────────────────────────────────
-            // 🛡️ RESPALDO: API DIRECTA DE HENTAI (Si XNXX falla)
-            // ───────────────────────────────────────────────
-            if (!videoData) {
+            // 3. SELECCIONAR 4 VIDEOS ALEATORIOS (Sin repetir)
+            // Mezclamos el array de resultados
+            const shuffled = results.sort(() => 0.5 - Math.random())
+            // Tomamos los primeros 4
+            const selectedVideos = shuffled.slice(0, 4)
+
+            // 4. BUCLE DE ENVÍO
+            let sentCount = 0
+            
+            for (const video of selectedVideos) {
                 try {
-                    const res = await fetch('https://api.siputzx.my.id/api/nsfw/hentai')
-                    const json = await res.json()
-                    if (json.result) {
-                        videoData = {
-                            url: json.result,
-                            title: 'Hentai Random',
-                            source: 'API Backup'
-                        }
-                    }
-                } catch (e) { console.log("Falló Backup") }
+                    // Extraemos link MP4
+                    const dlUrl = await xnxxDownload(video.url)
+                    if (!dlUrl) continue // Si falla uno, pasamos al siguiente
+
+                    // Enviamos
+                    await client.sendMessage(m.chat, { 
+                        video: { url: dlUrl }, 
+                        caption: `🔞 *${video.title}*\n📂 *Tema:* ${randomQuery}`,
+                        gifPlayback: false 
+                    }, { quoted: m })
+                    
+                    sentCount++
+                    
+                    // Pequeña pausa para no saturar
+                    await new Promise(r => setTimeout(r, 1000))
+                    
+                } catch (e) {
+                    console.log(`Error enviando un video: ${e.message}`)
+                }
             }
 
-            // ❌ SI TODO FALLA
-            if (!videoData || !videoData.url) return m.reply('❌ *Error:* No pude obtener el video de XNXX. Intenta de nuevo.')
-
-            // ✅ ENVIAR
-            await client.sendMessage(m.chat, { 
-                video: { url: videoData.url }, 
-                caption: `🔞 *${videoData.title}*\n📂 Fuente: ${videoData.source}\n🔥 *Animación/Video Completo*`,
-                gifPlayback: false 
-            }, { quoted: m })
+            if (sentCount === 0) m.reply('❌ No pude descargar ninguno de los videos seleccionados.')
 
         } catch (e) {
             console.error(e)
-            m.reply('❌ Error fatal al procesar.')
+            m.reply('❌ Error fatal interno.')
         }
     }
 }
