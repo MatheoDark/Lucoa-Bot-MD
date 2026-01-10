@@ -14,41 +14,43 @@ export default async (client, m) => {
       const metadata = await client.groupMetadata(anu.id)
       const chat = global.db.data.chats?.[anu.id] || {}
       
-      // IDs de los bots (para evitar conflictos si hay varios)
+      // IDs de los bots (para evitar conflictos)
       const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
       const primaryBotId = chat?.primaryBot
 
-      // Filtro: Si hay un bot principal definido y no soy yo, ignoro el evento.
       if (primaryBotId && primaryBotId !== botId) return
 
-      // Datos de tiempo y grupo
+      // Datos
       const time = moment.tz('America/Bogota').format('hh:mm A')
       const memberCount = metadata?.participants?.length || 0
+      
+      // 🔗 TU CANAL (Definido aquí para usarlo en texto y tarjeta)
+      const channelLink = 'https://whatsapp.com/channel/0029Vb7LZZD5K3zb3S98eA1j'
 
       for (const p of anu.participants) {
         const { jid, phone } = extractPhoneNumber(p)
         
-        // Foto de perfil (Intentar obtenerla, si falla usar una por defecto)
+        // Foto de perfil
         const pp = await client.profilePictureUrl(jid, 'image')
           .catch(() => 'https://i.ibb.co/9Hc0y97/default-group.png')
 
-        // 🟢 CONFIGURACIÓN DE LA TARJETA (AQUÍ VA TU CANAL)
+        // 🟢 CONFIGURACIÓN DE LA TARJETA
         const fakeContext = {
           contextInfo: {
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
-              newsletterJid: '120363323067339794@newsletter', // ID genérico para que se vea bonito
+              newsletterJid: '120363323067339794@newsletter',
               serverMessageId: '100',
               newsletterName: '✨ Lucoa Updates ✨'
             },
             externalAdReply: {
               title: `Bienvenido a ${metadata.subject}`,
-              body: '¡Únete a nuestro canal oficial!', 
-              mediaUrl: null,
-              description: null,
+              body: '¡Clic aquí para unirte al Canal!',
+              mediaUrl: channelLink, 
+              description: 'Unete',
               previewType: 'PHOTO',
               thumbnailUrl: pp, 
-              sourceUrl: 'https://whatsapp.com/channel/0029Vb7LZZD5K3zb3S98eA1j', // 🔗 TU CANAL AQUÍ
+              sourceUrl: channelLink, // Enlace en la tarjeta
               mediaType: 1,
               renderLargerThumbnail: true
             },
@@ -66,6 +68,9 @@ export default async (client, m) => {
 │ 🏰 *Grupo:* ${metadata.subject}
 │ 👥 *Miembros:* ${memberCount}
 │ ⌚ *Hora:* ${time}
+│
+│ 🔗 *Canal Oficial:*
+│ ${channelLink}
 │
 │ 📜 *Descripción:*
 │ ${metadata.desc ? metadata.desc.toString().slice(0, 100) + '...' : 'Sin descripción'}
@@ -101,7 +106,7 @@ export default async (client, m) => {
           })
         }
 
-        // 👮 PROMOTE (Hacer Admin)
+        // 👮 PROMOTE
         if (anu.action === 'promote' && chat?.alerts) {
           await client.sendMessage(anu.id, {
             text: `👑 *NUEVO ADMIN DETECTADO*\n\n👤 *Usuario:* @${phone}\n🎉 *Cargo:* Administrador\n\n> _¡Ahora tienes el poder! Úsalo con responsabilidad._`,
@@ -109,7 +114,7 @@ export default async (client, m) => {
           })
         }
 
-        // 🤡 DEMOTE (Quitar Admin)
+        // 🤡 DEMOTE
         if (anu.action === 'demote' && chat?.alerts) {
           await client.sendMessage(anu.id, {
             text: `🤡 *ADMIN DEGRADADO*\n\n👤 *Usuario:* @${phone}\n📉 *Estado:* Miembro común\n\n> _F por ti._`,
