@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import moment from 'moment-timezone'
 
-// Helper para extraer datos del participante
+// Función helper para extraer número de teléfono del participante
 function extractPhoneNumber(participant) {
   const jid = participant?.phoneNumber || participant
   const phone = (typeof jid === 'string' ? jid : '').split('@')[0] || 'Usuario'
@@ -14,17 +14,15 @@ export default async (client, m) => {
       const metadata = await client.groupMetadata(anu.id)
       const chat = global.db.data.chats?.[anu.id] || {}
       
-      // IDs de los bots (para evitar conflictos)
       const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
       const primaryBotId = chat?.primaryBot
 
       if (primaryBotId && primaryBotId !== botId) return
 
-      // Datos
       const time = moment.tz('America/Bogota').format('hh:mm A')
       const memberCount = metadata?.participants?.length || 0
       
-      // 🔗 TU CANAL (Definido aquí para usarlo en texto y tarjeta)
+      // 🔗 TU CANAL (AQUÍ ESTÁ LA CLAVE)
       const channelLink = 'https://whatsapp.com/channel/0029Vb7LZZD5K3zb3S98eA1j'
 
       for (const p of anu.participants) {
@@ -34,9 +32,10 @@ export default async (client, m) => {
         const pp = await client.profilePictureUrl(jid, 'image')
           .catch(() => 'https://i.ibb.co/9Hc0y97/default-group.png')
 
-        // 🟢 CONFIGURACIÓN DE LA TARJETA
+        // 🟢 CONTEXTO (TARJETA)
         const fakeContext = {
           contextInfo: {
+            mentionedJid: [jid],
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
               newsletterJid: '120363323067339794@newsletter',
@@ -45,16 +44,13 @@ export default async (client, m) => {
             },
             externalAdReply: {
               title: `Bienvenido a ${metadata.subject}`,
-              body: '¡Clic aquí para unirte al Canal!',
-              mediaUrl: channelLink, 
-              description: 'Unete',
-              previewType: 'PHOTO',
-              thumbnailUrl: pp, 
-              sourceUrl: channelLink, // Enlace en la tarjeta
-              mediaType: 1,
-              renderLargerThumbnail: true
-            },
-            mentionedJid: [jid]
+              body: '¡Únete a nuestro Canal Oficial!',
+              thumbnailUrl: pp,
+              sourceUrl: channelLink, // Link al hacer clic en título/foto
+              mediaType: 1, // 1 = Imagen
+              renderLargerThumbnail: true, // Foto Grande
+              showAdAttribution: true // ⚠️ ESTO HACE QUE EL LINK FUNCIONE MEJOR
+            }
           }
         }
 
@@ -62,21 +58,19 @@ export default async (client, m) => {
         if (anu.action === 'add' && chat?.welcome) {
           const caption = `
 ╭━─━─━─≪ 🐉 ≫─━─━─━╮
-│ 🧧 *WELCOME / BIENVENIDO*
+│ 🧧 *BIENVENIDO / WELCOME*
 │
 │ 👤 *Usuario:* @${phone}
 │ 🏰 *Grupo:* ${metadata.subject}
 │ 👥 *Miembros:* ${memberCount}
 │ ⌚ *Hora:* ${time}
 │
-│ 🔗 *Canal Oficial:*
+│ 🔗 *CANAL OFICIAL:*
 │ ${channelLink}
 │
 │ 📜 *Descripción:*
 │ ${metadata.desc ? metadata.desc.toString().slice(0, 100) + '...' : 'Sin descripción'}
-╰━─━─━─≪ 🐉 ≫─━─━─━╯
-
-> _Disfruta tu estancia y respeta las reglas._ ✨`
+╰━─━─━─≪ 🐉 ≫─━─━─━╯`
           
           await client.sendMessage(anu.id, { 
             image: { url: pp }, 
@@ -89,14 +83,16 @@ export default async (client, m) => {
         if ((anu.action === 'remove' || anu.action === 'leave') && chat?.welcome) {
           const caption = `
 ╭━─━─━─≪ 🥀 ≫─━─━─━╮
-│ 🗑️ *GOODBYE / ADIÓS*
+│ 🗑️ *ADIÓS / GOODBYE*
 │
 │ 👤 *Usuario:* @${phone}
 │ 🏰 *Grupo:* ${metadata.subject}
 │ 👥 *Miembros:* ${memberCount}
 │
-│ _"Nadie es indispensable, pero_
-│ _todos somos necesarios..."_
+│ 🔗 *No te pierdas de nada:*
+│ ${channelLink}
+│
+│ _"Esperamos verte pronto..."_
 ╰━─━─━─≪ 🥀 ≫─━─━─━╯`
 
           await client.sendMessage(anu.id, { 
@@ -109,7 +105,7 @@ export default async (client, m) => {
         // 👮 PROMOTE
         if (anu.action === 'promote' && chat?.alerts) {
           await client.sendMessage(anu.id, {
-            text: `👑 *NUEVO ADMIN DETECTADO*\n\n👤 *Usuario:* @${phone}\n🎉 *Cargo:* Administrador\n\n> _¡Ahora tienes el poder! Úsalo con responsabilidad._`,
+            text: `👑 *NUEVO ADMIN DETECTADO*\n\n👤 *Usuario:* @${phone}\n🎉 *Cargo:* Administrador`,
             mentions: [jid]
           })
         }
@@ -117,7 +113,7 @@ export default async (client, m) => {
         // 🤡 DEMOTE
         if (anu.action === 'demote' && chat?.alerts) {
           await client.sendMessage(anu.id, {
-            text: `🤡 *ADMIN DEGRADADO*\n\n👤 *Usuario:* @${phone}\n📉 *Estado:* Miembro común\n\n> _F por ti._`,
+            text: `🤡 *ADMIN DEGRADADO*\n\n👤 *Usuario:* @${phone}\n📉 *Estado:* Miembro común`,
             mentions: [jid]
           })
         }
