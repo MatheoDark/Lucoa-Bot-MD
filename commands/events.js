@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import moment from 'moment-timezone'
 
-// Función helper para extraer número de teléfono del participante
+// Helper para extraer datos
 function extractPhoneNumber(participant) {
   const jid = participant?.phoneNumber || participant
   const phone = (typeof jid === 'string' ? jid : '').split('@')[0] || 'Usuario'
@@ -22,7 +22,7 @@ export default async (client, m) => {
       const time = moment.tz('America/Bogota').format('hh:mm A')
       const memberCount = metadata?.participants?.length || 0
       
-      // 🔗 TU CANAL (AQUÍ ESTÁ LA CLAVE)
+      // 🔗 TU CANAL
       const channelLink = 'https://whatsapp.com/channel/0029Vb7LZZD5K3zb3S98eA1j'
 
       for (const p of anu.participants) {
@@ -32,10 +32,9 @@ export default async (client, m) => {
         const pp = await client.profilePictureUrl(jid, 'image')
           .catch(() => 'https://i.ibb.co/9Hc0y97/default-group.png')
 
-        // 🟢 CONTEXTO (TARJETA)
+        // 🟢 ESTRUCTURA IDÉNTICA A TU CÓDIGO ORIGINAL (La que funcionaba)
         const fakeContext = {
           contextInfo: {
-            mentionedJid: [jid],
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
               newsletterJid: '120363323067339794@newsletter',
@@ -44,13 +43,16 @@ export default async (client, m) => {
             },
             externalAdReply: {
               title: `Bienvenido a ${metadata.subject}`,
-              body: '¡Únete a nuestro Canal Oficial!',
-              thumbnailUrl: pp,
-              sourceUrl: channelLink, // Link al hacer clic en título/foto
-              mediaType: 1, // 1 = Imagen
-              renderLargerThumbnail: true, // Foto Grande
-              showAdAttribution: true // ⚠️ ESTO HACE QUE EL LINK FUNCIONE MEJOR
-            }
+              body: '¡Clic para unirte al Canal!', // Texto pequeño
+              mediaUrl: null, // Tu código original lo tenía en null
+              description: null,
+              previewType: 'PHOTO',
+              thumbnailUrl: pp, // URL directa de la imagen
+              sourceUrl: channelLink, // AQUÍ VA EL ENLACE DEL CANAL
+              mediaType: 1,
+              renderLargerThumbnail: true // Esto hace la foto grande
+            },
+            mentionedJid: [jid]
           }
         }
 
@@ -65,13 +67,14 @@ export default async (client, m) => {
 │ 👥 *Miembros:* ${memberCount}
 │ ⌚ *Hora:* ${time}
 │
-│ 🔗 *CANAL OFICIAL:*
+│ 🔗 *Canal Oficial:*
 │ ${channelLink}
 │
 │ 📜 *Descripción:*
 │ ${metadata.desc ? metadata.desc.toString().slice(0, 100) + '...' : 'Sin descripción'}
 ╰━─━─━─≪ 🐉 ≫─━─━─━╯`
           
+          // Enviamos usando image: { url: pp } como en tu código original
           await client.sendMessage(anu.id, { 
             image: { url: pp }, 
             caption: caption, 
@@ -89,10 +92,7 @@ export default async (client, m) => {
 │ 🏰 *Grupo:* ${metadata.subject}
 │ 👥 *Miembros:* ${memberCount}
 │
-│ 🔗 *No te pierdas de nada:*
-│ ${channelLink}
-│
-│ _"Esperamos verte pronto..."_
+│ _"Nadie es indispensable..."_
 ╰━─━─━─≪ 🥀 ≫─━─━─━╯`
 
           await client.sendMessage(anu.id, { 
