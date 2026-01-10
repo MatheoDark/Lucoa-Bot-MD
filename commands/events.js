@@ -13,7 +13,6 @@ export default async (client, m) => {
       const metadata = await client.groupMetadata(anu.id)
       const chat = global.db.data.chats?.[anu.id] || {}
       
-      // 1. Obtener configuración del Bot (Desde InitDB)
       const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
       const settings = global.db.data.settings?.[botId] || {}
       
@@ -23,45 +22,42 @@ export default async (client, m) => {
       const time = moment.tz('America/Bogota').format('hh:mm A')
       const memberCount = metadata?.participants?.length || 0
       
-      // 2. Variables Definitivas (Prioridad: Base de Datos > Respaldo Fijo)
+      // CONFIGURACIÓN
       const channelLink = settings.link || 'https://whatsapp.com/channel/0029Vb7LZZD5K3zb3S98eA1j'
       const channelId = settings.id || '120363423354513567@newsletter'
       const channelName = settings.nameid || '✨ Lucoa Updates ✨'
       
       for (const p of anu.participants) {
         const { jid, phone } = extractPhoneNumber(p)
-        
-        // Foto de perfil del usuario
         const pp = await client.profilePictureUrl(jid, 'image')
           .catch(() => 'https://i.ibb.co/9Hc0y97/default-group.png')
 
-        // 🟢 CONFIGURACIÓN DE LA TARJETA (ESTILO BOTÓN QUE FUNCIONA)
+        // 🟢 TARJETA (Aquí va la única foto)
         const fakeContext = {
           contextInfo: {
+            mentionedJid: [jid],
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
-              newsletterJid: channelId,   // ID Real para la finta
+              newsletterJid: channelId,
               serverMessageId: '100',
-              newsletterName: channelName // Nombre de la finta
+              newsletterName: channelName
             },
             externalAdReply: {
               title: `Bienvenido a ${metadata.subject}`,
-              body: '¡Clic aquí para unirte al Canal!', // Texto de llamada a la acción
+              body: '¡Clic para unirte al Canal!',
               mediaUrl: null, 
-              description: null,
               previewType: 'PHOTO',
-              thumbnailUrl: pp,        // FOTO DEL USUARIO (O puedes poner settings.icon para la del bot)
-              sourceUrl: channelLink,  // 🔗 EL ENLACE QUE ABRE AL TOCAR
+              thumbnailUrl: pp,        
+              sourceUrl: channelLink,  
               mediaType: 1,
-              renderLargerThumbnail: true
-            },
-            mentionedJid: [jid]
+              renderLargerThumbnail: true // FOTO GRANDE EN LA TARJETA
+            }
           }
         }
 
-        // 🌟 MENSAJE DE BIENVENIDA (ADD)
+        // 🌟 BIENVENIDA (Texto con Cajas + Tarjeta)
         if (anu.action === 'add' && chat?.welcome) {
-          const caption = `
+          const txt = `
 ╭━─━─━─≪ 🐉 ≫─━─━─━╮
 │ 🧧 *BIENVENIDO / WELCOME*
 │
@@ -77,16 +73,17 @@ export default async (client, m) => {
 │ ${metadata.desc ? metadata.desc.toString().slice(0, 100) + '...' : 'Sin descripción'}
 ╰━─━─━─≪ 🐉 ≫─━─━─━╯`
           
+          // CAMBIO CLAVE: Usamos 'text' en lugar de 'image'
+          // Esto evita que salga la foto doble. Solo saldrá la tarjeta.
           await client.sendMessage(anu.id, { 
-            image: { url: pp }, 
-            caption: caption, 
+            text: txt, 
             ...fakeContext 
           })
         }
 
-        // 💀 MENSAJE DE DESPEDIDA (REMOVE/LEAVE)
+        // 💀 DESPEDIDA
         if ((anu.action === 'remove' || anu.action === 'leave') && chat?.welcome) {
-          const caption = `
+          const txt = `
 ╭━─━─━─≪ 🥀 ≫─━─━─━╮
 │ 🗑️ *ADIÓS / GOODBYE*
 │
@@ -98,13 +95,12 @@ export default async (client, m) => {
 ╰━─━─━─≪ 🥀 ≫─━─━─━╯`
 
           await client.sendMessage(anu.id, { 
-            image: { url: pp }, 
-            caption: caption, 
+            text: txt, 
             ...fakeContext 
           })
         }
         
-        // 👮 ALERTAS DE ADMIN
+        // 👮 ADMINS
         if (anu.action === 'promote' && chat?.alerts) {
             client.sendMessage(anu.id, { text: `👑 *@${phone}* ahora es admin.`, mentions: [jid] })
         }
