@@ -5,73 +5,80 @@ export default {
     category: 'nsfw',
     run: async ({ client, m }) => {
         try {
-            // 🔒 1. SEGURIDAD: Verificar si NSFW está activo
+            // 1. SEGURIDAD: Solo grupos permitidos
             if (m.isGroup && global.db.data.chats[m.chat]?.nsfw === false) {
-                return m.reply('🚫 *NSFW desactivado.*\n> Un admin debe usar: *#enable nsfw*')
+                return m.reply('🚫 *NSFW desactivado.*')
             }
             
-            await m.reply('⏳ *Buscando video...* (Probando servidores)')
+            await m.reply('⏳ *Buscando animación 3D en XNXX...*')
             
-            // 📡 2. LISTA DE APIS (Más opciones = Más éxito)
-            const apis = [
-                'https://api.agatz.xyz/api/hentaivid',                   // Opción 1
-                'https://shizoapi.onrender.com/api/nsfw/hentai',         // Opción 2
-                'https://api.siputzx.my.id/api/nsfw/hentai',             // Opción 3
-                'https://api.yanzbotz.my.id/api/nsfw/hentai',            // Opción 4
-                'https://sfm-api.onrender.com/api/hentai'                // Opción 5
-            ]
+            let videoData = null
 
-            let videoUrl = null
-            let title = 'Hentai Video'
+            // ───────────────────────────────────────────────
+            // 🔍 ESTRATEGIA: BUSCAR EN XNXX (Puros Videos)
+            // ───────────────────────────────────────────────
+            
+            // Lista de términos para variar los resultados
+            const queries = ['3d hentai', 'overwatch hentai', 'sfm hentai', 'blender hentai', 'uncensored hentai']
+            const randomQuery = queries[Math.floor(Math.random() * queries.length)]
 
-            // 🔄 3. BUCLE DE BÚSQUEDA INTELIGENTE
-            for (let url of apis) {
-                try {
-                    // Timeout corto (3s) para no esperar eternamente a una API muerta
-                    const controller = new AbortController()
-                    const timeout = setTimeout(() => controller.abort(), 3000)
+            // API 1: AGATZ (Búsqueda + Descarga)
+            try {
+                console.log(`Buscando: ${randomQuery}...`)
+                // Paso A: Buscar
+                const searchRes = await fetch(`https://api.agatz.xyz/api/xnxx?message=${encodeURIComponent(randomQuery)}`)
+                const searchJson = await searchRes.json()
+
+                if (searchJson.status === 200 && searchJson.data && searchJson.data.length > 0) {
+                    // Paso B: Elegir uno al azar
+                    const randomVideo = searchJson.data[Math.floor(Math.random() * searchJson.data.length)]
                     
-                    const res = await fetch(url, { signal: controller.signal })
-                    clearTimeout(timeout)
+                    // Paso C: Obtener link de descarga directo
+                    const dlRes = await fetch(`https://api.agatz.xyz/api/xnxxdl?url=${randomVideo.link}`)
+                    const dlJson = await dlRes.json()
 
-                    if (!res.ok) continue
-                    const json = await res.json()
-
-                    // 🕵️ DETECTIVE DE LINKS (Busca el video donde sea)
-                    // Las APIs guardan el link en lugares distintos, aquí buscamos en todos
-                    const possibleUrl = 
-                        json.result || 
-                        json.url || 
-                        json.data?.url || 
-                        json.data?.video_1 || 
-                        json.video || 
-                        json.link
-
-                    // Si encontramos algo que parece un link, lo guardamos y salimos
-                    if (possibleUrl && typeof possibleUrl === 'string' && possibleUrl.startsWith('http')) {
-                        videoUrl = possibleUrl
-                        title = json.title || json.data?.title || title
-                        break // ¡Éxito! Salimos del bucle
+                    if (dlJson.status === 200 && dlJson.data) {
+                        videoData = {
+                            url: dlJson.data.high || dlJson.data.low, // Preferir calidad alta
+                            title: randomVideo.title,
+                            source: 'XNXX'
+                        }
                     }
-
-                } catch (e) {
-                    continue // Si falla, prueba la siguiente en silencio
                 }
+            } catch (e) {
+                console.log("Falló API Agatz")
             }
 
-            // ❌ 4. SI TODO FALLA
-            if (!videoUrl) throw new Error('Todas las APIs fallaron.')
+            // ───────────────────────────────────────────────
+            // 🛡️ RESPALDO: API DIRECTA DE HENTAI (Si XNXX falla)
+            // ───────────────────────────────────────────────
+            if (!videoData) {
+                try {
+                    const res = await fetch('https://api.siputzx.my.id/api/nsfw/hentai')
+                    const json = await res.json()
+                    if (json.result) {
+                        videoData = {
+                            url: json.result,
+                            title: 'Hentai Random',
+                            source: 'API Backup'
+                        }
+                    }
+                } catch (e) { console.log("Falló Backup") }
+            }
 
-            // ✅ 5. ENVIAR VIDEO
+            // ❌ SI TODO FALLA
+            if (!videoData || !videoData.url) return m.reply('❌ *Error:* No pude obtener el video de XNXX. Intenta de nuevo.')
+
+            // ✅ ENVIAR
             await client.sendMessage(m.chat, { 
-                video: { url: videoUrl }, 
-                caption: `🔞 *${title}*\n📂 *Premium Content*`,
+                video: { url: videoData.url }, 
+                caption: `🔞 *${videoData.title}*\n📂 Fuente: ${videoData.source}\n🔥 *Animación/Video Completo*`,
                 gifPlayback: false 
             }, { quoted: m })
 
         } catch (e) {
-            console.error("Error NSFW:", e)
-            m.reply('❌ *Servidores ocupados.* Intenta de nuevo en 1 minuto.')
+            console.error(e)
+            m.reply('❌ Error fatal al procesar.')
         }
     }
 }
