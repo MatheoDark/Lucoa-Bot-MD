@@ -1,12 +1,20 @@
+import { resolveLidToRealJid } from "../../lib/utils.js"
+
 export default {
   command: ['setpasatiempo', 'sethobby'],
-  category: 'rpg',
-  run: async ({client, m, args}) => {
-    const user = global.db.data.users[m.sender]
-    const prefa = global.prefa || '!'
+  category: 'profile',
+  run: async ({ client, m, args, usedPrefix }) => {
+    const prefa = usedPrefix || '/'
+    
+    // Resolver usuario
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    const user = global.db.data.users[userId]
+
+    if (!user) return m.reply('❌ Usuario no registrado.')
+
     const input = args.join(' ').trim()
 
-    const pasatiemposDisponibles = [
+    const hobbies = [
       '📚 Leer', '✍️ Escribir', '🎤 Cantar', '💃 Bailar', '🎮 Jugar', 
       '🎨 Dibujar', '🍳 Cocinar', '✈️ Viajar', '🏊 Nadar', '📸 Fotografía',
       '🎧 Escuchar música', '🏀 Deportes', '🎬 Ver películas', '🌿 Jardinería',
@@ -19,50 +27,34 @@ export default {
       '🎳 Bolos', '🏄 Surf', '⛷️ Esquí', '🎿 Snowboard', '🤿 Buceo', '🏹 Tiro al blanco',
       '🧭 Orientación', '🏇 Equitación', '🎨 Pintura', '📊 Invertir', '🌡️ Meteorología',
       '🔍 Investigar', '💄 Maquillaje', '💇‍♂️ Peluquería', '🛌 Dormir', '🍺 Cervecería',
-      '🪓 Carpintería', '🧪 Experimentos', '📻 Radioafición', '🗺️ Geografía', '💎 Joyería', '💦 Pajero', '🌳 Bugarron', '🍞:･:･ Migajero',
+      '🪓 Carpintería', '🧪 Experimentos', '📻 Radioafición', '🗺️ Geografía', '💎 Joyería', 
       'Otro 🌟'
     ]
 
+    // Si no hay input, mostrar lista
     if (!input) {
       let lista = '🎯 *Elige un pasatiempo:*\n\n'
-      pasatiemposDisponibles.forEach((pasatiempo, index) => {
-        lista += `${index + 1}) ${pasatiempo}\n`
-      })
-      lista += `\n*Ejemplos:*\n${prefa}setpasatiempo 1\n${prefa}setpasatiempo Leer\n${prefa}setpasatiempo "Otro 🌟"`
-
+      hobbies.forEach((h, i) => lista += `${i + 1}) ${h}\n`)
+      lista += `\n*Uso:*\n${prefa}sethobby 1\n${prefa}sethobby Leer`
       return m.reply(lista)
     }
 
-    let pasatiempoSeleccionado = ''
+    let selected = ''
 
+    // Opción A: Número
     if (/^\d+$/.test(input)) {
       const index = parseInt(input) - 1
-      if (index >= 0 && index < pasatiemposDisponibles.length) {
-        pasatiempoSeleccionado = pasatiemposDisponibles[index]
-      } else {
-        return m.reply(`《✧》 Número inválido. Selecciona un número entre 1 y ${pasatiemposDisponibles.length}`)
-      }
+      if (index >= 0 && index < hobbies.length) selected = hobbies[index]
+      else return m.reply(`《✧》 Número inválido. (1-${hobbies.length})`)
     } 
-
+    // Opción B: Texto
     else {
-      const inputLimpio = input.replace(/[^\w\s]/g, '').toLowerCase().trim()
-      const encontrado = pasatiemposDisponibles.find(
-        p => p.replace(/[^\w\s]/g, '').toLowerCase().includes(inputLimpio)
-      )
-
-      if (encontrado) {
-        pasatiempoSeleccionado = encontrado
-      } else {
-        return m.reply('《✧》 Pasatiempo no encontrado. Usa el comando sin argumentos para ver la lista disponible.')
-      }
+      const cleanInput = input.replace(/[^\w\s]/g, '').toLowerCase().trim()
+      selected = hobbies.find(h => h.replace(/[^\w\s]/g, '').toLowerCase().includes(cleanInput))
+      if (!selected) return m.reply('《✧》 Pasatiempo no encontrado en la lista.')
     }
 
-    if (user.pasatiempo === pasatiempoSeleccionado) {
-      return m.reply(`《✧》 Ya tienes establecido este pasatiempo: *${user.pasatiempo}*`)
-    }
-
-    user.pasatiempo = pasatiempoSeleccionado
-
-    return m.reply(`✐ Se ha establecido tu pasatiempo:\n> *${user.pasatiempo}*`)
+    user.pasatiempo = selected
+    return m.reply(`✎ Pasatiempo actualizado a:\n> *${user.pasatiempo}*`)
   },
 };
