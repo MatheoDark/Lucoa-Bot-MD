@@ -1,88 +1,126 @@
 import fetch from "node-fetch"
 import { getBuffer } from '../../lib/message.js'
-import sharp from 'sharp'
+// import sharp from 'sharp' // No es estrictamente necesario si usamos la imagen original
 
 export default {
-  command: ["xvideos"],
-  run: async ({client, m, args}) => {
+  command: ["xvideos", "xv"],
+  run: async ({ client, m, args }) => {
 
-    if (!db.data.chats[m.chat].nsfw) return m.reply('✐ Los comandos de *NSFW* están desáctivados en este Grupo.')
+    // 1. Verificación NSFW
+    if (!global.db.data.chats[m.chat].nsfw) {
+        return m.reply('🚫 Los comandos *NSFW* están desactivados en este Grupo.')
+    }
+
+    // 2. Verificación de argumentos
+    const query = args.join(" ")
+    if (!query) return m.reply("🔞 Ingresa el nombre de un video o una URL de XVideos.")
+
+    m.react('🔥')
 
     try {
-      const query = args.join(" ")
-      if (!query) return m.reply("《✧》Ingresa el nombre de un video o una URL de XVideos.")
+      // API KEY y URL (Asegúrate de que estas variables globales existan en tu bot, si no, usa una pública)
+      const apikey = global.api?.key || 'tu_api_key' 
+      const apiurl = global.api?.url || 'https://delirius-apii.vercel.app' // URL de respaldo por si acaso
 
-      let videoUrl, videoInfo
+      let videoUrl = ''
+      let titulo = ''
+      let imagen = ''
+      let duracion = ''
 
+      // ----------------------------------------------------
+      // CASO A: El usuario envió un LINK
+      // ----------------------------------------------------
       if (query.startsWith("http") && query.includes("xvideos.com")) {
         videoUrl = query
-      } else {
-        const apiUrl = `${api.url}/nsfw/search/xvideos?query=${query}&key=${api.key}`
-        const res = await fetch(apiUrl)
-        if (!res.ok) {
-       return m.reply("Error al conectar con XVideos API")
-       }
+        // Intentamos sacar info básica del link (o dejar genérico)
+        titulo = "Video XVideos"
+      } 
+      // ----------------------------------------------------
+      // CASO B: El usuario envió una BÚSQUEDA
+      // ----------------------------------------------------
+      else {
+        const searchApi = `${apiurl}/nsfw/search/xvideos?query=${query}&key=${apikey}`
+        const res = await fetch(searchApi)
+        if (!res.ok) return m.reply("❌ Error al buscar en XVideos.")
 
         const json = await res.json()
-        if (!json.status || !json.resultados || json.resultados.length === 0) throw new Error("No se encontró el video")
+        if (!json.status || !json.data || json.data.length === 0) {
+            // Nota: Algunas APIs devuelven 'data', otras 'resultados'. Ajusta según tu API.
+            // Si tu API usa json.resultados, cámbialo aquí.
+            if (json.resultados && json.resultados.length > 0) {
+                 // Soporte para estructura alternativa
+                 const randomPost = json.resultados[Math.floor(Math.random() * json.resultados.length)]
+                 videoUrl = randomPost.url
+                 titulo = randomPost.title
+                 imagen = randomPost.image || randomPost.cover
+                 duracion = randomPost.duration
+            } else {
+                 return m.reply("❌ No se encontró ningún video con ese nombre.")
+            }
+        } else {
+             // Estructura estándar delirius/otros
+             const randomPost = json.data[Math.floor(Math.random() * json.data.length)]
+             videoUrl = randomPost.url
+             titulo = randomPost.title
+             imagen = randomPost.image
+             duracion = randomPost.duration
+        }
 
-        const randomIndex = Math.floor(Math.random() * json.resultados.length)
-        videoInfo = json.resultados[randomIndex]
-        videoUrl = videoInfo.url
-
-        const caption = `➮ *XVideos :: ${videoInfo.title}*
-
-→ *Artista ::* ${videoInfo.artist || "Desconocido"}
-→ *Resolución ::* ${videoInfo.resolution}
-→ *Duración ::* ${videoInfo.duration}
-→ *Ver en ::* ${videoInfo.url}
-
-> *✎ Enviando video....*
-`
-
-        await client.sendMessage(m.chat, {
-          image: { url: videoInfo.cover },
-          caption
-        }, { quoted: m })
+        // Enviamos la portada primero para que sepa que lo encontramos
+        if (imagen) {
+            await client.sendMessage(m.chat, { 
+                image: { url: imagen }, 
+                caption: `🔍 *Encontrado:* ${titulo}\n⏳ *Descargando video...*` 
+            }, { quoted: m })
+        }
       }
 
-      const downloadUrl = `${api.url}/nsfw/dl/xvideos?url=${videoUrl}&key=${api.key}`
+      // ----------------------------------------------------
+      // DESCARGA
+      // ----------------------------------------------------
+      // Usamos la API de descarga
+      const downloadUrl = `${apiurl}/nsfw/dl/xvideos?url=${videoUrl}&key=${apikey}`
       const downloadRes = await fetch(downloadUrl)
-      if (!downloadRes.ok) {
-    return m.reply("Error al descargar el video")
-     }
-
+      
+      if (!downloadRes.ok) return m.reply("❌ Error en la API de descarga.")
+      
       const downloadJson = await downloadRes.json()
-      if (!downloadJson.status || !downloadJson.resultado) {
-    return m.reply("No se pudo obtener el video para descargar.")
-     }
+      
+      // Verificamos si la API dio error
+      if (!downloadJson.status || (!downloadJson.data && !downloadJson.resultado)) {
+          return m.reply("❌ No se pudo obtener el link de descarga.")
+      }
 
-      const videoDownloadLink = downloadJson.resultado.videos.low
+      // Extraemos el link MP4 y el título final
+      // Ajuste: Algunas APIs devuelven .data.urls.low, otras .resultado.videos.low
+      const data = downloadJson.data || downloadJson.resultado
+      const mp4Url = data.urls?.low || data.urls?.high || data.videos?.low || data.videos?.high || data.url
+      
+      // Actualizamos el título con la info real del descargador si es posible
+      const finalTitle = data.title || titulo || "XVideos MP4"
 
-      /*await client.sendMessage(m.chat, {
-        video: { url: videoDownloadLink },
-        mimetype: "video/mp4"
-      }, { quoted: m })*/
+      if (!mp4Url) return m.reply("❌ No se encontró enlace MP4.")
 
-      const thumbBuffer = await getBuffer(downloadJson.resultado. thumb)
-      const videoBuffer = await getBuffer(videoDownloadLink)
-
-  const thumbBuffer2 = await sharp(thumbBuffer)
-    .resize(300, 300)
-    .jpeg({ quality: 80 })
-    .toBuffer()
-
-  let mensaje = {
-    document: videoBuffer,
-    mimetype: 'video/mp3',
-    fileName: `${videoInfo.title}.mp4`,
-    jpegThumbnail: thumbBuffer2
-  }
-
-await client.sendMessage(m.chat, mensaje, { quoted: m })
+      // ----------------------------------------------------
+      // ENVÍO OPTIMIZADO (Sin colapsar RAM)
+      // ----------------------------------------------------
+      // IMPORTANTE: Usamos { url: ... } en lugar de descargar el buffer
+      // Enviamos como 'video' normal para que se pueda ver en WhatsApp
+      // Si prefieres documento, cambia 'video:' por 'document:' y agrega 'mimetype' y 'fileName'
+      
+      await client.sendMessage(m.chat, {
+          document: { url: mp4Url }, // Stream directo desde la URL
+          mimetype: 'video/mp4',     // CORREGIDO: mp3 es audio, mp4 es video
+          fileName: `${finalTitle}.mp4`,
+          caption: `🔥 *${finalTitle}*`,
+          // Si tienes la imagen, la usamos de miniatura (jpegThumbnail requiere buffer pequeño)
+          // Si da error de sharp, comenta la línea de jpegThumbnail
+          // jpegThumbnail: imagen ? await getBuffer(imagen) : null 
+      }, { quoted: m })
 
     } catch (err) {
-      return m.reply(msgglobal)
+      console.error(err)
+      return m.reply(`❌ Ocurrió un error inesperado: ${err.message}`)
     }
   },
 }
