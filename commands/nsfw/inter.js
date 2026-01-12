@@ -7,15 +7,95 @@ import { promisify } from 'util'
 const execPromise = promisify(exec)
 
 // ==========================================================
-// 1. CONFIGURACIÓN (Exactamente la que te funciona en el otro comando)
+// 1. CONFIGURACIÓN DE CONEXIÓN (MÉTODO SCRAPING)
 // ==========================================================
+// Usamos exactamente el mismo agente que te funciona
 const agent = new https.Agent({
     rejectUnauthorized: false,
-    keepAlive: true
+    keepAlive: true,
+    family: 4 
 })
 
+// Cabeceras idénticas a tu código funcional
+const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Cookie': 'resize-notification=1'
+}
+
 // ==========================================================
-// 2. FRASES
+// 2. LÓGICA DE SCRAPING (Extracción directa del HTML)
+// ==========================================================
+async function getRule34Media(tag) {
+    try {
+        // 1. Intentamos buscar video primero
+        let searchTags = [tag + '+video', tag + '+animated', tag]
+        let ids = []
+
+        for (let currentTag of searchTags) {
+            console.log(`[NSFW] Scrapeando lista: ${currentTag}`)
+            const searchUrl = `https://rule34.xxx/index.php?page=post&s=list&tags=${currentTag}`
+            
+            const res = await fetch(searchUrl, { agent, headers })
+            const html = await res.text()
+
+            // Extraer IDs con Regex (Igual que tu código)
+            const idMatch = html.match(/index\.php\?page=post&s=view&id=(\d+)/g)
+            
+            if (idMatch && idMatch.length > 0) {
+                // Limpiar IDs
+                ids = idMatch.map(link => link.match(/id=(\d+)/)[1])
+                ids = [...new Set(ids)] // Eliminar duplicados
+                
+                if (ids.length > 0) {
+                    console.log(`✅ Encontrados ${ids.length} posts para "${currentTag}"`)
+                    break // Si encontramos algo, dejamos de buscar
+                }
+            }
+        }
+
+        if (ids.length === 0) return null
+
+        // 2. Seleccionar un ID al azar
+        const randomId = ids[Math.floor(Math.random() * ids.length)]
+        
+        // 3. Entrar al post específico para sacar el archivo (Igual que tu código)
+        const postUrl = `https://rule34.xxx/index.php?page=post&s=view&id=${randomId}`
+        const resPost = await fetch(postUrl, { agent, headers })
+        const htmlPost = await resPost.text()
+        
+        let fileUrl = null
+
+        // Regex 1: Buscar botón "Original image"
+        let originalMatch = htmlPost.match(/href="([^"]+)">Original image/i)
+        if (originalMatch) fileUrl = originalMatch[1]
+
+        // Regex 2: Buscar etiqueta video <source>
+        if (!fileUrl) {
+            let videoMatch = htmlPost.match(/<source src="([^"]+)"/i)
+            if (videoMatch) fileUrl = videoMatch[1]
+        }
+
+        // Regex 3: Buscar imagen principal
+        if (!fileUrl) {
+            let imgMatch = htmlPost.match(/id="image"[^>]+src="([^"]+)"/i) || htmlPost.match(/src="([^"]+)"[^>]+id="image"/i)
+            if (imgMatch) fileUrl = imgMatch[1]
+        }
+
+        // Corrección de protocolo
+        if (fileUrl && fileUrl.startsWith('//')) {
+            fileUrl = 'https:' + fileUrl
+        }
+
+        return fileUrl
+
+    } catch (e) {
+        console.log('Error en Scraper:', e.message)
+        return null
+    }
+}
+
+// ==========================================================
+// 3. FRASES Y MAPAS
 // ==========================================================
 const captions = {
   anal: (from, to) => from === to ? 'se la metió en el ano.' : 'se la metió en el ano a',
@@ -48,9 +128,6 @@ const captions = {
 const symbols = ['(⁠◠⁠‿⁠◕⁠)', '(✿◡‿◡)', '(✿✪‿✪｡)', '(*≧ω≦)', '(✧ω◕)', '(¬‿¬)', '(✧ω✧)', '(•̀ᴗ•́)و ̑̑']
 function getRandomSymbol() { return symbols[Math.floor(Math.random() * symbols.length)] }
 
-// ==========================================================
-// 3. HERRAMIENTAS TÉCNICAS
-// ==========================================================
 async function gifToMp4(gifBuffer) {
     try {
         if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp')
@@ -81,32 +158,17 @@ function getBufferType(buffer) {
     } catch (e) { return 'unknown' }
 }
 
-// ==========================================================
-// 4. MAPAS (SOLO TAGS LIMPIOS)
-// ==========================================================
 const purrBotMap = {
     anal: 'anal', cum: 'cum', fuck: 'fuck', lickpussy: 'pussylick',
     fap: 'solo', blowjob: 'blowjob', threesome: 'threesome_fff', yuri: 'yuri'
 }
 
-// NOTA: Usamos tags generales. El código buscará videos dentro de los resultados.
 const r34Map = {
-    sixnine: '69', 
-    undress: 'undressing',
-    spank: 'spanking',
-    grope: 'groping',
-    boobjob: 'paizuri',
-    footjob: 'footjob',
-    suckboobs: 'breast_sucking',
-    grabboobs: 'grabbing_breast',
-    tentacle: 'tentacle',
-    fingering: 'fingering',
-    squirt: 'squirting',
-    deepthroat: 'deepthroat',
-    bondage: 'bondage',
-    creampie: 'creampie',
-    gangbang: 'gangbang',
-    facesitting: 'facesitting',
+    sixnine: '69', undress: 'undressing', spank: 'spanking', grope: 'groping',
+    boobjob: 'paizuri', footjob: 'footjob', suckboobs: 'breast_sucking',
+    grabboobs: 'grabbing_breast', tentacle: 'tentacle', fingering: 'fingering',
+    squirt: 'squirting', deepthroat: 'deepthroat', bondage: 'bondage',
+    creampie: 'creampie', gangbang: 'gangbang', facesitting: 'facesitting',
     rimjob: 'rimjob'
 }
 
@@ -115,14 +177,9 @@ const commandAliases = {
   tijeras: 'yuri', rusa: 'boobjob', pies: 'footjob', tentaculos: 'tentacle',
   encuerar: 'undress', desnudar: 'undress', nalgada: 'spank', azotar: 'spank',
   manosear: 'grope', toquetear: 'grope', chupartetas: 'suckboobs', agarrartetas: 'grabboobs',
-  69: 'sixnine',
-  dedos: 'fingering', dedear: 'fingering',
-  mojarse: 'squirt', chorro: 'squirt',
-  garganta: 'deepthroat', profunda: 'deepthroat',
-  amarrar: 'bondage', atar: 'bondage', bdsm: 'bondage',
-  leche: 'creampie', llenar: 'creampie',
-  orgia: 'gangbang', 
-  sentarse: 'facesitting', culo: 'rimjob', besoanal: 'rimjob'
+  69: 'sixnine', dedos: 'fingering', dedear: 'fingering', mojarse: 'squirt', chorro: 'squirt',
+  garganta: 'deepthroat', profunda: 'deepthroat', amarrar: 'bondage', atar: 'bondage', bdsm: 'bondage',
+  leche: 'creampie', llenar: 'creampie', orgia: 'gangbang', sentarse: 'facesitting', culo: 'rimjob', besoanal: 'rimjob'
 }
 
 const mainCommands = Object.keys(captions)
@@ -132,7 +189,7 @@ export default {
   category: 'nsfw',
   tags: ['nsfw'], 
   help: mainCommands,
-  desc: 'Interacciones NSFW Ultimate (Misma API que r34).',
+  desc: 'Interacciones NSFW Ultimate (Scraping Mode).',
 
   run: async ({ client, m }) => {
     const db = global.db
@@ -159,7 +216,7 @@ export default {
     try {
       let url = null
 
-      // 1. PurrBot (Sigue siendo bueno para ciertas cosas)
+      // 1. PurrBot
       if (purrBotMap[command]) {
           try {
               const res = await fetch(`https://purrbot.site/api/img/nsfw/${purrBotMap[command]}/gif`, { agent })
@@ -168,52 +225,16 @@ export default {
           } catch (e) { }
       }
 
-      // 2. Rule34 (USANDO LA LÓGICA DEL COMANDO "R34" QUE FUNCIONA)
+      // 2. Rule34 (MODO SCRAPING - USANDO TU LÓGICA)
       if (!url && r34Map[command]) {
-          try {
-              const tag = r34Map[command]
-              // Usamos api.rule34.xxx + json=1 (LA QUE FUNCIONA)
-              const r34Url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=${encodeURIComponent(tag)}`
-              
-              console.log(`[NSFW] Buscando tag: ${tag}`)
-              const res = await fetch(r34Url, { agent })
-              const posts = await res.json()
-
-              if (Array.isArray(posts) && posts.length > 0) {
-                  // --- FILTRADO INTELIGENTE (AQUÍ ESTÁ LA MAGIA) ---
-                  
-                  // 1. Separamos videos y gifs del resto
-                  const videos = posts.filter(p => p.file_url && (p.file_url.endsWith('.mp4') || p.file_url.endsWith('.webm')))
-                  const gifs = posts.filter(p => p.file_url && p.file_url.endsWith('.gif'))
-                  const images = posts.filter(p => p.file_url && !p.file_url.endsWith('.mp4') && !p.file_url.endsWith('.webm') && !p.file_url.endsWith('.gif'))
-                  
-                  let chosenPost = null
-
-                  if (videos.length > 0) {
-                      // Prioridad 1: VIDEO
-                      chosenPost = videos[Math.floor(Math.random() * videos.length)]
-                      console.log('✅ Video encontrado en la lista.')
-                  } else if (gifs.length > 0) {
-                      // Prioridad 2: GIF
-                      chosenPost = gifs[Math.floor(Math.random() * gifs.length)]
-                      console.log('✅ GIF encontrado en la lista.')
-                  } else if (images.length > 0) {
-                      // Prioridad 3: IMAGEN (Para no fallar)
-                      chosenPost = images[Math.floor(Math.random() * images.length)]
-                      console.log('⚠️ Solo se encontraron imágenes.')
-                  }
-
-                  if (chosenPost) url = chosenPost.file_url
-
-              } else {
-                  console.log('[NSFW] R34 devolvió lista vacía.')
-              }
-          } catch (e) { console.log('Error R34 API:', e.message) }
+          // Esta función implementa exactamente lo que me pasaste
+          url = await getRule34Media(r34Map[command])
       }
 
-      // 3. Fallback (Backup final)
+      // 3. Fallback (Waifu.pics)
       if (!url) {
           try {
+              console.log('[NSFW] Fallback a Waifu.pics')
               const backupTag = command === 'boobjob' ? 'blowjob' : 'waifu'
               const res = await fetch(`https://api.waifu.pics/nsfw/${backupTag}`)
               const json = await res.json()
@@ -221,11 +242,11 @@ export default {
           } catch (e) {}
       }
 
-      if (!url) return m.reply('❌ Error: No se pudo obtener contenido.')
+      if (!url) return m.reply('❌ No se encontró nada.')
 
       // DESCARGA Y ENVÍO
       console.log(`[NSFW] Enviando: ${url}`)
-      const response = await fetch(url, { agent }) // Usamos el mismo agente para descargar
+      const response = await fetch(url, { agent, headers })
       let buffer = await response.buffer()
       
       const type = getBufferType(buffer)
@@ -249,7 +270,7 @@ export default {
 
     } catch (e) {
       console.error(e)
-      m.reply(`❌ Error crítico: ${e.message}`)
+      m.reply(`❌ Error: ${e.message}`)
     }
   }
 }
