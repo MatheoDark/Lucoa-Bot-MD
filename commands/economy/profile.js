@@ -1,64 +1,100 @@
-import moment from 'moment-timezone';
 import { resolveLidToRealJid } from "../../lib/utils.js"
 
 export default {
   command: ['profile', 'perfil'],
   category: 'rpg',
-  run: async ({client, m}) => {
+  run: async ({ client, m }) => {
+    
+    // 1. Identificar Usuario (Mencionado, Citado o Sender)
     const texto = m.mentionedJid
-    const who2 = texto.length > 0 ? texto[0] : m.quoted ? m.quoted.sender : m.sender
+    const who2 = texto.length > 0 ? texto[0] : (m.quoted ? m.quoted.sender : m.sender)
     const userId = await resolveLidToRealJid(who2, client, m.chat);
 
-    // CORRECCIÓN FINAL: Referencias unificadas
-    // Ya no usamos chatUsers para la economía, solo globalUsers
-    const globalUsers = global.db.data.users || {}
-    const user = globalUsers[userId]
+    // 2. Obtener Datos Globales
+    // Inicializamos si no existe para evitar "Usuario no registrado"
+    let user = global.db.data.users[userId]
+    if (!user) {
+        global.db.data.users[userId] = { 
+            level: 0, exp: 0, coins: 0, bank: 0, 
+            name: m.pushName || 'Sin Nombre', 
+            registered: true 
+        }
+        user = global.db.data.users[userId]
+    }
 
-    if (!user) return m.reply('✎ Usuario no registrado.')
-
-    const idBot = client.user.id.split(':')[0] + '@s.whatsapp.net' || ''
+    // Configuración del Bot
+    const idBot = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const settings = global.db.data.settings[idBot] || {}
-    const currency = settings.currency || ''
+    const currency = settings.currency || 'Coins'
 
+    // 3. Extraer Datos del Perfil
     const name = user.name || 'Sin Nombre'
-    const birth = user.birth || 'Sin especificar'
-    const genero = user.genre || 'Oculto'
-    const comandos = user.usedcommands || 0
-    const pareja = user.marry ? `${globalUsers[user.marry]?.name || 'Alguien'}` : 'Nadie'
-    const estadoCivil = genero === 'Mujer' ? 'Casada con' : 'Casado con'
-    const desc = user.description ? `\n\n${user.description}` : ''
+    const birth = user.birth || 'No especificado'
+    const genero = user.genre || 'No especificado'
+    const desc = user.description || 'Sin descripción'
     const pasatiempo = user.pasatiempo || 'No definido'
-    
-    // Economía GLOBAL
-    const exp = user.exp || 0
-    const nivel = user.level || 0
-    const chocolates = user.coins || 0
-    const banco = user.bank || 0
-    const totalCoins = chocolates + banco
+    const comandos = user.usedcommands || 0
     const harem = user.characters?.length || 0
 
+    // 4. Lógica de Pareja (Marry)
+    let parejaDisplay = 'Nadie 💔'
+    let estadoCivil = (genero === 'Mujer') ? 'Casada con' : 'Casado con'
+
+    if (user.marry) {
+        const partnerId = user.marry
+        const partner = global.db.data.users[partnerId]
+        const partnerName = partner ? (partner.name || `@${partnerId.split('@')[0]}`) : 'Desconocido'
+        parejaDisplay = partnerName
+    } else {
+        estadoCivil = 'Estado Civil'
+        parejaDisplay = 'Soltero/a'
+    }
+
+    // 5. Datos de Economía
+    const exp = user.exp || 0
+    const nivel = user.level || 0
+    const coins = user.coins || 0
+    const bank = user.bank || 0
+    const totalCoins = coins + bank
+
+    // 6. Obtener Foto de Perfil
     const perfil = await client.profilePictureUrl(userId, 'image').catch((_) => 'https://cdn.stellarwa.xyz/files/1751246122292.jpg')
 
-    // Calcular Rank Global
-    const usersArr = Object.entries(globalUsers).map(([key, value]) => ({ ...value, jid: key }))
-    const sortedLevel = usersArr.sort((a, b) => (b.level || 0) - (a.level || 0))
-    const rank = sortedLevel.findIndex((u) => u.jid === userId) + 1
+    // 7. Calcular Rank Global (Top Nivel)
+    // Convertimos el objeto de usuarios en array y ordenamos por nivel
+    const globalUsers = global.db.data.users
+    const sortedLevel = Object.entries(globalUsers).sort((a, b) => (b[1].level || 0) - (a[1].level || 0))
+    const rank = sortedLevel.findIndex(x => x[0] === userId) + 1
 
-    const profileText = `「✿」 *Perfil* ◢ ${name} ◤
+    // 8. Construir Mensaje
+    const profileText = `「✿」 *PERFIL DE USUARIO* 👤 *Nombre:* ${name}
+🔰 *Rango:* #${rank} (Top Global)
 
+📋 *Información Personal*
 ♛ Cumpleaños › *${birth}*
 ♛ Pasatiempo › *${pasatiempo}*
 ♛ Género › *${genero}*
-♡ ${estadoCivil} › *${pareja}*${desc}
+♡ ${estadoCivil} › *${parejaDisplay}*
 
+💰 *Estado Financiero*
+✰ Dinero en Mano › *${coins.toLocaleString()} ${currency}*
+🏦 Dinero en Banco › *${bank.toLocaleString()} ${currency}*
+💎 Patrimonio Total › *${totalCoins.toLocaleString()} ${currency}*
+
+📊 *Estadísticas*
 ✿ Nivel › *${nivel}*
 ❀ Experiencia › *${exp.toLocaleString()}*
-☆ Puesto › *#${rank}*
+ꕥ Personajes (Harem) › *${harem}*
+❒ Comandos Usados › *${comandos.toLocaleString()}*
 
-ꕥ Harem › *${harem.toLocaleString()}*
-✰ Dinero Total › *¥${totalCoins.toLocaleString()} ${currency}*
-❒ Comandos ejecutados › *${comandos.toLocaleString()}*`
+📝 *Descripción:*
+_${desc}_`
 
-    await client.sendMessage(m.chat, { image: { url: perfil }, caption: profileText }, { quoted: m })
+    // 9. Enviar
+    await client.sendMessage(m.chat, { 
+        image: { url: perfil }, 
+        caption: profileText,
+        mentions: user.marry ? [user.marry] : [] // Mencionamos a la pareja si existe
+    }, { quoted: m })
   }
 };
