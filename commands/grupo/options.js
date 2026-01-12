@@ -1,6 +1,5 @@
 /**
  * ARCHIVO: commands/grupo/options.js
- * Lógica mejorada para activar/desactivar opciones (#enable nsfw / #nsfw on)
  */
 
 export default {
