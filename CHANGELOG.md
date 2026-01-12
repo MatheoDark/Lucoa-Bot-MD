@@ -60,3 +60,4 @@ Todas las modificaciones notables de este proyecto serán documentadas en este a
 ### ♻️ Actualizaciones y Compatibilidad ESM
 - **Dependencias:** Actualizados `chalk` a v5, `node-fetch` a v3 y `axios` a la rama 1.x para alinearse con ESM.
 - **HTTP seguro:** Nuevo helper `lib/http.js` para validar respuestas `fetch` y manejo de errores; `lib/uploadImage.js` ahora lo usa para verificar respuestas exitosas y lanzar errores claros.
+- **Base de datos:** Rutas de `datos.db` y `backups` ahora usan `import.meta.url` en lugar de `process.cwd()` para evitar fallos por cambios de directorio de ejecución.
