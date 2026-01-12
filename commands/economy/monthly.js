@@ -1,113 +1,76 @@
-import fs from 'fs';
-
-global.math = global.math || {};
-
-const limits = {
-  facil: 10,
-  medio: 50,
-  dificil: 90,
-  imposible: 100,
-  imposible2: 160
-};
-
-const generateRandomNumber = (max) => Math.floor(Math.random() * max) + 1;
-const getOperation = () => ['+', '-', '×', '÷'][Math.floor(Math.random() * 4)];
-
-const generarProblema = (dificultad) => {
-  const maxLimit = limits[dificultad] || 30;
-  const num1 = generateRandomNumber(maxLimit);
-  const num2 = generateRandomNumber(maxLimit);
-  const operador = getOperation();
-  const resultado = eval(`${num1} ${operador === '×' ? '*' : operador} ${num2}`);
-  return {
-    problema: `${num1} ${operador} ${num2}`,
-    resultado: operador !== '÷' ? resultado : resultado.toFixed(2)
-  };
-};
-
-async function run({client, m, args, command}) {
-  const chatId = m.chat;
-  const dbChat = global.db.data.chats[chatId] || {};
-  
-  // CORRECCIÓN: Usuario Global para la recompensa
-  const user = global.db.data.users[m.sender];
-  
-  const juego = global.math[chatId];
-    if (dbChat.adminonly || !dbChat.rpg)
-      return m.reply(`✐ Estos comandos estan desactivados en este grupo.`)
-
-  if (command === 'responder') {
-    if (!juego?.juegoActivo) return;
-
-    const quotedId = m.quoted?.key?.id || m.quoted?.id || m.quoted?.stanzaId;
-    if (quotedId !== juego.problemMessageId) return;
-
-    const respuestaUsuario = args[0]?.toLowerCase();
-    if (!respuestaUsuario)
-      return client.reply(chatId, '「✎」Debes escribir tu respuesta. Ejemplo: */responder 42*', m);
-
-    const respuestaCorrecta = juego.respuesta;
-    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
-    const primaryBotId = dbChat.primaryBot;
-
-    if (!primaryBotId || primaryBotId === botId) {
-      if (respuestaUsuario === respuestaCorrecta) {
-        const expaleatorio = Math.floor(Math.random() * 50) + 10;
-        
-        // Asignamos EXP al usuario global
-        if (user) {
-            user.exp = (user.exp || 0) + expaleatorio;
-        }
-
-        clearTimeout(juego.tiempoLimite);
-        delete global.math[chatId];
-
-        return client.reply(chatId, `「❀」Respuesta correcta.\n> *Ganaste ›* ${expaleatorio} Exp`, m);
-      } else {
-        juego.intentos += 1;
-        if (juego.intentos >= 3) {
-          clearTimeout(juego.tiempoLimite);
-          delete global.math[chatId];
-          return client.reply(chatId, '「✎」Te quedaste sin intentos. Suerte a la próxima.', m);
-        } else {
-          const intentosRestantes = 3 - juego.intentos;
-          return client.reply(chatId, `「✎」Respuesta incorrecta, te quedan ${intentosRestantes} intentos.`, m);
-        }
-      }
-    }
-    return;
-  }
-
-  if (command === 'math' || command === 'matematicas') {
-    if (juego?.juegoActivo)
-      return client.reply(chatId, 'ꕥ Ya hay un juego activo. Espera a que termine.', m);
-
-    const dificultad = args[0]?.toLowerCase();
-    if (!limits[dificultad])
-      return client.reply(chatId, '「✎」Especifica una dificultad válida: *facil, medio, dificil, imposible, imposible2*', m);
-
-    const { problema, resultado } = generarProblema(dificultad);
-    const problemMessage = await client.reply(chatId, `「✩」Tienes 1 minuto para resolver:\n\n> ✩ *${problema}*\n\n_✐ Usa » *${global.prefix || '/'}responder* para responder!_`, m);
-
-    global.math[chatId] = {
-      juegoActivo: true,
-      problema,
-      respuesta: resultado.toString(),
-      intentos: 0,
-      timeout: Date.now() + 60000,
-      problemMessageId: problemMessage.key?.id,
-      tiempoLimite: setTimeout(() => {
-        if (global.math[chatId]?.juegoActivo) {
-          delete global.math[chatId];
-          client.reply(chatId, '「✿」Tiempo agotado. El juego ha terminado.', m);
-        }
-      }, 60000)
-    };
-  }
-}
+import { resolveLidToRealJid } from '../../lib/utils.js'
 
 export default {
-  command: ['math', 'matematicas', 'responder'],
+  command: ['monthly', 'mensual'],
   category: 'rpg',
-  run
+  run: async ({ client, m }) => {
+    
+    // 1. Validaciones de Grupo
+    if (!m.isGroup) return m.reply('❌ Este comando solo funciona en grupos.')
+
+    const chatData = global.db.data.chats[m.chat] || {}
+    if (chatData.adminonly || !chatData.rpg) {
+      return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
+    }
+
+    // 2. Configuración del Bot
+    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+    const settings = global.db.data.settings[botId] || {}
+    const monedas = settings.currency || 'monedas'
+
+    // 3. Resolución de Usuario (ID Real)
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat)
+    let user = global.db.data.users[userId]
+
+    // Inicializamos si no existe
+    if (!user) {
+        global.db.data.users[userId] = { coins: 0, exp: 0, lastMonthly: 0 }
+        user = global.db.data.users[userId]
+    }
+
+    // 4. Cooldown (30 Días)
+    const monthlyCooldown = 30 * 24 * 60 * 60 * 1000 // 30 días en milisegundos
+    const lastMonthly = user.lastMonthly || 0
+    const tiempoRestante = lastMonthly + monthlyCooldown - Date.now()
+
+    if (tiempoRestante > 0) {
+      return m.reply(`✎ Ya reclamaste tu recompensa de este mes.\nVuelve en: *${msToTime(tiempoRestante)}*`)
+    }
+
+    // 5. Recompensa (Mejorada para valer la pena)
+    // Entre 50k y 100k monedas
+    const coins = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000
+    // Entre 10k y 20k de experiencia
+    const exp = Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000
+
+    // 6. Guardar Datos
+    user.lastMonthly = Date.now()
+    user.exp = (user.exp || 0) + exp
+    user.coins = (user.coins || 0) + coins
+
+    // 7. Mensaje
+    const info = `📅 *RECOMPENSA MENSUAL* 📅
+    
+> 👑 *¡Has reclamado tu premio del mes!*
+
+⚡ *Experiencia:* +${exp.toLocaleString()} XP
+💰 *Dinero:* +${coins.toLocaleString()} ${monedas}
+
+_¡No olvides volver el próximo mes!_`
+
+    await client.sendMessage(m.chat, { 
+        text: info,
+        mentions: [userId]
+    }, { quoted: m })
+  },
 };
+
+// Función de tiempo formateada
+function msToTime(duration) {
+  let seconds = Math.floor((duration / 1000) % 60),
+      minutes = Math.floor((duration / (1000 * 60)) % 60),
+      hours = Math.floor((duration / (1000 * 60 * 60)) % 24),
+      days = Math.floor(duration / (1000 * 60 * 60 * 24));
+
+  return `${days}d ${hours}h ${minutes}m`
+}
