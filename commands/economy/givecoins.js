@@ -1,48 +1,80 @@
 import { resolveLidToRealJid } from "../../lib/utils.js"
 
 export default {
-  command: ['givecoins', 'pay', 'coinsgive'],
+  command: ['givecoins', 'pay', 'coinsgive', 'transferir', 'darcoins'],
   category: 'rpg',
-  run: async ({client, m, args}) => {
+  run: async ({ client, m, args }) => {
+    
+    // 1. Validaciones de Grupo
+    if (!m.isGroup) return m.reply('❌ Este comando solo funciona en grupos.')
+
     const chatId = m.chat
+    const chatData = global.db.data.chats[chatId] || {}
+    
+    if (chatData.adminonly || !chatData.rpg) {
+         return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
+    }
+
+    // 2. Configuración Bot
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const botSettings = global.db.data.settings[botId] || {}
-    const monedas = botSettings.currency || 'coins'
-    const chatData = global.db.data.chats[chatId]
+    const settings = global.db.data.settings[botId] || {}
+    const monedas = settings.currency || 'monedas'
 
-    if (chatData.adminonly || !chatData.rpg) return m.reply(`✎ Desactivado.`)
+    // 3. Resolver Sender (El que envía)
+    // Usamos resolveLidToRealJid también para ti, por seguridad
+    const senderId = await resolveLidToRealJid(m.sender, client, chatId)
+    let senderData = global.db.data.users[senderId]
 
-    const [cantidadInputRaw] = args
+    // Inicializar al que envía si no existe
+    if (!senderData) {
+        global.db.data.users[senderId] = { coins: 0 }
+        senderData = global.db.data.users[senderId]
+    }
+
+    // 4. Resolver Target (El que recibe)
     const mentioned = m.mentionedJid || []
     const who2 = mentioned[0] || (m.quoted ? m.quoted.sender : null)
     
-    if (!who2) return m.reply(`《✧》 Menciona a alguien.`)
-    const who = await resolveLidToRealJid(who2, client, m.chat);
+    if (!who2) return m.reply(`《✧》 Menciona a alguien para enviarle *${monedas}*.`)
+    
+    const targetId = await resolveLidToRealJid(who2, client, chatId)
 
-    // CORRECCIÓN: Usuarios Globales
-    const senderData = global.db.data.users[m.sender]
-    const targetData = global.db.data.users[who]
+    // Validaciones de seguridad
+    if (targetId === senderId) return m.reply(`《✧》 No puedes transferirte dinero a ti mismo.`)
+    if (targetId === botId) return m.reply(`《✧》 No necesito tu dinero.`)
 
+    let targetData = global.db.data.users[targetId]
     if (!targetData) {
-        // Inicializar si no existe
-        global.db.data.users[who] = { coins: 0 }
+        global.db.data.users[targetId] = { coins: 0 }
+        targetData = global.db.data.users[targetId]
     }
 
-    const cantidadInput = cantidadInputRaw?.toLowerCase()
-    const cantidad = cantidadInput === 'all' ? senderData.coins : parseInt(cantidadInput)
+    // 5. Detectar la Cantidad (Inteligente)
+    // Buscamos cuál de los argumentos es el número o "all"
+    let cantidad = 0
+    let foundAmount = args.find(a => !a.includes('@') && (a.toLowerCase() === 'all' || !isNaN(parseInt(a))))
 
-    if (!cantidadInput || isNaN(cantidad) || cantidad <= 0)
-      return m.reply(`《✧》 Cantidad inválida.`)
+    if (!foundAmount) {
+        return m.reply(`《✧》 Ingresa la cantidad.\nEjemplo: *#pay @user 100*`)
+    }
 
-    if (senderData.coins < cantidad)
-      return m.reply(`《✧》 No tienes suficientes *${monedas}*.`)
+    if (foundAmount.toLowerCase() === 'all' || foundAmount.toLowerCase() === 'todo') {
+        cantidad = senderData.coins || 0
+    } else {
+        cantidad = parseInt(foundAmount)
+    }
 
+    // 6. Validar Saldo
+    if (isNaN(cantidad) || cantidad <= 0) return m.reply(`《✧》 Cantidad inválida.`)
+    if ((senderData.coins || 0) < cantidad) return m.reply(`《✧》 No tienes suficientes *${monedas}* para enviar.`)
+
+    // 7. Transacción
     senderData.coins -= cantidad
-    global.db.data.users[who].coins = (global.db.data.users[who].coins || 0) + cantidad
+    targetData.coins = (targetData.coins || 0) + cantidad
 
     await client.sendMessage(chatId, {
-        text: `✎ Transferiste *¥${cantidad.toLocaleString()} ${monedas}* a *@${who.split('@')[0]}*.`,
-        mentions: [who],
+        text: `💸 *TRANSFERENCIA REALIZADA*\n\n💰 Monto: *¥${cantidad.toLocaleString()} ${monedas}*\n📤 De: @${senderId.split('@')[0]}\n📥 Para: @${targetId.split('@')[0]}`,
+        mentions: [senderId, targetId],
       }, { quoted: m }
     )
   }
