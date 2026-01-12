@@ -172,7 +172,7 @@ export default {
           } catch (e) { console.log('Error PurrBot:', e.message) }
       }
 
-      // ESTRATEGIA 2: Rule34
+      // ESTRATEGIA 2: Rule34 (CORREGIDA ✅)
       if (!url && r34Map[command]) {
           try {
               const tags = r34Map[command]
@@ -181,28 +181,35 @@ export default {
               console.log(`[NSFW] Buscando en Rule34: ${tags}`)
               
               const res = await fetch(r34Url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-              const posts = await res.json()
               
-              if (posts && posts.length > 0) {
+              // Verificamos si la respuesta es válida antes de parsear
+              const posts = await res.json().catch(() => null)
+              
+              // AQUÍ ESTABA EL ERROR: Verificamos si 'posts' es realmente un Array
+              if (Array.isArray(posts) && posts.length > 0) {
                   const validPosts = posts.filter(p => p.file_url)
                   if (validPosts.length > 0) {
                       const randomPost = validPosts[Math.floor(Math.random() * validPosts.length)]
                       url = randomPost.file_url
                   }
+              } else {
+                  console.log(`[NSFW] Rule34 no devolvió una lista válida para: ${tags}`)
               }
           } catch (e) { console.log('Error Rule34:', e.message) }
       }
 
-      // ESTRATEGIA 3: Fallback (Waifu.pics)
+      // ESTRATEGIA 3: Fallback (MEJORADA)
       if (!url) {
           try {
-              const res = await fetch(`https://api.waifu.pics/nsfw/neko`)
+              // Si falla boobjob, intenta blowjob como respaldo en lugar de "neko"
+              const backupTag = command === 'boobjob' ? 'blowjob' : 'waifu'
+              const res = await fetch(`https://api.waifu.pics/nsfw/${backupTag}`)
               const json = await res.json()
               url = json.url
           } catch (e) {}
       }
 
-      if (!url) return m.reply('❌ No se encontró ninguna imagen/gif.')
+      if (!url) return m.reply('❌ No se encontró ninguna imagen/gif. Intenta de nuevo.')
 
       console.log(`[NSFW] Descargando: ${url}`)
       const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
