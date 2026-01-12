@@ -1,5 +1,5 @@
 import fetch from 'node-fetch'
-import https from 'https' // IMPORTANTE: Agregado para el agente SSL
+import https from 'https'
 import fs from 'fs'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -7,17 +7,14 @@ import { promisify } from 'util'
 const execPromise = promisify(exec)
 
 // ==========================================================
-// 0. CONFIGURACIÓN DE RED (Agente SSL)
+// CONFIGURACIÓN (Agente SSL)
 // ==========================================================
-const agent = new https.Agent({
-    rejectUnauthorized: false
-})
+const agent = new https.Agent({ rejectUnauthorized: false })
 
 // ==========================================================
-// 1. CONFIGURACIÓN DE FRASES
+// FRASES
 // ==========================================================
 const captions = {
-  // --- PurrBot (Alta Calidad) ---
   anal: (from, to) => from === to ? 'se la metió en el ano.' : 'se la metió en el ano a',
   cum: (from, to) => from === to ? 'se vino... Omitiremos eso.' : 'se vino dentro de',
   fuck: (from, to) => from === to ? 'se entrega al deseo.' : 'se está cogiendo a',
@@ -26,8 +23,6 @@ const captions = {
   blowjob: (from, to) => from === to ? 'está dando una rica mamada.' : 'le dio una mamada a',
   threesome: (from, to) => from === to ? 'quiere un trío.' : 'está haciendo un trío con',
   yuri: (from, to) => from === to ? 'está tijereteando.' : 'está tijereteando con',
-  
-  // --- Rule34 (Los Específicos) ---
   sixnine: (from, to) => from === to ? 'está haciendo un 69.' : 'está haciendo un 69 con',
   undress: (from, to) => from === to ? 'se está quitando la ropa.' : 'le está quitando la ropa a',
   spank: (from, to) => from === to ? 'se dio una nalgada.' : 'le dio una nalgada a',
@@ -37,8 +32,6 @@ const captions = {
   suckboobs: (from, to) => from === to ? 'se chupa las tetas.' : 'le está chupando las tetas a',
   grabboobs: (from, to) => from === to ? 'se agarra las tetas.' : 'le está agarrando las tetas a',
   tentacle: (from, to) => from === to ? 'está siendo profanado por tentáculos.' : 'usó tentáculos contra',
-  
-  // --- LOS NUEVOS (Hardcore) ---
   fingering: (from, to) => from === to ? 'se está dedeando.' : 'le está metiendo los dedos a',
   squirt: (from, to) => from === to ? 'hizo un squirt a chorro.' : 'hizo que se mojara toda',
   deepthroat: (from, to) => from === to ? 'se la metió hasta la garganta.' : 'le hizo garganta profunda a',
@@ -53,7 +46,7 @@ const symbols = ['(⁠◠⁠‿⁠◕⁠)', '(✿◡‿◡)', '(✿✪‿✪｡)
 function getRandomSymbol() { return symbols[Math.floor(Math.random() * symbols.length)] }
 
 // ==========================================================
-// 2. HERRAMIENTAS TÉCNICAS
+// HERRAMIENTAS
 // ==========================================================
 async function gifToMp4(gifBuffer) {
     try {
@@ -62,7 +55,6 @@ async function gifToMp4(gifBuffer) {
         const gifPath = `./tmp/${filename}.gif`
         const mp4Path = `./tmp/${filename}.mp4`
         await fs.promises.writeFile(gifPath, gifBuffer)
-        // Escala corregida para evitar errores de ffmpeg (divisible por 2)
         await execPromise(`ffmpeg -y -i "${gifPath}" -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" "${mp4Path}"`)
         const mp4Buffer = await fs.promises.readFile(mp4Path)
         await fs.promises.unlink(gifPath); await fs.promises.unlink(mp4Path)
@@ -81,21 +73,19 @@ function getBufferType(buffer) {
         if (magic.startsWith('89504E47')) return 'png'
         if (magic.startsWith('FFD8FF')) return 'jpg'
         if (magic.includes('66747970')) return 'mp4'
-        if (magic.startsWith('1A45DFA3')) return 'webm' // WebM Signature
+        if (magic.startsWith('1A45DFA3')) return 'webm'
         return 'unknown'
     } catch (e) { return 'unknown' }
 }
 
 // ==========================================================
-// 3. MAPAS DE BÚSQUEDA
+// MAPAS
 // ==========================================================
-
 const purrBotMap = {
     anal: 'anal', cum: 'cum', fuck: 'fuck', lickpussy: 'pussylick',
     fap: 'solo', blowjob: 'blowjob', threesome: 'threesome_fff', yuri: 'yuri'
 }
 
-// Rule34: La fuente infinita
 const r34Map = {
     sixnine: '69+animated', 
     undress: 'undressing+animated',
@@ -117,16 +107,11 @@ const r34Map = {
 }
 
 const commandAliases = {
-  // Alias Básicos
   coger: 'fuck', paja: 'fap', bj: 'blowjob', mamada: 'blowjob', anal: 'anal', venirse: 'cum', trio: 'threesome',
   tijeras: 'yuri', rusa: 'boobjob', pies: 'footjob', tentaculos: 'tentacle',
   encuerar: 'undress', desnudar: 'undress', nalgada: 'spank', azotar: 'spank',
   manosear: 'grope', toquetear: 'grope', chupartetas: 'suckboobs', agarrartetas: 'grabboobs',
-  
-  // EL 69
   69: 'sixnine',
-
-  // Alias Nuevos
   dedos: 'fingering', dedear: 'fingering',
   mojarse: 'squirt', chorro: 'squirt',
   garganta: 'deepthroat', profunda: 'deepthroat',
@@ -179,29 +164,38 @@ export default {
           } catch (e) { console.log('Error PurrBot:', e.message) }
       }
 
-      // ESTRATEGIA 2: Rule34 (OPTIMIZADA ✅)
+      // ESTRATEGIA 2: Rule34 (CORREGIDO PARA VIDEO)
       if (!url && r34Map[command]) {
           try {
               const tags = r34Map[command]
-              // Usamos JSON API + Agent para evitar bloqueos
-              const r34Url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=${encodeURIComponent(tags)}`
+              // IMPORTANTE: Quitamos encodeURIComponent para que el "+" funcione como separador de tags
+              const r34Url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=${tags}`
               
+              console.log(`[NSFW] Buscando en Rule34: ${tags}`)
               const res = await fetch(r34Url, { agent, headers: { 'User-Agent': 'Mozilla/5.0' } })
               const posts = await res.json().catch(() => null)
               
               if (Array.isArray(posts) && posts.length > 0) {
-                  // Filtramos posts que tengan URL válida
-                  const validPosts = posts.filter(p => p.file_url)
-                  if (validPosts.length > 0) {
-                      const randomPost = validPosts[Math.floor(Math.random() * validPosts.length)]
+                  // FILTRO DE VIDEO: Priorizamos .mp4 o .webm
+                  const videoPosts = posts.filter(p => p.file_url && (p.file_url.endsWith('.mp4') || p.file_url.endsWith('.webm')))
+                  const anyPosts = posts.filter(p => p.file_url)
+
+                  if (videoPosts.length > 0) {
+                      const randomPost = videoPosts[Math.floor(Math.random() * videoPosts.length)]
                       url = randomPost.file_url
-                      console.log(`[NSFW] R34 encontrado: ${url}`)
+                      console.log(`[NSFW] R34 (VIDEO) encontrado: ${url}`)
+                  } else if (anyPosts.length > 0) {
+                      const randomPost = anyPosts[Math.floor(Math.random() * anyPosts.length)]
+                      url = randomPost.file_url
+                      console.log(`[NSFW] R34 (IMG) encontrado: ${url}`)
                   }
+              } else {
+                  console.log('[NSFW] R34 devolvió 0 resultados. Pasando a backup...')
               }
           } catch (e) { console.log('Error Rule34 API:', e.message) }
       }
 
-      // ESTRATEGIA 3: Fallback (Waifu.pics)
+      // ESTRATEGIA 3: Fallback (Backup)
       if (!url) {
           try {
               const backupTag = command === 'boobjob' ? 'blowjob' : 'waifu'
@@ -213,27 +207,23 @@ export default {
 
       if (!url) return m.reply('❌ No se encontró ninguna imagen/gif. Intenta de nuevo.')
 
-      // DESCARGAR Y ENVIAR
+      // DESCARGA
       console.log(`[NSFW] Descargando buffer: ${url}`)
-      // Usamos el mismo agente para la descarga
       const response = await fetch(url, { agent, headers: { 'User-Agent': 'Mozilla/5.0' } })
       let buffer = await response.buffer()
       
       const type = getBufferType(buffer)
       let msgOptions = { caption: caption, mentions: [who, m.sender] }
 
-      // Manejo inteligente de tipos
       if (type === 'gif') {
-          // Si es GIF, lo convertimos a video para que WhatsApp lo reproduzca mejor
           buffer = await gifToMp4(buffer) 
           msgOptions.video = buffer
           msgOptions.gifPlayback = true 
       } 
       else if (type === 'mp4' || type === 'webm') {
-          // Si Rule34 ya dio un video, lo mandamos directo
           msgOptions.video = buffer
           msgOptions.mimetype = 'video/mp4'
-          msgOptions.gifPlayback = true // Opcional: hace que se reproduzca en bucle si es corto
+          msgOptions.gifPlayback = true 
       } 
       else {
           msgOptions.image = buffer
