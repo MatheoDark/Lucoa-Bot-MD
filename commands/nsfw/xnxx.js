@@ -1,5 +1,21 @@
 import fetch from "node-fetch"
-// import sharp from 'sharp' // Desactivado para ahorrar RAM y evitar errores de dependencias
+
+// Función de respaldo: Escanear el HTML directamente si la API falla
+async function xnxxScraper(url) {
+    try {
+        const res = await fetch(url)
+        const text = await res.text()
+        
+        // Buscamos el enlace MP4 dentro del código de la página (Alta o Baja calidad)
+        const urlHigh = text.match(/html5player\.setVideoUrlHigh\('([^']+)'\)/)
+        const urlLow = text.match(/html5player\.setVideoUrlLow\('([^']+)'\)/)
+        
+        return urlHigh ? urlHigh[1] : (urlLow ? urlLow[1] : null)
+    } catch (e) {
+        console.error("Error en scraping XNXX:", e)
+        return null
+    }
+}
 
 export default {
   command: ["xnxx"],
@@ -17,7 +33,6 @@ export default {
     m.react('🔥')
 
     try {
-      // Configuración de API (Usa variables globales o valores por defecto)
       const apikey = global.api?.key || 'tu_api_key'
       const apiurl = global.api?.url || 'https://delirius-apii.vercel.app'
 
@@ -27,26 +42,21 @@ export default {
       let duracion = ''
 
       // ----------------------------------------------------
-      // CASO A: Link Directo
+      // PASO 1: OBTENER URL DEL VIDEO (Link o Búsqueda)
       // ----------------------------------------------------
       if (query.startsWith("http") && query.includes("xnxx.com")) {
+        // CASO A: Link Directo
         videoUrl = query
-        titulo = "Video XNXX" // Título temporal
-      } 
-      // ----------------------------------------------------
-      // CASO B: Búsqueda
-      // ----------------------------------------------------
-      else {
+        titulo = "Video XNXX"
+      } else {
+        // CASO B: Búsqueda en API
         const searchUrl = `${apiurl}/nsfw/search/xnxx?query=${query}&key=${apikey}`
         const res = await fetch(searchUrl)
-        if (!res.ok) return m.reply("❌ Error al conectar con XNXX API")
-
-        const json = await res.json()
+        const json = await res.json().catch(() => ({}))
         
-        // Verificamos estructura (data o resultados)
         const resultados = json.data || json.resultados || []
         
-        if (!json.status || resultados.length === 0) {
+        if (!resultados || resultados.length === 0) {
             return m.reply("❌ No se encontró el video.")
         }
 
@@ -61,47 +71,49 @@ export default {
         if (imagen) {
             await client.sendMessage(m.chat, { 
                 image: { url: imagen }, 
-                caption: `🔍 *XNXX Encontrado*\n\n📝 *Titulo:* ${titulo}\n⏱️ *Duración:* ${duracion || '?'}\n⏳ *Descargando...*` 
+                caption: `🔍 *Encontrado:* ${titulo}\n⏱️ *Duración:* ${duracion || '?'}\n⏳ *Procesando video...*` 
             }, { quoted: m })
         }
       }
 
       // ----------------------------------------------------
-      // DESCARGA
+      // PASO 2: OBTENER ENLACE MP4 (Descarga)
       // ----------------------------------------------------
-      const downloadApi = `${apiurl}/nsfw/dl/xnxx?url=${encodeURIComponent(videoUrl)}&key=${apikey}`
-      const downloadRes = await fetch(downloadApi)
+      let mp4Url = null
       
-      if (!downloadRes.ok) return m.reply("❌ Error en la API de descarga.")
-      
-      const downloadJson = await downloadRes.json()
-
-      // Verificar si la descarga fue exitosa
-      // XNXX API suele devolver files.low / files.high
-      const data = downloadJson.data || downloadJson.resultado
-      
-      if (!downloadJson.status || !data) {
-          return m.reply("❌ No se pudo obtener el enlace de descarga.")
+      // INTENTO 1: Usar la API
+      try {
+          const downloadApi = `${apiurl}/nsfw/dl/xnxx?url=${encodeURIComponent(videoUrl)}&key=${apikey}`
+          const downloadRes = await fetch(downloadApi)
+          const downloadJson = await downloadRes.json().catch(() => ({}))
+          const data = downloadJson.data || downloadJson.resultado
+          
+          if (data) {
+             mp4Url = data.files?.low || data.files?.high || data.url
+             // Actualizamos título si la API nos da uno mejor
+             if (data.title) titulo = data.title
+          }
+      } catch (e) {
+          console.log("Fallo API descarga, intentando scraping...")
       }
 
-      // Intentamos obtener la URL del video (Low o High)
-      const mp4Url = data.files?.low || data.files?.high || data.url
-      
-      // Actualizamos título si la API de descarga nos da uno mejor
-      const finalTitle = data.title || titulo || "XNXX Video"
+      // INTENTO 2: Scraping Manual (Si la API falló o devolvió null)
+      if (!mp4Url) {
+          console.log("⚠️ API falló. Usando Scraping manual para:", videoUrl)
+          mp4Url = await xnxxScraper(videoUrl)
+      }
 
-      if (!mp4Url) return m.reply("❌ No se encontró el archivo MP4.")
+      if (!mp4Url) return m.reply("❌ No se pudo extraer el video (ni por API ni por Scraping). Intenta con otro.")
 
       // ----------------------------------------------------
-      // ENVÍO SEGURO (Sin Buffer en RAM)
+      // PASO 3: ENVIAR VIDEO
       // ----------------------------------------------------
-      // Usamos { url: ... } para que WhatsApp lo descargue directamente
       
       let mensaje = {
-        document: { url: mp4Url }, // Stream directo
-        mimetype: 'video/mp4',     // CORREGIDO: Es video, no audio (mp3)
-        fileName: `${finalTitle}.mp4`,
-        caption: `🔥 *${finalTitle}*`
+        document: { url: mp4Url }, 
+        mimetype: 'video/mp4',     
+        fileName: `${titulo}.mp4`,
+        caption: `🔥 *${titulo}*`
       }
 
       await client.sendMessage(m.chat, mensaje, { quoted: m })
@@ -111,4 +123,5 @@ export default {
       return m.reply(`❌ Error interno: ${err.message}`)
     }
   },
+}
 }
