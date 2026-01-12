@@ -1,43 +1,66 @@
+import { resolveLidToRealJid } from '../../lib/utils.js'
+
 export default {
-  command: ['dep', 'deposit', 'd'],
+  command: ['dep', 'deposit', 'depositar', 'd'],
   category: 'rpg',
-  run: async ({client, m, args}) => {
-    // CORRECCIÓN: Leemos del usuario global
-    const user = global.db.data.users[m.sender]
+  run: async ({ client, m, args }) => {
     
-    const idBot = client.user.id.split(':')[0] + '@s.whatsapp.net'
-    const settings = global.db.data.settings[idBot] || {}
+    // 1. Validaciones de Grupo
+    if (!m.isGroup) return m.reply('❌ Este comando solo funciona en grupos.')
+
+    const chatData = global.db.data.chats[m.chat] || {}
+    if (chatData.adminonly || !chatData.rpg) {
+      return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
+    }
+
+    // 2. Configuración del Bot
+    const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+    const settings = global.db.data.settings[botId] || {}
     const monedas = settings.currency || 'monedas'
 
-    const chatData = global.db.data.chats[m.chat]
-    if (chatData.adminonly || !chatData.rpg)
-      return m.reply(`✐ Estos comandos están desactivados en este grupo.`)
+    // 3. Resolución de Usuario (CRÍTICO)
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    let user = global.db.data.users[userId]
 
+    // Inicializamos si no existe
+    if (!user) {
+        global.db.data.users[userId] = { coins: 0, bank: 0 }
+        user = global.db.data.users[userId]
+    }
+
+    // Aseguramos propiedades numéricas
+    user.coins = user.coins || 0
+    user.bank = user.bank || 0
+
+    // 4. Validar Argumentos
     if (!args[0]) {
-      return m.reply(`《✧》 Ingresa la cantidad de *${monedas}* que quieras *depositar*.`)
+      return m.reply(`《✧》 Ingresa la cantidad de *${monedas}* que quieras *depositar*.\nEjemplo: *#dep 100* o *#dep all*`)
     }
 
-    if (args[0].toLowerCase() === 'all') {
-      if (user.coins <= 0) return m.reply(`✎ No tienes *${monedas}* para depositar en tu *banco*`)
+    let amount = 0
 
-      const count = user.coins
-      user.coins = 0
-      user.bank += count
-      await m.reply(`ꕥ Has depositado *¥${count.toLocaleString()} ${monedas}* en tu Banco`)
-      return
+    // CASO: Depositar TODO
+    if (args[0].toLowerCase() === 'all' || args[0].toLowerCase() === 'todo') {
+      if (user.coins <= 0) return m.reply(`✎ No tienes *${monedas}* en la mano para depositar.`)
+      amount = user.coins
+    } 
+    // CASO: Cantidad Específica
+    else {
+      amount = parseInt(args[0])
+      if (isNaN(amount) || amount < 1) {
+        return m.reply('《✧》 Ingresa una cantidad válida para depositar.')
+      }
     }
 
-    if (!Number(args[0]) || parseInt(args[0]) < 1) {
-      return m.reply('《✧》 Ingresa una cantidad *válida* para depositar')
+    // 5. Verificar Fondos
+    if (user.coins < amount) {
+      return m.reply(`❀ No tienes suficientes *${monedas}* en la mano.\n👛 Tienes: *${user.coins.toLocaleString()} ${monedas}*`)
     }
 
-    const count = parseInt(args[0])
-    if (user.coins < count) {
-      return m.reply(`❀ No tienes suficientes *${monedas}* para depositar`)
-    }
+    // 6. Ejecutar Transacción
+    user.coins -= amount
+    user.bank += amount
 
-    user.coins -= count
-    user.bank += count
-    await m.reply(`ꕥ Has depositado *¥${count.toLocaleString()} ${monedas}* en tu Banco`)
+    await m.reply(`ꕥ Has depositado *¥${amount.toLocaleString()} ${monedas}* en tu Banco.\n🏦 Nuevo Saldo: *${user.bank.toLocaleString()}*`)
   },
 };
