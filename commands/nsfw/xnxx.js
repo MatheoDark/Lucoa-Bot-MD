@@ -1,88 +1,114 @@
 import fetch from "node-fetch"
-import { getBuffer } from '../../lib/message.js'
-import sharp from 'sharp'
+// import sharp from 'sharp' // Desactivado para ahorrar RAM y evitar errores de dependencias
 
 export default {
   command: ["xnxx"],
-  run: async ({client, m, args}) => {
+  run: async ({ client, m, args }) => {
 
-    if (!db.data.chats[m.chat].nsfw) return m.reply('✐ Los comandos de *NSFW* están desáctivados en este Grupo.')
+    // 1. Verificación NSFW
+    if (!global.db.data.chats[m.chat].nsfw) {
+        return m.reply('🚫 Los comandos *NSFW* están desactivados en este Grupo.')
+    }
+
+    // 2. Validar Argumentos
+    const query = args.join(" ")
+    if (!query) return m.reply("🔞 Ingresa el nombre de un video o una URL de XNXX.")
+
+    m.react('🔥')
 
     try {
-      const query = args.join(" ")
-      if (!query) return m.reply("《✧》Ingresa el nombre de un video o una URL de XNXX.")
+      // Configuración de API (Usa variables globales o valores por defecto)
+      const apikey = global.api?.key || 'tu_api_key'
+      const apiurl = global.api?.url || 'https://delirius-apii.vercel.app'
 
-      let videoUrl, videoInfo
+      let videoUrl = ''
+      let titulo = ''
+      let imagen = ''
+      let duracion = ''
 
+      // ----------------------------------------------------
+      // CASO A: Link Directo
+      // ----------------------------------------------------
       if (query.startsWith("http") && query.includes("xnxx.com")) {
         videoUrl = query
-      } else {
-        const apiUrl = `${api.url}/nsfw/search/xnxx?query=${query}&key=${api.key}`
-        const res = await fetch(apiUrl)
-        if (!res.ok) {
-     return m.reply("Error al conectar con XNXX API")
-        }
+        titulo = "Video XNXX" // Título temporal
+      } 
+      // ----------------------------------------------------
+      // CASO B: Búsqueda
+      // ----------------------------------------------------
+      else {
+        const searchUrl = `${apiurl}/nsfw/search/xnxx?query=${query}&key=${apikey}`
+        const res = await fetch(searchUrl)
+        if (!res.ok) return m.reply("❌ Error al conectar con XNXX API")
 
         const json = await res.json()
-        if (!json.status || !json.resultados || json.resultados.length === 0) throw new Error("No se encontró el video")
+        
+        // Verificamos estructura (data o resultados)
+        const resultados = json.data || json.resultados || []
+        
+        if (!json.status || resultados.length === 0) {
+            return m.reply("❌ No se encontró el video.")
+        }
 
-        const randomIndex = Math.floor(Math.random() * json.resultados.length)
-        videoInfo = json.resultados[randomIndex]
-        videoUrl = videoInfo.url
+        const randomPost = resultados[Math.floor(Math.random() * resultados.length)]
+        
+        videoUrl = randomPost.url
+        titulo = randomPost.title
+        imagen = randomPost.image || randomPost.cover
+        duracion = randomPost.duration
 
-        const caption = `➮ *XNXX :: ${videoInfo.title}*
-
-→ *Vistas ::* ${videoInfo.views}
-→ *Resolución ::* ${videoInfo.resolution}
-→ *Duración ::* ${videoInfo.duration}
-→ *Ver en ::* ${videoInfo.url}
-
-> *✎ Enviando video....*
-`
-
-        await client.sendMessage(m.chat, {
-          image: { url: videoInfo.cover },
-          caption
-        }, { quoted: m })
+        // Enviamos la portada primero
+        if (imagen) {
+            await client.sendMessage(m.chat, { 
+                image: { url: imagen }, 
+                caption: `🔍 *XNXX Encontrado*\n\n📝 *Titulo:* ${titulo}\n⏱️ *Duración:* ${duracion || '?'}\n⏳ *Descargando...*` 
+            }, { quoted: m })
+        }
       }
 
-      const downloadUrl = `${api.url}/nsfw/dl/xnxx?url=${encodeURIComponent(videoUrl)}&key=${api.key}`
-      const downloadRes = await fetch(downloadUrl)
-      if (!downloadRes.ok) {
-      return m.reply("Error al descargar el video")
-      }
-
+      // ----------------------------------------------------
+      // DESCARGA
+      // ----------------------------------------------------
+      const downloadApi = `${apiurl}/nsfw/dl/xnxx?url=${encodeURIComponent(videoUrl)}&key=${apikey}`
+      const downloadRes = await fetch(downloadApi)
+      
+      if (!downloadRes.ok) return m.reply("❌ Error en la API de descarga.")
+      
       const downloadJson = await downloadRes.json()
-      if (!downloadJson.status || !downloadJson.resultado) {
-       return m.reply("No se pudo obtener el video para descargar.")
+
+      // Verificar si la descarga fue exitosa
+      // XNXX API suele devolver files.low / files.high
+      const data = downloadJson.data || downloadJson.resultado
+      
+      if (!downloadJson.status || !data) {
+          return m.reply("❌ No se pudo obtener el enlace de descarga.")
       }
 
-      const videoDownloadLink = downloadJson.resultado.videos.low
+      // Intentamos obtener la URL del video (Low o High)
+      const mp4Url = data.files?.low || data.files?.high || data.url
+      
+      // Actualizamos título si la API de descarga nos da uno mejor
+      const finalTitle = data.title || titulo || "XNXX Video"
 
-      /*await client.sendMessage(m.chat, {
-        video: { url: videoDownloadLink },
-        mimetype: "video/mp4"
-      }, { quoted: m })*/
+      if (!mp4Url) return m.reply("❌ No se encontró el archivo MP4.")
 
-      const thumbBuffer = await getBuffer(downloadJson.resultado. thumb)
-      const videoBuffer = await getBuffer(videoDownloadLink)
+      // ----------------------------------------------------
+      // ENVÍO SEGURO (Sin Buffer en RAM)
+      // ----------------------------------------------------
+      // Usamos { url: ... } para que WhatsApp lo descargue directamente
+      
+      let mensaje = {
+        document: { url: mp4Url }, // Stream directo
+        mimetype: 'video/mp4',     // CORREGIDO: Es video, no audio (mp3)
+        fileName: `${finalTitle}.mp4`,
+        caption: `🔥 *${finalTitle}*`
+      }
 
-  const thumbBuffer2 = await sharp(thumbBuffer)
-    .resize(300, 300)
-    .jpeg({ quality: 80 })
-    .toBuffer()
-
-  let mensaje = {
-    document: videoBuffer,
-    mimetype: 'video/mp3',
-    fileName: `${videoInfo.title}.mp4`,
-    jpegThumbnail: thumbBuffer2
-  }
-
-await client.sendMessage(m.chat, mensaje, { quoted: m })
+      await client.sendMessage(m.chat, mensaje, { quoted: m })
 
     } catch (err) {
-      return m.reply(msgglobal)
+      console.error(err)
+      return m.reply(`❌ Error interno: ${err.message}`)
     }
   },
 }
