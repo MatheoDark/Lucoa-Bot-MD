@@ -30,7 +30,7 @@
     "axios": "^0.24.0",
     "better-sqlite3": "^12.4.1",
     "boxen": "latest",
-    "canvas": "^2.11.2",
+    "canvas": "^latest",
     "cfonts": "^3.3.0",
     "chalk": "^4.1.2",
     "dotenv": "^17.2.3",
