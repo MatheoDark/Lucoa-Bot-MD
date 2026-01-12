@@ -1,9 +1,17 @@
 import fetch from 'node-fetch'
+import https from 'https' // IMPORTANTE: Agregado para el agente SSL
 import fs from 'fs'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
 const execPromise = promisify(exec)
+
+// ==========================================================
+// 0. CONFIGURACIÓN DE RED (Agente SSL)
+// ==========================================================
+const agent = new https.Agent({
+    rejectUnauthorized: false
+})
 
 // ==========================================================
 // 1. CONFIGURACIÓN DE FRASES
@@ -54,6 +62,7 @@ async function gifToMp4(gifBuffer) {
         const gifPath = `./tmp/${filename}.gif`
         const mp4Path = `./tmp/${filename}.mp4`
         await fs.promises.writeFile(gifPath, gifBuffer)
+        // Escala corregida para evitar errores de ffmpeg (divisible por 2)
         await execPromise(`ffmpeg -y -i "${gifPath}" -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" "${mp4Path}"`)
         const mp4Buffer = await fs.promises.readFile(mp4Path)
         await fs.promises.unlink(gifPath); await fs.promises.unlink(mp4Path)
@@ -72,7 +81,7 @@ function getBufferType(buffer) {
         if (magic.startsWith('89504E47')) return 'png'
         if (magic.startsWith('FFD8FF')) return 'jpg'
         if (magic.includes('66747970')) return 'mp4'
-        if (magic.startsWith('1A45DFA3')) return 'webm'
+        if (magic.startsWith('1A45DFA3')) return 'webm' // WebM Signature
         return 'unknown'
     } catch (e) { return 'unknown' }
 }
@@ -127,15 +136,13 @@ const commandAliases = {
   sentarse: 'facesitting', culo: 'rimjob', besoanal: 'rimjob'
 }
 
-// Lista de comandos principales para el menú
 const mainCommands = Object.keys(captions)
 
 export default {
-  // Agregamos 'tags' y 'help' para intentar que el menú los detecte
   command: mainCommands.concat(Object.keys(commandAliases)),
   category: 'nsfw',
   tags: ['nsfw'], 
-  help: mainCommands, // Esto le dice al menú qué mostrar
+  help: mainCommands,
   desc: 'Interacciones NSFW Ultimate (+30 Comandos).',
 
   run: async ({ client, m }) => {
@@ -172,36 +179,31 @@ export default {
           } catch (e) { console.log('Error PurrBot:', e.message) }
       }
 
-      // ESTRATEGIA 2: Rule34 (CORREGIDA ✅)
+      // ESTRATEGIA 2: Rule34 (OPTIMIZADA ✅)
       if (!url && r34Map[command]) {
           try {
               const tags = r34Map[command]
-              // Buscamos 100 posts
-              const r34Url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=${tags}`
-              console.log(`[NSFW] Buscando en Rule34: ${tags}`)
+              // Usamos JSON API + Agent para evitar bloqueos
+              const r34Url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=${encodeURIComponent(tags)}`
               
-              const res = await fetch(r34Url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-              
-              // Verificamos si la respuesta es válida antes de parsear
+              const res = await fetch(r34Url, { agent, headers: { 'User-Agent': 'Mozilla/5.0' } })
               const posts = await res.json().catch(() => null)
               
-              // AQUÍ ESTABA EL ERROR: Verificamos si 'posts' es realmente un Array
               if (Array.isArray(posts) && posts.length > 0) {
+                  // Filtramos posts que tengan URL válida
                   const validPosts = posts.filter(p => p.file_url)
                   if (validPosts.length > 0) {
                       const randomPost = validPosts[Math.floor(Math.random() * validPosts.length)]
                       url = randomPost.file_url
+                      console.log(`[NSFW] R34 encontrado: ${url}`)
                   }
-              } else {
-                  console.log(`[NSFW] Rule34 no devolvió una lista válida para: ${tags}`)
               }
-          } catch (e) { console.log('Error Rule34:', e.message) }
+          } catch (e) { console.log('Error Rule34 API:', e.message) }
       }
 
-      // ESTRATEGIA 3: Fallback (MEJORADA)
+      // ESTRATEGIA 3: Fallback (Waifu.pics)
       if (!url) {
           try {
-              // Si falla boobjob, intenta blowjob como respaldo en lugar de "neko"
               const backupTag = command === 'boobjob' ? 'blowjob' : 'waifu'
               const res = await fetch(`https://api.waifu.pics/nsfw/${backupTag}`)
               const json = await res.json()
@@ -211,22 +213,27 @@ export default {
 
       if (!url) return m.reply('❌ No se encontró ninguna imagen/gif. Intenta de nuevo.')
 
-      console.log(`[NSFW] Descargando: ${url}`)
-      const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+      // DESCARGAR Y ENVIAR
+      console.log(`[NSFW] Descargando buffer: ${url}`)
+      // Usamos el mismo agente para la descarga
+      const response = await fetch(url, { agent, headers: { 'User-Agent': 'Mozilla/5.0' } })
       let buffer = await response.buffer()
       
       const type = getBufferType(buffer)
       let msgOptions = { caption: caption, mentions: [who, m.sender] }
 
-      // Conversión inteligente
+      // Manejo inteligente de tipos
       if (type === 'gif') {
+          // Si es GIF, lo convertimos a video para que WhatsApp lo reproduzca mejor
           buffer = await gifToMp4(buffer) 
           msgOptions.video = buffer
           msgOptions.gifPlayback = true 
       } 
       else if (type === 'mp4' || type === 'webm') {
+          // Si Rule34 ya dio un video, lo mandamos directo
           msgOptions.video = buffer
           msgOptions.mimetype = 'video/mp4'
+          msgOptions.gifPlayback = true // Opcional: hace que se reproduzca en bucle si es corto
       } 
       else {
           msgOptions.image = buffer
