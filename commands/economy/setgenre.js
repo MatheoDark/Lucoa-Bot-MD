@@ -1,22 +1,21 @@
+import { resolveLidToRealJid } from "../../lib/utils.js"
+
 export default {
-  command: ['setgenre'],
-  category: 'rpg',
-  run: async ({client, m, args}) => {
-    const user = global.db.data.users[m.sender]
+  command: ['setgenre', 'setgenero'],
+  category: 'profile',
+  run: async ({ client, m, args, usedPrefix }) => {
+    const prefa = usedPrefix || '/'
+    const userId = await resolveLidToRealJid(m.sender, client, m.chat);
+    const user = global.db.data.users[userId]
+
+    if (user.genre) return m.reply(`《✧》 Ya tienes género. Usa *${prefa}delgenre* para borrarlo.`)
+
     const input = args.join(' ').toLowerCase()
+    const genre = (input === 'hombre' || input === 'h') ? 'Hombre' : (input === 'mujer' || input === 'm') ? 'Mujer' : null
 
-    if (user.genre)
-      return m.reply(`《✧》 Ya tienes un género. Usa › *${prefa}delgenre* para eliminarlo.`)
-
-    if (!input)
-      return m.reply(
-        '《✧》 Debes ingresar un género válido.',
-      )
-
-    const genre = input === 'hombre' ? 'Hombre' : input === 'mujer' ? 'Mujer' : null
-    if (!genre) return m.reply(`《✧》 Elije un genero valido.`)
+    if (!genre) return m.reply(`《✧》 Género inválido. Usa: *Hombre* o *Mujer*.`)
 
     user.genre = genre
-    return m.reply(`✎ Se ha establecido tu género como: *${user.genre}*`)
+    return m.reply(`✎ Género establecido: *${user.genre}*`)
   },
 };
