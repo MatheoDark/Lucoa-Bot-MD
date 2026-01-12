@@ -7,13 +7,15 @@ import { promisify } from 'util'
 const execPromise = promisify(exec)
 
 // ==========================================================
-// CONFIGURACIÓN (Agente SSL para Rule34)
+// 1. CONFIGURACIÓN (Exactamente la que te funciona en el otro comando)
 // ==========================================================
-const agent = new https.Agent({ rejectUnauthorized: false })
-const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+const agent = new https.Agent({
+    rejectUnauthorized: false,
+    keepAlive: true
+})
 
 // ==========================================================
-// FRASES
+// 2. FRASES
 // ==========================================================
 const captions = {
   anal: (from, to) => from === to ? 'se la metió en el ano.' : 'se la metió en el ano a',
@@ -47,7 +49,7 @@ const symbols = ['(⁠◠⁠‿⁠◕⁠)', '(✿◡‿◡)', '(✿✪‿✪｡)
 function getRandomSymbol() { return symbols[Math.floor(Math.random() * symbols.length)] }
 
 // ==========================================================
-// HERRAMIENTAS TÉCNICAS
+// 3. HERRAMIENTAS TÉCNICAS
 // ==========================================================
 async function gifToMp4(gifBuffer) {
     try {
@@ -80,13 +82,14 @@ function getBufferType(buffer) {
 }
 
 // ==========================================================
-// MAPAS (Tags Base)
+// 4. MAPAS (SOLO TAGS LIMPIOS)
 // ==========================================================
 const purrBotMap = {
     anal: 'anal', cum: 'cum', fuck: 'fuck', lickpussy: 'pussylick',
     fap: 'solo', blowjob: 'blowjob', threesome: 'threesome_fff', yuri: 'yuri'
 }
 
+// NOTA: Usamos tags generales. El código buscará videos dentro de los resultados.
 const r34Map = {
     sixnine: '69', 
     undress: 'undressing',
@@ -129,7 +132,7 @@ export default {
   category: 'nsfw',
   tags: ['nsfw'], 
   help: mainCommands,
-  desc: 'Interacciones NSFW Ultimate (Prioridad Video).',
+  desc: 'Interacciones NSFW Ultimate (Misma API que r34).',
 
   run: async ({ client, m }) => {
     const db = global.db
@@ -156,69 +159,61 @@ export default {
     try {
       let url = null
 
-      // ESTRATEGIA 1: PurrBot (Suelen ser gifs/videos de buena calidad)
+      // 1. PurrBot (Sigue siendo bueno para ciertas cosas)
       if (purrBotMap[command]) {
           try {
-              const res = await fetch(`https://purrbot.site/api/img/nsfw/${purrBotMap[command]}/gif`)
+              const res = await fetch(`https://purrbot.site/api/img/nsfw/${purrBotMap[command]}/gif`, { agent })
               const json = await res.json()
               if (!json.error) url = json.link
           } catch (e) { }
       }
 
-      // ESTRATEGIA 2: Rule34 con PRIORIDAD DE VIDEO
+      // 2. Rule34 (USANDO LA LÓGICA DEL COMANDO "R34" QUE FUNCIONA)
       if (!url && r34Map[command]) {
-          const baseTag = r34Map[command]
-          
-          // Creamos 3 variantes de búsqueda
-          const searchAttempts = [
-              { tag: baseTag + '+video', desc: 'VIDEO' },      // 1. Prioridad máxima (lo que pediste)
-              { tag: baseTag + '+animated', desc: 'ANIMATED' }, // 2. Si no hay "video", buscamos "animated"
-              { tag: baseTag, desc: 'GENERAL' }                 // 3. Fallback general (y filtramos abajo)
-          ]
-
-          for (let attempt of searchAttempts) {
-              if (url) break // Si ya encontramos, salimos
+          try {
+              const tag = r34Map[command]
+              // Usamos api.rule34.xxx + json=1 (LA QUE FUNCIONA)
+              const r34Url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=${encodeURIComponent(tag)}`
               
-              try {
-                  console.log(`[NSFW] Intento R34 (${attempt.desc}): ${attempt.tag}`)
-                  
-                  // Usamos la API principal con JSON
-                  const r34Url = `https://rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=${attempt.tag}`
-                  
-                  const res = await fetch(r34Url, { agent, headers })
-                  const posts = await res.json().catch(() => [])
+              console.log(`[NSFW] Buscando tag: ${tag}`)
+              const res = await fetch(r34Url, { agent })
+              const posts = await res.json()
 
-                  if (Array.isArray(posts) && posts.length > 0) {
-                      // 1. Buscamos MP4/WebM específicamente
-                      const videoPosts = posts.filter(p => p.file_url && (p.file_url.endsWith('.mp4') || p.file_url.endsWith('.webm')))
-                      
-                      // 2. Buscamos GIFs
-                      const gifPosts = posts.filter(p => p.file_url && p.file_url.endsWith('.gif'))
-                      
-                      if (videoPosts.length > 0) {
-                          const randomPost = videoPosts[Math.floor(Math.random() * videoPosts.length)]
-                          url = randomPost.file_url
-                          console.log(`✅ VIDEO ENCONTRADO en intento ${attempt.desc}`)
-                      } else if (gifPosts.length > 0) {
-                          const randomPost = gifPosts[Math.floor(Math.random() * gifPosts.length)]
-                          url = randomPost.file_url
-                          console.log(`✅ GIF ENCONTRADO en intento ${attempt.desc}`)
-                      } else if (attempt.desc === 'GENERAL') {
-                          // Solo si estamos en el último intento aceptamos imágenes estáticas
-                          const randomPost = posts[Math.floor(Math.random() * posts.length)]
-                          url = randomPost.file_url
-                      }
+              if (Array.isArray(posts) && posts.length > 0) {
+                  // --- FILTRADO INTELIGENTE (AQUÍ ESTÁ LA MAGIA) ---
+                  
+                  // 1. Separamos videos y gifs del resto
+                  const videos = posts.filter(p => p.file_url && (p.file_url.endsWith('.mp4') || p.file_url.endsWith('.webm')))
+                  const gifs = posts.filter(p => p.file_url && p.file_url.endsWith('.gif'))
+                  const images = posts.filter(p => p.file_url && !p.file_url.endsWith('.mp4') && !p.file_url.endsWith('.webm') && !p.file_url.endsWith('.gif'))
+                  
+                  let chosenPost = null
+
+                  if (videos.length > 0) {
+                      // Prioridad 1: VIDEO
+                      chosenPost = videos[Math.floor(Math.random() * videos.length)]
+                      console.log('✅ Video encontrado en la lista.')
+                  } else if (gifs.length > 0) {
+                      // Prioridad 2: GIF
+                      chosenPost = gifs[Math.floor(Math.random() * gifs.length)]
+                      console.log('✅ GIF encontrado en la lista.')
+                  } else if (images.length > 0) {
+                      // Prioridad 3: IMAGEN (Para no fallar)
+                      chosenPost = images[Math.floor(Math.random() * images.length)]
+                      console.log('⚠️ Solo se encontraron imágenes.')
                   }
-              } catch (e) {
-                  console.log(`Error en intento ${attempt.desc}:`, e.message)
+
+                  if (chosenPost) url = chosenPost.file_url
+
+              } else {
+                  console.log('[NSFW] R34 devolvió lista vacía.')
               }
-          }
+          } catch (e) { console.log('Error R34 API:', e.message) }
       }
 
-      // ESTRATEGIA 3: Fallback final (Waifu.pics)
+      // 3. Fallback (Backup final)
       if (!url) {
           try {
-              console.log('[NSFW] Fallback a Waifu.pics')
               const backupTag = command === 'boobjob' ? 'blowjob' : 'waifu'
               const res = await fetch(`https://api.waifu.pics/nsfw/${backupTag}`)
               const json = await res.json()
@@ -226,11 +221,11 @@ export default {
           } catch (e) {}
       }
 
-      if (!url) return m.reply('❌ No encontré nada, ni siquiera imágenes.')
+      if (!url) return m.reply('❌ Error: No se pudo obtener contenido.')
 
-      // DESCARGAR Y ENVIAR
+      // DESCARGA Y ENVÍO
       console.log(`[NSFW] Enviando: ${url}`)
-      const response = await fetch(url, { agent, headers })
+      const response = await fetch(url, { agent }) // Usamos el mismo agente para descargar
       let buffer = await response.buffer()
       
       const type = getBufferType(buffer)
@@ -254,7 +249,7 @@ export default {
 
     } catch (e) {
       console.error(e)
-      m.reply(`❌ Error: ${e.message}`)
+      m.reply(`❌ Error crítico: ${e.message}`)
     }
   }
 }
