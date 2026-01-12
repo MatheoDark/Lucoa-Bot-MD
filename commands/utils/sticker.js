@@ -19,7 +19,7 @@ async function generarStickerConTexto(texto) {
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
     
-    // Fondos aleatorios estilo Anime/Aesthetic
+    // Fondos aleatorios
     const imagenes = [
         'https://files.catbox.moe/rzgivf.jpg', 'https://files.catbox.moe/2ow4nj.jpg',
         'https://files.catbox.moe/szlipu.jpg', 'https://files.catbox.moe/a0c3cn.jpg',
@@ -37,7 +37,7 @@ async function generarStickerConTexto(texto) {
     ctx.fillStyle = '#000'
     ctx.textAlign = 'center'
     
-    // Lógica para ajustar texto (Word Wrap)
+    // Word Wrap (Ajuste de texto)
     let x = 260
     let y = 360
     let maxWidth = 300
@@ -55,7 +55,7 @@ async function generarStickerConTexto(texto) {
     }
     if (line) lines.push(line.trim())
     
-    lines.forEach((l, i) => ctx.fillText(l, x, y + i * 40)) // Espaciado mejorado
+    lines.forEach((l, i) => ctx.fillText(l, x, y + i * 40)) 
     return canvas.toBuffer()
 }
 
@@ -64,67 +64,68 @@ export default {
     category: 'utils',
     run: async ({ client, m, args }) => {
         try {
-            // 1. Configuración de Metadatos (Packname y Author)
+            // 1. Configuración de Metadatos (BLINDADA CONTRA ERRORES DE TIPO)
             const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
             const botSettings = global.db.data.settings?.[botId] || {}
-            const botname = botSettings.namebot || 'Lucoa-Bot'
+            const botname = (typeof botSettings.namebot === 'string') ? botSettings.namebot : 'Lucoa-Bot'
             
             const user = global.db.data.users?.[m.sender] || {}
             const name = user.name || m.pushName || 'Usuario'
             
-            const packname = user.metadatos || `♯𝐓꯭̱𝔥̱𝑒̱ . ㌦‥ꪱ꯭̱ꪆ꯭̱LUCoa ──͟͞🄱̱ǿ̱𝔱…ꤩꤨ‧💎`
-            const author = user.metadatos2 || `Socket:\n↳@${botname}\n👹Usuario:\n↳@${name}`
+            // Verificamos estrictamente que sea STRING. Si es objeto {}, usa el default.
+            const packname = (typeof user.metadatos === 'string' && user.metadatos.trim() !== '') 
+                ? user.metadatos 
+                : `♯𝐓꯭̱𝔥̱𝑒̱ . ㌦‥ꪱ꯭̱ꪆ꯭̱LUCoa ──͟͞🄱̱ǿ̱𝔱…ꤩꤨ‧💎`
+                
+            const author = (typeof user.metadatos2 === 'string' && user.metadatos2.trim() !== '')
+                ? user.metadatos2 
+                : `Socket:\n↳@${botname}\n👹Usuario:\n↳@${name}`
             
-            // 2. Detectar contenido (Imagen, Video o Texto)
+            // 2. Detectar contenido
             const q = m.quoted || m
             const mime = (q.msg || q).mimetype || ''
             
-            // Reacción de carga
             await m.react('⏳')
 
             let media = null
             let enc = null
 
             if (/image/.test(mime)) {
-                // 📸 CASO IMAGEN
+                // 📸 IMAGEN
                 media = await q.download()
                 enc = await client.sendImageAsSticker(m.chat, media, m, { packname, author })
                 safeDeleteFile(enc)
 
             } else if (/video/.test(mime)) {
-                // 🎥 CASO VIDEO
+                // 🎥 VIDEO
                 if ((q.msg || q).seconds > 15) return m.reply('❌ El video es muy largo (Máx 15s).')
                 
                 media = await q.download()
                 enc = await client.sendVideoAsSticker(m.chat, media, m, { packname, author })
-                // Pequeña pausa para asegurar que ffmpeg termine
                 await new Promise(r => setTimeout(r, 2000))
                 safeDeleteFile(enc)
 
             } else {
-                // 📝 CASO TEXTO (Argumentos o Texto citado)
+                // 📝 TEXTO
                 let texto = args.join(' ')
-                if (!texto && q.text) texto = q.text // Si no hay args, usar texto citado
+                if (!texto && q.text) texto = q.text 
 
                 if (texto) {
                     if (texto.length > 50) return m.reply('❌ Texto muy largo (Máx 50 caracteres).')
-                    
                     let buffer = await generarStickerConTexto(texto)
                     enc = await client.sendImageAsSticker(m.chat, buffer, m, { packname, author })
-                    // No hay archivo temporal que borrar aquí porque usamos buffer directo
                 } else {
                     await m.react('❌')
                     return m.reply('⚠️ Envía una imagen/video o escribe texto para hacer un sticker.')
                 }
             }
 
-            // Reacción de éxito
             await m.react('✅')
 
         } catch (e) {
-            console.error(e)
+            console.error('Error en Sticker:', e)
             await m.react('❌')
-            m.reply(`❌ Ocurrió un error al crear el sticker.`)
+            m.reply(`❌ Error: ${e.message}`)
         }
     }
 }
