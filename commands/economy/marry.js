@@ -1,43 +1,71 @@
-let proposals = {}
 import { resolveLidToRealJid } from "../../lib/utils.js"
 
+// Almacén temporal de propuestas
+let proposals = {}
+
 export default {
-  command: ['marry'],
+  command: ['marry', 'casarse'],
   category: 'rpg',
-  run: async ({client, m, args}) => {
-    const db = global.db.data
-    const chatId = m.chat
-    const proposer = m.sender
+  run: async ({ client, m }) => {
+    
+    // 1. Resolver Proposer (Quien pide)
+    const proposerId = await resolveLidToRealJid(m.sender, client, m.chat);
+    
+    // 2. Resolver Proposee (A quien se le pide)
     const mentioned = m.mentionedJid
     const who2 = mentioned.length > 0 ? mentioned[0] : (m.quoted ? m.quoted.sender : false)
-    const proposee = await resolveLidToRealJid(who2, client, m.chat);
+    
+    if (!who2) return m.reply('《✧》 Menciona al usuario con quien te quieres casar.')
 
-    if (!who2)
-      return m.reply('《✧》 Menciona al usuario al que deseas proponer matrimonio.')
+    const proposeeId = await resolveLidToRealJid(who2, client, m.chat);
 
-    if (proposer === proposee)
-      return m.reply('《✧》 No puedes proponerte matrimonio a ti mismo.')
+    // Validaciones
+    if (proposerId === proposeeId) return m.reply('《✧》 No puedes casarte contigo mismo (triste, lo sé).')
 
-    if (db.users[proposer]?.marry)
-      return m.reply(`《✧》 Ya estás casado con *${db.users[db.users[proposer].marry]?.name || 'alguien'}*.`)
+    // Inicializar usuarios si no existen
+    if (!global.db.data.users[proposerId]) global.db.data.users[proposerId] = { marry: '' }
+    if (!global.db.data.users[proposeeId]) global.db.data.users[proposeeId] = { marry: '' }
 
-    if (db.users[proposee]?.marry)
-      return m.reply(`《✧》 *${db.users[proposee].name || proposee.split('@')[0]}* ya está casado con *${db.users[db.users[proposee].marry]?.name || 'alguien'}*.`)
+    const user1 = global.db.data.users[proposerId]
+    const user2 = global.db.data.users[proposeeId]
 
-    setTimeout(() => {
-      delete proposals[proposer]
-    }, 120000)
+    // Verificar si ya están casados
+    if (user1.marry) {
+        const partnerName = global.db.data.users[user1.marry]?.name || 'alguien'
+        return m.reply(`《✧》 Ya estás casado con *${partnerName}*.`)
+    }
 
-    if (proposals[proposee] === proposer) {
-      delete proposals[proposee]
-      db.users[proposer].marry = proposee
-      db.users[proposee].marry = proposer
-      return m.reply(`✎ Felicidades, *${db.users[proposer].name || proposer.split('@')[0]}* y *${db.users[proposee].name || proposee.split('@')[0]}* ahora están casados.`)
+    if (user2.marry) {
+        const partnerName = global.db.data.users[user2.marry]?.name || 'alguien'
+        const targetName = user2.name || proposeeId.split('@')[0]
+        return m.reply(`《✧》 *${targetName}* ya está casado con *${partnerName}*.`)
+    }
+
+    // Lógica de Propuesta
+    if (proposals[proposeeId] === proposerId) {
+      // Si ya había una propuesta pendiente del otro lado -> ACEPTAR
+      delete proposals[proposeeId]
+      
+      user1.marry = proposeeId
+      user2.marry = proposerId
+      
+      const name1 = user1.name || proposerId.split('@')[0]
+      const name2 = user2.name || proposeeId.split('@')[0]
+      
+      return m.reply(`💍 *¡BODA REALIZADA!* 💍\n\nFelicidades, *${name1}* y *${name2}* ahora están oficialmente casados. 🎉`)
+    
     } else {
-      proposals[proposer] = proposee
-      return client.sendMessage(chatId, {
-        text: `✎ @${proposee.split('@')[0]}, el usuario @${proposer.split('@')[0]} te ha enviado una propuesta de matrimonio.\n\n⚘ *Responde con:*\n> ❀ *_marry @${proposer.split('@')[0]}_* para confirmar.\n> ❀ La propuesta expirará en 2 minutos.`,
-        mentions: [proposer, proposee]
+      // ENVIAR PROPUESTA
+      proposals[proposerId] = proposeeId
+      
+      // Caducar en 2 minutos
+      setTimeout(() => {
+        if (proposals[proposerId] === proposeeId) delete proposals[proposerId]
+      }, 120000)
+
+      return client.sendMessage(m.chat, {
+        text: `💌 *PROPUESTA DE MATRIMONIO*\n\nHola @${proposeeId.split('@')[0]}, el usuario @${proposerId.split('@')[0]} te ha pedido matrimonio.\n\n⚘ *Para aceptar:*\n> Responde con el comando *#marry @${proposerId.split('@')[0]}*\n\n_La propuesta expira en 2 minutos._`,
+        mentions: [proposerId, proposeeId]
       }, { quoted: m })
     }
   }
