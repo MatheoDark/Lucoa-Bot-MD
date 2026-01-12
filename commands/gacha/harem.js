@@ -1,68 +1,219 @@
-import fs from 'fs';
-import { resolveLidToRealJid } from "../../lib/utils.js"
+import fs from 'fs'
+import fetch from 'node-fetch'
+import path from 'path' // Necesario para rutas
+import { resolveLidToRealJid } from '../../lib/utils.js'
+// npm install canvas
+import { createCanvas, loadImage } from 'canvas'
 
-async function loadCharacters() {
+const charactersFilePath = './lib/characters.json'
+
+// Asegurarse de que existe la carpeta tmp
+const tmpDir = './tmp'
+if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true })
+}
+
+// --- 1. FUNCIÓN PARA BUSCAR IMÁGENES ---
+const obtenerImagenGelbooru = async (keyword) => {
+  if (!keyword) return null
+  const url = `https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(keyword)}`
   try {
-    return JSON.parse(fs.readFileSync('./lib/characters.json', 'utf-8'))
-  } catch {
-    return {}
+    const res = await fetch(url)
+    const data = await res.json()
+    const extensionesImagen = /\.(jpg|jpeg|png)$/i
+    const imagenesValidas = data?.data?.filter(
+      (item) => typeof item?.image === 'string' && extensionesImagen.test(item.image),
+    )
+    if (!imagenesValidas?.length) return null
+    const imagen = imagenesValidas[Math.floor(Math.random() * imagenesValidas.length)]
+    return imagen.image
+  } catch (e) {
+    return null
   }
 }
 
-export default {
-  command: ['harem', 'miswaifus', 'claims'],
-  category: 'gacha',
-  run: async ({client, m, args}) => {
-    const db = global.db.data
-    const chatId = m.chat
-    const mentioned = m.mentionedJid
-    const who2 = mentioned.length > 0 ? mentioned[0] : (m.quoted ? m.quoted.sender : m.sender)
-    const userId = await resolveLidToRealJid(who2, client, m.chat);
+async function loadCharacters() {
+    try {
+        if (fs.existsSync(charactersFilePath)) {
+            return JSON.parse(fs.readFileSync(charactersFilePath, 'utf-8'))
+        }
+        return []
+    } catch (e) {
+        return []
+    }
+}
 
-    const name = db.users[userId]?.name || userId.split('@')[0]
-    const chatConfig = db.chats[chatId] || {}
+// --- 2. GENERADOR DE COLLAGE (Ahora guarda en disco) ---
+async function generateCollage(charactersOnPage, charactersData, userName, page, totalPages) {
+    const count = charactersOnPage.length;
+    if (count === 0) return null;
+
+    const cols = 4; 
+    const rows = Math.ceil(count / cols); 
     
-    // --- MODELO HÍBRIDO: Personajes LOCALES ---
-    // Usamos chatConfig.users (local) para ver las waifus de ESTE grupo
-    const localUser = chatConfig.users?.[userId]
+    const cardW = 200; 
+    const cardH = 260; 
+    const gap = 15;    
+    const margin = 40; 
+    const headerH = 80; 
 
-    if (chatConfig.adminonly || !chatConfig.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+    const width = margin * 2 + (cols * cardW) + ((cols - 1) * gap);
+    const height = margin * 2 + headerH + (rows * cardH) + ((rows - 1) * gap);
 
-    if (!localUser?.characters?.length) {
-      return m.reply(
-        userId === m.sender
-          ? `ꕥ No tienes personajes en este grupo.`
-          : `ꕥ *${name}* no tiene personajes en este grupo.`
-      )
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    // Fondo
+    ctx.fillStyle = '#202020';
+    ctx.fillRect(0, 0, width, height);
+
+    // Texto Header
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 40px Sans';
+    ctx.fillText(`Harén de ${userName}`, margin, 60);
+    
+    ctx.font = '25px Sans';
+    ctx.fillStyle = '#aaaaaa';
+    ctx.fillText(`Página ${page} / ${totalPages}`, width - margin - 180, 60);
+
+    const defaultImgUrl = 'https://i.imgur.com/K88rQ5k.jpeg'; 
+
+    for (let i = 0; i < count; i++) {
+        const char = charactersOnPage[i];
+        const charDef = charactersData.find(c => c.name.toLowerCase() === char.name.toLowerCase());
+        
+        let url = charDef?.image || charDef?.url || charDef?.img;
+        
+        if (!url && charDef?.keyword) {
+            try {
+                url = await obtenerImagenGelbooru(charDef.keyword);
+            } catch (e) { }
+        }
+        url = url || defaultImgUrl;
+
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = margin + col * (cardW + gap);
+        const y = margin + headerH + row * (cardH + gap);
+
+        // Fondo Tarjeta
+        ctx.fillStyle = '#303030';
+        ctx.fillRect(x, y, cardW, cardH);
+
+        // Imagen
+        try {
+            const img = await loadImage(url);
+            ctx.drawImage(img, x, y, cardW, 180);
+        } catch (e) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(x, y, cardW, 180);
+        }
+
+        // Texto
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px Sans';
+        ctx.textAlign = 'center';
+        let name = char.name;
+        if (name.length > 18) name = name.substring(0, 16) + '..';
+        ctx.fillText(name, x + cardW / 2, y + 210);
+
+        ctx.fillStyle = '#ffd700'; 
+        ctx.font = '16px Sans';
+        const val = (char.value || charDef?.value || 0).toLocaleString();
+        ctx.fillText(`💎 ${val}`, x + cardW / 2, y + 235);
+        
+        if (char.protectionUntil > Date.now()) {
+            ctx.fillStyle = '#00ff00';
+            ctx.fillText(`🛡️ Protegido`, x + cardW / 2, y + 255);
+        }
     }
 
-    const charactersData = await loadCharacters()
-    const total = localUser.characters.length
-    const perPage = 20
-    const page = Math.max(1, parseInt(args[0]) || 1)
-    const pages = Math.ceil(total / perPage)
+    // --- AQUÍ CAMBIA: GUARDAR EN TMP ---
+    const buffer = canvas.toBuffer();
+    // Creamos un nombre único: harem_TIMESTAMP_RANDOM.png
+    const fileName = `harem_${Date.now()}_${Math.floor(Math.random() * 1000)}.png`
+    const filePath = path.join(tmpDir, fileName)
+    
+    // Escribimos el archivo en disco
+    fs.writeFileSync(filePath, buffer)
+    
+    return filePath; // Retornamos la RUTA, no el buffer
+}
 
-    if (page > pages)
-      return m.reply(`ꕥ Página inválida. Hay un total de *${pages}* página${pages > 1 ? 's' : ''}`)
+let handler = {
+    command: ['harem', 'claims', 'waifus', 'miswaifus'],
+    category: 'gacha',
+    run: async ({ client, m, args }) => {
+        let createdFilePath = null; // Variable para guardar la ruta y borrarla luego
 
-    const start = (page - 1) * perPage
-    const end = Math.min(start + perPage, total)
-    const charactersOnPage = localUser.characters.slice(start, end)
+        try {
+            if (!m.isGroup) return m.reply('❌ Solo en grupos.')
 
-    let message = `❀ Harén del Grupo ❀
-⌦ Usuario: *${name}*
-♡ Personajes: *(${total}):*\n\n`
+            const chatData = global.db.data.chats[m.chat] || {}
+            if (chatData.adminonly || !chatData.gacha) {
+                return m.reply(`✎ Gacha desactivado.`)
+            }
 
-    charactersOnPage.forEach((char, i) => {
-      const match = charactersData.find(c => c.name === char.name)
-      const value = match?.value?.toLocaleString() || char.value?.toLocaleString() || '?'
-      const label = match?.name || char.name || '?'
-      message += `> ${start + i + 1}. *${label}* (${value})\n`
-    })
+            let rawUserId = m.sender
+            if (m.quoted) rawUserId = m.quoted.sender
+            else if (m.mentionedJid && m.mentionedJid[0]) rawUserId = m.mentionedJid[0]
+            
+            const userId = await resolveLidToRealJid(rawUserId, client, m.chat)
+            const globalUser = global.db.data.users[userId]
+            const name = globalUser?.name || userId.split('@')[0]
 
-    message += `\n➮ Página *${page}* de *${pages}*`
+            const localUser = chatData.users[userId] || { characters: [] }
+            const userCharacters = localUser.characters || []
 
-    await client.sendMessage(chatId, { text: message }, { quoted: m })
-  }
-};
+            if (userCharacters.length === 0) {
+                return m.reply(`❀ *${name}* no tiene personajes en este grupo.`)
+            }
+
+            const charactersData = await loadCharacters()
+
+            const perPage = 20 
+            const total = userCharacters.length
+            const totalPages = Math.ceil(total / perPage)
+            let page = parseInt(args.find(a => /^\d+$/.test(a))) || 1
+            page = Math.max(1, Math.min(page, totalPages))
+
+            const start = (page - 1) * perPage
+            const end = Math.min(start + perPage, total)
+            const charsPage = userCharacters.slice(start, end)
+
+            // m.reply('🎨 Generando collage...') 
+
+            // Generar Collage y obtener RUTA
+            createdFilePath = await generateCollage(charsPage, charactersData, name, page, totalPages)
+
+            if (!createdFilePath) return m.reply('❌ Error creando imagen.')
+
+            let caption = `❀ *HARÉN DE ${name.toUpperCase()}*\n`
+            caption += `📝 Total: ${total} | Pág: ${page}/${totalPages}\n`
+            caption += `> Usa *#harem ${page + 1}* para la siguiente.`
+
+            // Enviar leyendo desde el archivo
+            await client.sendMessage(m.chat, { 
+                image: fs.readFileSync(createdFilePath), // Leemos el archivo temporal
+                caption: caption,
+                mentions: [userId]
+            }, { quoted: m })
+
+        } catch (error) {
+            console.error(error)
+            await m.reply(`✘ Error: ${error.message}`)
+        } finally {
+            // --- LIMPIEZA AUTOMÁTICA ---
+            // Borramos el archivo temporal pase lo que pase (éxito o error)
+            if (createdFilePath && fs.existsSync(createdFilePath)) {
+                try {
+                    fs.unlinkSync(createdFilePath)
+                } catch (e) {
+                    console.error('Error borrando archivo temporal:', e)
+                }
+            }
+        }
+    }
+}
+
+export default handler
