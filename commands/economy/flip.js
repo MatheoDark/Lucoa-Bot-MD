@@ -3,17 +3,24 @@ import { resolveLidToRealJid } from '../../lib/utils.js'
 export default {
   command: ['cf', 'flip', 'coinflip'],
   category: 'rpg',
-  run: async ({client, m, command, text, usedPrefix}) => { // usedPrefix añadido
+  run: async ({ client, m, command, args, usedPrefix }) => { 
     const prefa = usedPrefix || '/'
 
-    if (global.db.data.chats[m.chat].adminonly)
-      return m.reply(`❒ Solo admins.`)
-    if (!global.db.data.chats[m.chat].rpg)
-      return m.reply(`❒ Economía pausada.`)
+    // 1. Validaciones de Grupo
+    if (global.db.data.chats[m.chat].adminonly) return m.reply(`❒ Solo admins.`)
+    if (!global.db.data.chats[m.chat].rpg) return m.reply(`❒ Economía pausada.`)
 
-    // CORRECCIÓN: Usuario Global + Resolución LID/JID
+    // 2. Resolución de Usuario
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     let user = global.db.data.users[userId]
+
+    // Inicializar si no existe
+    if (!user) {
+        global.db.data.users[userId] = { coins: 0, coinfCooldown: 0 }
+        user = global.db.data.users[userId]
+    }
+
+    // 3. Cooldown
     if (!user.coinfCooldown) user.coinfCooldown = 0;
     let remainingTime = user.coinfCooldown - Date.now();
 
@@ -21,46 +28,66 @@ export default {
       return m.reply(`✿ Espera *${msToTime(remainingTime)}*.`);
     }
 
-    let [cantidad, eleccion] = text.split(' ')
+    // 4. Configuración Bot
     let botId = client.user.id.split(':')[0] + '@s.whatsapp.net';
     let botSettings = global.db.data.settings[botId] || {}
     let monedas = botSettings.currency || 'coins'
 
-    if (!eleccion || !cantidad)
-      return m.reply(`✿ Ejemplo:\n> *${prefa + command}* 2000 cara`)
+    // 5. Detectar Argumentos (Inteligente)
+    // Busca cuál argumento es número y cuál es texto
+    let cantidadArg = args.find(a => !isNaN(parseInt(a)) || a.toLowerCase() === 'all' || a.toLowerCase() === 'todo')
+    let eleccionArg = args.find(a => isNaN(parseInt(a)) && a.toLowerCase() !== 'all' && a.toLowerCase() !== 'todo')
 
-    eleccion = eleccion.toLowerCase()
-    cantidad = parseInt(cantidad)
+    if (!eleccionArg || !cantidadArg) {
+      return m.reply(`✿ Ejemplo:\n> *${prefa + command} 500 cara*\n> *${prefa + command} cara 500*`)
+    }
+
+    // Procesar Cantidad
+    let cantidad = 0
+    if (cantidadArg.toLowerCase() === 'all' || cantidadArg.toLowerCase() === 'todo') {
+        cantidad = user.coins
+    } else {
+        cantidad = parseInt(cantidadArg)
+    }
+
+    // Procesar Elección
+    let eleccion = eleccionArg.toLowerCase()
+    // Normalizar
+    if (eleccion === 'heads') eleccion = 'cara'
+    if (eleccion === 'tails') eleccion = 'cruz'
 
     if (eleccion !== 'cara' && eleccion !== 'cruz')
       return m.reply(`ꕥ Elige *cara* o *cruz*.`)
 
-    if (isNaN(cantidad) || cantidad <= 199)
-      return m.reply(`ꕥ Mínimo *200 ${monedas}*.`)
-    if (cantidad >= 5001)
-      return m.reply(`ꕥ Máximo *5000 ${monedas}*.`)
+    // 6. Validaciones de Dinero
+    if (isNaN(cantidad) || cantidad < 200) return m.reply(`ꕥ Mínimo *200 ${monedas}*.`)
+    if (cantidad > 10000) return m.reply(`ꕥ Máximo *10,000 ${monedas}*.`) // Subí un poco el límite
+    if (user.coins < cantidad) return m.reply(`ꕥ No tienes suficientes *${monedas}*.`)
 
-    if (user.coins < cantidad)
-      return m.reply(`ꕥ No tienes suficientes *${monedas}*.`)
-
+    // 7. Lógica del Juego
     let azar = Math.random()
-    user.coinfCooldown = Date.now() + 10 * 60000; 
+    user.coinfCooldown = Date.now() + 10 * 60 * 1000; // 10 min cooldown
     let resultado
 
-    if (azar < 0.1) resultado = 'perdido'
+    // 10% probabilidad de caer de canto (pierdes mitad)
+    // 45% cara, 45% cruz
+    if (azar < 0.1) resultado = 'perdido' 
     else resultado = azar < 0.55 ? 'cara' : 'cruz'
 
     let cantidadFormatted = cantidad.toLocaleString()
     let mensaje = `🎰 *Lanzando moneda...*\n\n✿ Cayó en `
 
     if (resultado === eleccion) {
+      // GANAR
       user.coins += cantidad
       mensaje += `*${resultado.toUpperCase()}* 🪙\n\n✨ ¡Ganaste *¥${cantidadFormatted} ${monedas}*!`
     } else if (resultado === 'perdido') {
+      // CANTO (Mala suerte)
       let perdida = Math.floor(cantidad * 0.5)
       user.coins -= perdida
-      mensaje += `*de canto* 😵‍💫\n\n💸 ¡Perdiste la mitad! (*¥${perdida.toLocaleString()}*)`
+      mensaje += `*DE CANTO* 😵‍💫\n(La moneda rodó lejos...)\n\n💸 ¡Perdiste la mitad! (*¥${perdida.toLocaleString()}*)`
     } else {
+      // PERDER
       user.coins -= cantidad
       mensaje += `*${resultado.toUpperCase()}* 💀\n\n❌ Perdiste *¥${cantidadFormatted} ${monedas}*.`
     }
