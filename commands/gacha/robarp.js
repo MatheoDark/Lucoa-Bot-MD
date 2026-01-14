@@ -4,12 +4,10 @@ import { resolveLidToRealJid } from '../../lib/utils.js'
 const COOLDOWN_TIME = 5 * 60 * 60 * 1000 // 5 horas
 const HEALTH_REQUIRED = 50 
 const HEALTH_LOSS_ON_FAIL = 20 
-const XP_LOSS_PERCENT = 0.05 // Pierde 5% de XP si falla
+const XP_LOSS_PERCENT = 0.05 
 
-// Imagen de Ellen Joe (Thumbnail)
-const ellenImage = 'https://github.com/MatheoDark/Lucoa-Bot-MD/blob/main/media/banner2.jpg?raw=true'
+const ellenImage = 'https://i.imgur.com/K88rQ5k.jpeg'
 
-// Helper para formato de tiempo
 const msToTime = (duration) => {
   const hours = Math.floor((duration / (1000 * 60 * 60)) % 24)
   const minutes = Math.floor((duration / (1000 * 60)) % 60)
@@ -29,7 +27,7 @@ export default {
     const thiefName = db.users[thiefId]?.name || m.pushName || 'Desconocido'
     const now = Date.now()
 
-    // Contexto simplificado (Solo imagen y menciones)
+    // Contexto
     const contextInfo = {
         mentionedJid: [thiefId],
         externalAdReply: {
@@ -37,8 +35,7 @@ export default {
             body: `— Operación de Extracción para ${thiefName}`,
             thumbnailUrl: ellenImage,
             mediaType: 1,
-            renderLargerThumbnail: false,
-            sourceUrl: '' // Opcional: puedes poner un link o dejarlo vacío
+            renderLargerThumbnail: false
         }
     }
 
@@ -49,46 +46,76 @@ export default {
     if (now - lastSteal < COOLDOWN_TIME) {
         const remaining = msToTime(COOLDOWN_TIME - (now - lastSteal))
         return client.sendMessage(m.chat, { 
-            text: `*— Oye, relájate.* Estás demasiado agotado. Ve a descansar **${remaining}** más o no podré ayudarte.`,
+            text: `*— Oye, relájate.* Estás demasiado agotado. Ve a descansar **${remaining}** más.`,
             contextInfo 
         }, { quoted: m })
     }
 
-    // 2. Validar Argumento
-    if (!args[0]) {
-        return client.sendMessage(m.chat, { 
-            text: `*— (Bostezo)*... Si quieres que asalte a alguien, dime el nombre del personaje.\n\n> Ejemplo: *#robarwaifu Makima*`,
-            contextInfo 
-        }, { quoted: m })
-    }
-
-    const targetName = args.join(' ').toLowerCase().trim()
-
-    // 3. BUSCAR LA WAIFU EN EL GRUPO ACTUAL
-    const chatUsers = db.chats[chatId]?.users || {}
+    // 2. IDENTIFICAR VÍCTIMA (Por Mención o Reply)
     let victimId = null
+    if (m.quoted) {
+        victimId = await resolveLidToRealJid(m.quoted.sender, client, chatId)
+    } else if (m.mentionedJid && m.mentionedJid.length > 0) {
+        victimId = await resolveLidToRealJid(m.mentionedJid[0], client, chatId)
+    }
+
+    // Validación básica
+    if (victimId === thiefId) {
+        return m.reply('*— ¿Estás bien de la cabeza?* No puedes robarte a ti mismo.')
+    }
+
+    // 3. BUSCAR LA WAIFU (Lógica Inteligente)
+    const chatUsers = db.chats[chatId]?.users || {}
     let charIndex = -1
     let foundChar = null
+    let targetName = args.join(' ').toLowerCase().trim()
 
-    // Buscamos quién tiene la waifu
-    for (const [userId, userData] of Object.entries(chatUsers)) {
-        if (userId === thiefId) continue // Ignorar waifus propias
-        if (!userData.characters) continue
-
-        const index = userData.characters.findIndex(c => c.name.toLowerCase() === targetName)
-        if (index !== -1) {
-            victimId = userId
-            charIndex = index
-            foundChar = userData.characters[index]
-            break 
+    // CASO A: Tenemos Víctima (Reply/Mención)
+    if (victimId) {
+        const victimData = chatUsers[victimId]
+        if (!victimData || !victimData.characters || victimData.characters.length === 0) {
+             return m.reply(`*— Qué decepción.* @${victimId.split('@')[0]} no tiene personajes para robar.`)
         }
-    }
 
-    if (!foundChar) {
-        return client.sendMessage(m.chat, { 
-            text: `*— ¿Eh?* Nadie en este grupo tiene a **${args.join(' ')}**. Deja de inventar cosas.`,
-            contextInfo 
-        }, { quoted: m })
+        if (targetName) {
+            // A.1: Robar Específico a la Víctima
+            charIndex = victimData.characters.findIndex(c => c.name.toLowerCase().includes(targetName))
+            if (charIndex === -1) {
+                return m.reply(`*— ¿Eh?* Esa persona no tiene a **${args.join(' ')}**. Revisa bien.`)
+            }
+        } else {
+            // A.2: Robar ALEATORIO a la Víctima (Si no pones nombre)
+            charIndex = Math.floor(Math.random() * victimData.characters.length)
+        }
+        
+        foundChar = victimData.characters[charIndex]
+
+    } else {
+        // CASO B: Búsqueda Global (Sin Reply, busca en todos)
+        if (!targetName) {
+             return client.sendMessage(m.chat, { 
+                text: `*— Instrucciones:* \nRespondé a alguien para robarle al azar, o escribe *#robarwaifu Nombre* para buscarla en el grupo.`,
+                contextInfo 
+            }, { quoted: m })
+        }
+
+        // Buscar quién tiene la waifu
+        for (const [userId, userData] of Object.entries(chatUsers)) {
+            if (userId === thiefId) continue 
+            if (!userData.characters) continue
+
+            const index = userData.characters.findIndex(c => c.name.toLowerCase() === targetName)
+            if (index !== -1) {
+                victimId = userId
+                charIndex = index
+                foundChar = userData.characters[index]
+                break 
+            }
+        }
+
+        if (!foundChar) {
+             return m.reply(`*— ¿Eh?* Nadie en este grupo tiene a **${args.join(' ')}**.`)
+        }
     }
 
     // 4. Verificar Protección
@@ -110,25 +137,30 @@ export default {
         }, { quoted: m })
     }
 
-    // 6. LÓGICA DE PROBABILIDAD (Muy difícil: 2% a 25%)
+    // 6. LÓGICA DE PROBABILIDAD (Mecánica de Riesgo)
     let successChance = 10 
     const thiefLevel = userGlobal.level || 1
     const victimGlobal = db.users[victimId] || { level: 1 }
     
+    // Diferencia de nivel afecta probabilidad
     const levelDiff = thiefLevel - (victimGlobal.level || 1)
     successChance += (levelDiff * 2) 
+    
+    // Límites (Mínimo 2%, Máximo 25%)
     successChance = Math.max(2, Math.min(25, successChance))
 
     const isSuccessful = Math.random() * 100 < successChance
     
-    // Aplicar Cooldown
+    // Aplicar Cooldown y Actualizar Stats
     userGlobal.lastSteal = now
     const victimName = db.users[victimId]?.name || victimId.split('@')[0]
 
     if (isSuccessful) {
         // --- ÉXITO ---
+        // 1. Quitar de víctima
         db.chats[chatId].users[victimId].characters.splice(charIndex, 1)
         
+        // 2. Dar a ladrón
         if (!db.chats[chatId].users[thiefId]) db.chats[chatId].users[thiefId] = { characters: [] }
         if (!db.chats[chatId].users[thiefId].characters) db.chats[chatId].users[thiefId].characters = []
         
@@ -136,7 +168,7 @@ export default {
         foundChar.obtainedAt = now
         db.chats[chatId].users[thiefId].characters.push(foundChar)
 
-        const successMsg = `🦈 **𝐎𝐏𝐄𝐑𝐀𝐂𝐈𝐎́𝐍 𝐄𝐗𝐈𝐓𝐎𝐒𝐀**\n\n*— Hecho.* Le quité a **${foundChar.name}** a @${victimId.split('@')[0]}.\nAhora es tuya.\n\n📊 **Probabilidad:** ${successChance.toFixed(1)}%\n❤️ **Salud:** ${userGlobal.health} HP`
+        const successMsg = `🦈 **𝐎𝐏𝐄𝐑𝐀𝐂𝐈𝐎́𝐍 𝐄𝐗𝐈𝐓𝐎𝐒𝐀**\n\n*— Trabajo hecho.* Le quité a **${foundChar.name}** a @${victimId.split('@')[0]}.\nAhora te pertenece.\n\n📊 **Probabilidad:** ${successChance.toFixed(1)}%\n❤️ **Salud:** ${userGlobal.health} HP`
 
         contextInfo.mentionedJid.push(victimId)
         await client.sendMessage(m.chat, { text: successMsg, contextInfo, mentions: [thiefId, victimId] }, { quoted: m })
