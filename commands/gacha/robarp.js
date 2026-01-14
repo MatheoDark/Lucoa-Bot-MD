@@ -6,7 +6,7 @@ const HEALTH_REQUIRED = 50
 const HEALTH_LOSS_ON_FAIL = 20 
 const XP_LOSS_PERCENT = 0.05 
 
-const ellenImage = 'https://i.imgur.com/K88rQ5k.jpeg'
+const ellenImage = 'https://github.com/MatheoDark/Lucoa-Bot-MD/blob/main/media/banner2.jpg?raw=true'
 
 const msToTime = (duration) => {
   const hours = Math.floor((duration / (1000 * 60 * 60)) % 24)
