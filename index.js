@@ -317,6 +317,7 @@ async function startBot() {
 
     if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
+      console.log('⚠️ RAZÓN DE DESCONEXIÓN:', reason, lastDisconnect?.error)
       if (
         reason === DisconnectReason.badSession ||
         reason === DisconnectReason.loggedOut ||
