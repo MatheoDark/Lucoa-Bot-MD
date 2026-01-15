@@ -12,7 +12,11 @@ import path from "path"
 import fs from "fs"
 import chalk from "chalk"
 
-// --- 🧹 SISTEMA DE AUTO-LIMPIEZA (Anti-Disco Lleno) ---
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+// --- 🧹 SISTEMA DE LIMPIEZA SEMANAL ---
 function clearTmp() {
     const __dirname = path.dirname(fileURLToPath(import.meta.url))
     const tmpDir = path.join(__dirname, 'tmp')
@@ -24,24 +28,31 @@ function clearTmp() {
             if (files.length > 0) {
                 files.forEach((file) => {
                     const filePath = path.join(tmpDir, file)
-                    fs.unlink(filePath, err => {
-                        if (err) console.error(`❌ No se pudo borrar ${file}:`, err)
-                    })
+                    fs.unlink(filePath, () => {})
                 })
-                console.log(`🗑️ [SISTEMA] Se han eliminado ${files.length} archivos temporales.`)
+                console.log(`🗑️ [DOMINGO] Limpieza semanal completada: ${files.length} archivos borrados.`)
             }
         })
-    } else {
-        // Si no existe la carpeta, la creamos para evitar errores
-        fs.mkdirSync(tmpDir)
     }
 }
 
-// 1. Ejecutar limpieza al iniciar
+// 1. Limpieza de seguridad al iniciar (Recomendado)
+// Borra la basura vieja apenas enciendes el bot
 clearTmp()
 
-// 2. Ejecutar limpieza cada 30 minutos (1800000 ms)
-setInterval(clearTmp, 1800000) 
+// 2. EL VIGILANTE SEMANAL
+// Revisa la hora cada 30 minutos. Si es Domingo a medianoche, limpia.
+setInterval(() => {
+    const fecha = new Date()
+    const dia = fecha.getDay()   // 0 = Domingo
+    const hora = fecha.getHours() // 0 = Medianoche (12 AM)
+    const min = fecha.getMinutes()
+
+    // Si es Domingo, son las 00 horas, y estamos en la primera media hora
+    if (dia === 0 && hora === 0 && min < 30) {
+        clearTmp()
+    }
+}, 1800000) // 1800000 ms = 30 minutos
 
 // --- 1. CONFIGURACIÓN INICIAL ---
 const __filename = fileURLToPath(import.meta.url)
