@@ -4,6 +4,7 @@ import fetch from 'node-fetch'
 
 // --- CONFIGURACIÓN ---
 const PENDING_TTL_MS = 60 * 1000
+// User Agent rotativo para engañar a las APIs y que no nos bloqueen
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 // --- UTILIDADES ---
@@ -20,43 +21,70 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛡️ NUEVO SISTEMA DE DESCARGA (APIs Públicas)
+// 🛡️ SISTEMA DE DESCARGA (APIs ACTUALIZADAS 2025)
 // ==========================================
 async function getDownloadLink(url, isAudio) {
     
     // ---------------------------------------------------------
-    // 🔄 MOTOR 1: AGATZ (Muy estable para MD bots)
+    // 🔄 MOTOR 1: DELIRIUS API (Muy rápida y estable)
     // ---------------------------------------------------------
     try {
-        console.log("🔄 Tier 1: Probando Agatz API...")
-        const type = isAudio ? 'mp3' : 'mp4'
-        const apiUrl = `https://api.agatz.xyz/api/yt${type}?url=${encodeURIComponent(url)}`
+        console.log("🔄 Tier 1: Probando Delirius...")
+        const type = isAudio ? 'ytmp3' : 'ytmp4'
+        const apiUrl = `https://delirius-apiofc.vercel.app/download/${type}?url=${encodeURIComponent(url)}`
         
         const res = await fetch(apiUrl)
         const json = await res.json()
 
-        if (json.status === 200 && json.data && json.data.downloadUrl) {
+        // Delirius suele devolver data.download.url o data.url
+        const downloadUrl = json.data?.download?.url || json.data?.url
+        
+        if (json.status && downloadUrl) {
             return { 
-                dl: json.data.downloadUrl, 
-                title: json.data.title || 'Lucoa Media',
+                dl: downloadUrl, 
+                title: json.data?.title || json.data?.filename || 'Lucoa Media',
                 size: 'Unknown'
             }
         }
     } catch (e) {
-        console.log("❌ Falló Agatz:", e.message)
+        console.log("❌ Falló Delirius")
     }
 
     // ---------------------------------------------------------
-    // 🔄 MOTOR 2: COBALT (Configuración corregida)
+    // 🔄 MOTOR 2: DREADED API (Backup Sólido)
     // ---------------------------------------------------------
     try {
-        console.log("🔄 Tier 2: Probando Cobalt Tools...")
+        console.log("🔄 Tier 2: Probando Dreaded...")
+        const type = isAudio ? 'audio' : 'video' // Dreaded usa 'audio'/'video'
+        const apiUrl = `https://api.dreaded.site/api/ytdl/${type}?url=${encodeURIComponent(url)}`
+        
+        const res = await fetch(apiUrl)
+        const json = await res.json()
+
+        if (json.status && json.result && json.result.downloadLink) {
+            return { 
+                dl: json.result.downloadLink, 
+                title: json.result.title || 'Lucoa Media',
+                size: 'Unknown' 
+            }
+        }
+    } catch (e) {
+        console.log("❌ Falló Dreaded")
+    }
+
+    // ---------------------------------------------------------
+    // 🔄 MOTOR 3: COBALT (Último recurso - Configuración agresiva)
+    // ---------------------------------------------------------
+    try {
+        console.log("🔄 Tier 3: Probando Cobalt...")
         
         const payload = {
             url: url,
             filenamePattern: "basic",
-            // Si es audio, pedimos mp3, si es video, dejamos que decida (o forzamos 720/max)
-            ...(isAudio ? { audioFormat: "mp3", isAudioOnly: true } : { videoQuality: "720" })
+            // Forzamos configuraciones compatibles
+            ...(isAudio 
+                ? { audioFormat: "mp3", isAudioOnly: true } 
+                : { videoQuality: "480" }) // Bajamos calidad a 480p para asegurar descarga rápida
         }
 
         const res = await fetch('https://api.cobalt.tools/api/json', {
@@ -71,23 +99,22 @@ async function getDownloadLink(url, isAudio) {
 
         const json = await res.json()
         
-        // Cobalt a veces devuelve "stream" o "url"
         if (json?.url) {
             return { dl: json.url, title: 'Lucoa Media', size: 'Unknown' }
         }
     } catch (e) {
-        console.log("❌ Falló Cobalt:", e.message)
+        console.log("❌ Falló Cobalt")
     }
 
     // Si todo falla
-    throw new Error('Servidores ocupados. Intenta en 1 minuto.')
+    throw new Error('❌ No se pudo descargar. Intenta con otra canción.')
 }
 
 // --- ENVÍO DE MEDIA ---
 async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl) {
     const safeTitle = sanitizeFileName(title)
     
-    // OPCIÓN 1: AUDIO (Con Carátula Grande)
+    // OPCIÓN 1: AUDIO (Con Carátula)
     if (option === '1') {
         const msg = {
             audio: { url: dl },
@@ -97,7 +124,7 @@ async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl)
             contextInfo: {
                 externalAdReply: {
                     title: title,
-                    body: "🐉 Lucoa Bot Music",
+                    body: "🐉 Lucoa Bot Player",
                     thumbnail: thumbBuffer,
                     sourceUrl: originalUrl,
                     mediaType: 1,
@@ -133,7 +160,7 @@ async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl)
     }
 }
 
-// --- GESTIÓN DE SESIÓN (PENDIENTES) ---
+// --- GESTIÓN DE PENDIENTES ---
 function setPending(chatId, sender, data) {
     if (!global.__playPending) global.__playPending = {}
     global.__playPending[chatId] = { sender, ...data, expires: Date.now() + PENDING_TTL_MS }
@@ -155,54 +182,50 @@ export default {
     // --- CAPTURA RESPUESTA "1", "2" o "3" ---
     before: async (m, { client }) => {
         const text = m.text?.trim()
-        // Solo actuamos si es 1, 2 o 3 y hay algo pendiente
         if (text !== '1' && text !== '2' && text !== '3') return false
 
         const pending = getPending(m.chat)
         if (!pending || pending.sender !== m.sender) return false
 
-        // Limpiamos el pendiente para que no se use dos veces
         delete global.__playPending[m.chat]
         
-        // 1 y 3 son Audio, 2 es Video
         const needAudioLink = (text === '1' || text === '3')
 
-        await m.reply(needAudioLink ? '🎧 *Procesando audio...*' : '🎬 *Procesando video...*')
+        await m.reply(needAudioLink ? '🎧 *Descargando audio...*' : '🎬 *Descargando video...*')
 
         try {
             const thumbBuffer = await getBuffer(pending.thumbnail)
-            // Aquí llamamos a la nueva función sin depender de librerías locales
             const { dl, title } = await getDownloadLink(pending.url, needAudioLink)
             
             await sendMedia(client, m, dl, title || pending.title, thumbBuffer, text, pending.url)
             
         } catch (e) {
             console.error(e)
-            m.reply(`⚠️ ${e.message || 'Error desconocido'}`)
+            m.reply(`⚠️ ${e.message}`)
         }
         return true
     },
 
     // --- COMANDO PRINCIPAL ---
-    run: async ({ client, m, text, args, command }) => {
-        if (!text) return m.reply(`🐉 *Ingresa el nombre o enlace.*\nEjemplo: *#${command} Bad Bunny*`)
+    run: async ({ client, m, text, command }) => {
+        if (!text) return m.reply(`🐉 *Ingresa el título.*\nEjemplo: *#${command} Linkin Park*`)
 
         try {
             const search = await yts(text)
             const video = search.videos[0]
-            if (!video) return m.reply('❌ No encontrado.')
+            if (!video) return m.reply('❌ Video no encontrado.')
 
             const info = `
 *╭─✦ 🐉 LUCOA PLAYER ✦─╮*
 │ ❧ *Título:* ${video.title}
-│ ❧ *Duración:* ${video.timestamp}
-│ ❧ *Autor:* ${video.author.name}
+│ ❧ *Tiempo:* ${video.timestamp}
+│ ❧ *Canal:* ${video.author.name}
 ╰───────────────⬫
 
 *Responde con el número:*
-1️⃣ Audio (Con Portada)
+1️⃣ Audio (Normal)
 2️⃣ Video (MP4)
-3️⃣ Documento (MP3)`
+3️⃣ Documento (Archivo)`
 
             await client.sendMessage(m.chat, { 
                 image: { url: video.thumbnail }, 
@@ -213,7 +236,9 @@ export default {
 
         } catch (e) {
             console.error(e)
-            m.reply('❌ Error al buscar en YouTube.')
+            m.reply('❌ Error al buscar.')
         }
+    }
+}
     }
 }
