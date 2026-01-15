@@ -21,11 +21,11 @@
     "multi-device"
   ],
   "engines": {
-    "node": ">=21.7.3",
-    "npm": ">=10.9.4"
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "github:WhiskeySockets/Baileys",
+    "@whiskeysockets/baileys": "^6.7.9",
     "awesome-phonenumber": "^4.4.0",
     "axios": "^0.24.0",
     "better-sqlite3": "^12.4.1",
