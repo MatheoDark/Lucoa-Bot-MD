@@ -1,7 +1,7 @@
 import yts from 'yt-search'
 import axios from 'axios'
 import fetch from 'node-fetch'
-import { ytmp3, ytmp4 } from 'ruhend-scraper' // Usamos tu librería instalada
+import { ytmp3, ytmp4 } from 'ruhend-scraper'
 
 // --- CONFIGURACIÓN ---
 const PENDING_TTL_MS = 60 * 1000
@@ -9,7 +9,6 @@ const PENDING_TTL_MS = 60 * 1000
 // --- UTILIDADES ---
 const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
 
-// --- MINIATURAS ---
 async function getBuffer(url) {
     try {
         const res = await axios.get(url, { responseType: 'arraybuffer' })
@@ -20,9 +19,8 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛡️ SCRAPER MANUAL Y2MATE (Respaldo Blindado)
+// 🛡️ MOTOR DE RESPALDO: Y2MATE (MANUAL)
 // ==========================================
-// Esto simula ser un usuario en la web de Y2Mate si las librerías fallan
 async function y2mateScraper(url, isAudio) {
     try {
         const headers = {
@@ -32,108 +30,75 @@ async function y2mateScraper(url, isAudio) {
             'Referer': 'https://www.y2mate.com/es'
         }
 
-        // Paso 1: Analizar Video
+        // 1. Analizar
         const analyzeBody = new URLSearchParams()
         analyzeBody.append('k_query', url)
         analyzeBody.append('k_page', 'home')
         analyzeBody.append('hl', 'es')
         analyzeBody.append('q_auto', '0')
 
-        const analyzeRes = await fetch('https://www.y2mate.com/mates/analyzeV2/ajax', {
-            method: 'POST',
-            headers,
-            body: analyzeBody
-        })
+        const analyzeRes = await fetch('https://www.y2mate.com/mates/analyzeV2/ajax', { method: 'POST', headers, body: analyzeBody })
         const analyzeJson = await analyzeRes.json()
-        
-        if (!analyzeJson || !analyzeJson.links) throw new Error('Y2Mate Analyze Failed')
+        if (!analyzeJson || !analyzeJson.links) return null
 
         const vid = analyzeJson.vid
         let targetKey = null
 
-        // Paso 2: Seleccionar calidad/formato
+        // 2. Elegir calidad
         if (isAudio) {
-            // Buscar mp3 (generalmente key "mp3128" o similar en la lista "mp3")
-            const mp3Options = analyzeJson.links.mp3
-            if (mp3Options) {
-                // Tomamos la primera opción (usualmente 128kbps)
-                targetKey = Object.values(mp3Options)[0].k
-            }
+            const mp3 = analyzeJson.links.mp3
+            if (mp3) targetKey = Object.values(mp3)[0].k // Primera opción MP3
         } else {
-            // Buscar video (mp4)
-            const mp4Options = analyzeJson.links.mp4
-            if (mp4Options) {
-                // Intentamos buscar 720p, si no, la que sea 'auto' o la primera disponible
-                const values = Object.values(mp4Options)
-                const best = values.find(v => v.q === '720p') || values.find(v => v.q === 'auto') || values[0]
-                targetKey = best.k
+            const mp4 = analyzeJson.links.mp4
+            if (mp4) {
+                // Priorizar 720p o Auto, sino la primera
+                const vals = Object.values(mp4)
+                targetKey = (vals.find(v => v.q === '720p') || vals.find(v => v.q === 'auto') || vals[0]).k
             }
         }
 
-        if (!targetKey) throw new Error('No se encontró formato compatible en Y2Mate')
+        if (!targetKey) return null
 
-        // Paso 3: Convertir
+        // 3. Convertir
         const convertBody = new URLSearchParams()
         convertBody.append('vid', vid)
         convertBody.append('k', targetKey)
 
-        const convertRes = await fetch('https://www.y2mate.com/mates/convertV2/ajax', {
-            method: 'POST',
-            headers,
-            body: convertBody
-        })
+        const convertRes = await fetch('https://www.y2mate.com/mates/convertV2/ajax', { method: 'POST', headers, body: convertBody })
         const convertJson = await convertRes.json()
 
         if (convertJson.status === 'ok' && convertJson.dlink) {
-            return { dl: convertJson.dlink, title: convertJson.title || 'Lucoa Media' }
+            return { dl: convertJson.dlink, title: convertJson.title }
         }
-        
     } catch (e) {
-        console.log('❌ Falló Y2Mate Scraper:', e.message)
+        console.log('Y2Mate Error:', e.message)
     }
     return null
 }
 
 // ==========================================
-// 🛡️ GESTOR DE DESCARGAS (SCRAPERS)
+// 🛡️ GESTOR INTELIGENTE DE DESCARGAS
 // ==========================================
 async function getDownloadLink(url, isAudio) {
     
-    // ---------------------------------------------------------
-    // 🥇 OPCIÓN 1: RUHEND SCRAPER (Tu librería instalada)
-    // ---------------------------------------------------------
+    // --- INTENTO 1: RUHEND SCRAPER (Librería) ---
     try {
-        console.log("🔄 Tier 1: Ruhend Scraper...")
-        // Ruhend usa funciones separadas para mp3 y mp4
+        console.log('🔄 Tier 1: Ruhend Scraper...')
         const data = isAudio ? await ytmp3(url) : await ytmp4(url)
-        
-        // Ruhend a veces devuelve data.audio/data.video o data.url directamente
         const link = data.audio || data.video || data.url || data.download
-        const title = data.title || data.metadata?.title
-        
-        if (link) {
-            return { dl: link, title: title || 'Lucoa Media', size: 'Unknown' }
-        }
-    } catch (e) {
-        console.log("❌ Falló Ruhend:", e.message)
-    }
+        if (link) return { dl: link, title: data.title || 'Lucoa Media' }
+    } catch (e) { console.log('❌ Ruhend falló, pasando al siguiente...') }
 
-    // ---------------------------------------------------------
-    // 🥈 OPCIÓN 2: Y2MATE MANUAL (Código inyectado arriba)
-    // ---------------------------------------------------------
+    // --- INTENTO 2: Y2MATE MANUAL (Scraper Local) ---
     try {
-        console.log("🔄 Tier 2: Y2Mate Scraper Local...")
+        console.log('🔄 Tier 2: Y2Mate Manual...')
         const data = await y2mateScraper(url, isAudio)
         if (data) return data
-    } catch (e) {
-        console.log("❌ Falló Y2Mate")
-    }
+    } catch (e) { console.log('❌ Y2Mate falló, pasando al siguiente...') }
 
-    // ---------------------------------------------------------
-    // 🥉 OPCIÓN 3: COBALT (Respaldo final)
-    // ---------------------------------------------------------
+    // --- INTENTO 3: COBALT API (Último recurso) ---
     try {
-        console.log("🔄 Tier 3: Cobalt API...")
+        console.log('🔄 Tier 3: Cobalt API...')
         const res = await fetch('https://api.cobalt.tools/api/json', {
             method: 'POST',
             headers: { 
@@ -148,58 +113,13 @@ async function getDownloadLink(url, isAudio) {
             })
         })
         const json = await res.json()
-        if (json?.url) return { dl: json.url, title: 'Lucoa Media', size: 'Unknown' }
-    } catch (e) {
-        console.log("❌ Falló Cobalt")
-    }
+        if (json?.url) return { dl: json.url, title: 'Lucoa Media' }
+    } catch (e) { console.log('❌ Cobalt falló.') }
 
-    throw new Error('❌ Fallaron todos los scrapers. YouTube está difícil hoy.')
+    throw new Error('No pude descargar esta canción. Intenta con otra.')
 }
 
-// --- ENVÍO DE MEDIA ---
-async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl) {
-    const safeTitle = sanitizeFileName(title)
-    
-    if (option === '1') { // AUDIO
-        const msg = {
-            audio: { url: dl },
-            mimetype: 'audio/mpeg',
-            fileName: safeTitle + '.mp3',
-            ptt: false,
-            contextInfo: {
-                externalAdReply: {
-                    title: title,
-                    body: "🐉 Lucoa Bot Music",
-                    thumbnail: thumbBuffer,
-                    sourceUrl: originalUrl,
-                    mediaType: 1,
-                    renderLargerThumbnail: true
-                }
-            }
-        }
-        return await client.sendMessage(m.chat, msg, { quoted: m })
-    } else if (option === '2') { // VIDEO
-        const msg = {
-            video: { url: dl },
-            caption: `🎬 *${title}*`,
-            mimetype: 'video/mp4',
-            fileName: safeTitle + '.mp4',
-            jpegThumbnail: thumbBuffer
-        }
-        return await client.sendMessage(m.chat, msg, { quoted: m })
-    } else if (option === '3') { // DOCUMENTO
-        const msg = {
-            document: { url: dl },
-            mimetype: 'audio/mpeg',
-            fileName: safeTitle + '.mp3',
-            caption: `📂 *${title}*`,
-            jpegThumbnail: thumbBuffer
-        }
-        return await client.sendMessage(m.chat, msg, { quoted: m })
-    }
-}
-
-// --- GESTIÓN DE SESIÓN ---
+// --- GESTIÓN DE PENDIENTES ---
 function setPending(chatId, sender, data) {
     if (!global.__playPending) global.__playPending = {}
     global.__playPending[chatId] = { sender, ...data, expires: Date.now() + PENDING_TTL_MS }
@@ -214,40 +134,88 @@ function getPending(chatId) {
     return data
 }
 
+// ==========================================
+// 🚀 EXPORT DEL COMANDO
+// ==========================================
 export default {
     command: ['play', 'mp3', 'mp4'],
     category: 'downloader',
 
+    // --- ESCUCHA LAS RESPUESTAS 1, 2, 3 ---
     before: async (m, { client }) => {
         const text = m.text?.trim()
-        if (text !== '1' && text !== '2' && text !== '3') return false
+        if (!['1', '2', '3'].includes(text)) return false
+
         const pending = getPending(m.chat)
         if (!pending || pending.sender !== m.sender) return false
-        delete global.__playPending[m.chat]
-        
-        const needAudioLink = (text === '1' || text === '3')
-        await m.reply(needAudioLink ? '🎧 *Iniciando Scraper... (Audio)*' : '🎬 *Iniciando Scraper... (Video)*')
+
+        delete global.__playPending[m.chat] // Limpiar pendiente
+        const isAudio = (text === '1' || text === '3')
+
+        await m.reply(isAudio ? '🎧 *Procesando audio...*' : '🎬 *Procesando video...*')
 
         try {
+            const { dl, title } = await getDownloadLink(pending.url, isAudio)
+            const safeTitle = sanitizeFileName(title || pending.title)
             const thumbBuffer = await getBuffer(pending.thumbnail)
-            const { dl, title } = await getDownloadLink(pending.url, needAudioLink)
-            await sendMedia(client, m, dl, title || pending.title, thumbBuffer, text, pending.url)
+
+            // OPCIÓN 1: AUDIO (PLAYER)
+            if (text === '1') {
+                await client.sendMessage(m.chat, {
+                    audio: { url: dl },
+                    mimetype: 'audio/mpeg',
+                    fileName: safeTitle + '.mp3',
+                    contextInfo: {
+                        externalAdReply: {
+                            title: title,
+                            body: "🐉 Lucoa Player",
+                            thumbnail: thumbBuffer,
+                            sourceUrl: pending.url,
+                            mediaType: 1,
+                            renderLargerThumbnail: true
+                        }
+                    }
+                }, { quoted: m })
+            }
+            // OPCIÓN 2: VIDEO
+            else if (text === '2') {
+                await client.sendMessage(m.chat, {
+                    video: { url: dl },
+                    caption: `🎬 *${title}*`,
+                    mimetype: 'video/mp4',
+                    fileName: safeTitle + '.mp4',
+                    jpegThumbnail: thumbBuffer
+                }, { quoted: m })
+            }
+            // OPCIÓN 3: DOCUMENTO
+            else if (text === '3') {
+                await client.sendMessage(m.chat, {
+                    document: { url: dl },
+                    mimetype: 'audio/mpeg',
+                    fileName: safeTitle + '.mp3',
+                    caption: `📂 *${title}*`,
+                    jpegThumbnail: thumbBuffer
+                }, { quoted: m })
+            }
+
         } catch (e) {
             console.error(e)
-            m.reply(`⚠️ ${e.message}`)
+            m.reply(`⚠️ Error: ${e.message}`)
         }
         return true
     },
 
+    // --- BÚSQUEDA PRINCIPAL ---
     run: async ({ client, m, text, command }) => {
-        if (!text) return m.reply(`🐉 *Ingresa título o enlace.*`)
+        if (!text) return m.reply(`🐉 *¿Qué deseas reproducir?*\nEjemplo: *#${command} Bad Bunny*`)
+
         try {
             const search = await yts(text)
             const video = search.videos[0]
             if (!video) return m.reply('❌ No encontrado.')
-            
+
             const info = `
-*╭─✦ 🐉 LUCOA SCRAPER ✦─╮*
+*╭─✦ 🐉 LUCOA PLAYER ✦─╮*
 │ ❧ *Título:* ${video.title}
 │ ❧ *Tiempo:* ${video.timestamp}
 │ ❧ *Canal:* ${video.author.name}
@@ -262,12 +230,12 @@ export default {
                 image: { url: video.thumbnail }, 
                 caption: info 
             }, { quoted: m })
+
             setPending(m.chat, m.sender, { url: video.url, title: video.title, thumbnail: video.thumbnail })
+
         } catch (e) {
             console.error(e)
-            m.reply('❌ Error al buscar.')
+            m.reply('❌ Error al buscar en YouTube.')
         }
-    }
-}
     }
 }
