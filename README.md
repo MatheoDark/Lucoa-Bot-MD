@@ -78,7 +78,7 @@ Si usas el bot en tu celular:
 termux-setup-storage
 apt update && apt upgrade -y
 pkg install git nodejs ffmpeg imagemagick -y
-git clone [https://github.com/MatheoDark/Lucoa-Bot-MD](https://github.com/MatheoDark/Lucoa-Bot-MD)
+git clone https://github.com/MatheoDark/Lucoa-Bot-MD
 cd Lucoa-Bot-MD
 npm install
 npm start
