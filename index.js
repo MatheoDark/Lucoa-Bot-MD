@@ -12,6 +12,37 @@ import path from "path"
 import fs from "fs"
 import chalk from "chalk"
 
+// --- 🧹 SISTEMA DE AUTO-LIMPIEZA (Anti-Disco Lleno) ---
+function clearTmp() {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url))
+    const tmpDir = path.join(__dirname, 'tmp')
+
+    if (fs.existsSync(tmpDir)) {
+        fs.readdir(tmpDir, (err, files) => {
+            if (err) return console.error('❌ Error leyendo tmp:', err)
+            
+            if (files.length > 0) {
+                files.forEach((file) => {
+                    const filePath = path.join(tmpDir, file)
+                    fs.unlink(filePath, err => {
+                        if (err) console.error(`❌ No se pudo borrar ${file}:`, err)
+                    })
+                })
+                console.log(`🗑️ [SISTEMA] Se han eliminado ${files.length} archivos temporales.`)
+            }
+        })
+    } else {
+        // Si no existe la carpeta, la creamos para evitar errores
+        fs.mkdirSync(tmpDir)
+    }
+}
+
+// 1. Ejecutar limpieza al iniciar
+clearTmp()
+
+// 2. Ejecutar limpieza cada 30 minutos (1800000 ms)
+setInterval(clearTmp, 1800000) 
+
 // --- 1. CONFIGURACIÓN INICIAL ---
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
