@@ -4,20 +4,18 @@ import axios from 'axios'
 // --- CONFIGURACIÓN ---
 const PENDING_TTL_MS = 60 * 1000
 
-// Cabeceras para engañar a Cloudflare
+// Headers rotativos para evitar bloqueo
 const FAKE_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
     'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Referer': 'https://google.com'
+    'Content-Type': 'application/json'
 }
 
-// --- UTILIDADES ---
 const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
 
 async function getBuffer(url) {
     try {
-        const res = await axios.get(url, { responseType: 'arraybuffer', headers: FAKE_HEADERS })
+        const res = await axios.get(url, { responseType: 'arraybuffer' })
         return res.data
     } catch {
         return null
@@ -25,85 +23,76 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛡️ GESTOR DE DESCARGAS (VERSIÓN ANTI-BLOQUEO)
+// 🛡️ GESTOR DE DESCARGAS (FIX COBALT + YASIYA)
 // ==========================================
 async function getDownloadLink(url, isAudio) {
     
-    // Lista de APIs blindadas
+    // Lista de Motores
     const apis = [
         {
-            name: 'Vreden Play (Tier 1)',
-            async run() {
-                // Usamos el endpoint 'play' que busca y descarga, suele ser más permisivo
-                const type = isAudio ? 'audio' : 'video'
-                const { data } = await axios.get(`https://api.vreden.web.id/api/v1/download/play/${type}?query=${encodeURIComponent(url)}`, { headers: FAKE_HEADERS })
-                return data.result?.download?.url || data.result?.url
-            }
-        },
-        {
-            name: 'AlyaChan (Tier 2)',
-            async run() {
-                // API muy estable
-                const type = isAudio ? 'ytmp3' : 'ytmp4'
-                const { data } = await axios.get(`https://api.alyachan.dev/api/${type}?url=${encodeURIComponent(url)}`, { headers: FAKE_HEADERS })
-                if (data.status && data.data) {
-                    return data.data.url || data.data.download
-                }
-                return null
-            }
-        },
-        {
-            name: 'Y2Mate (Scraper Manual)', 
-            async run() {
-                // Scraper manual directo a Y2Mate usando Axios
-                const analyze = await axios.post('https://www.y2mate.com/mates/analyzeV2/ajax', 
-                    new URLSearchParams({ k_query: url, k_page: 'home', hl: 'es', q_auto: '0' }),
-                    { headers: { ...FAKE_HEADERS, 'Origin': 'https://www.y2mate.com', 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' } }
-                )
-                
-                if (!analyze.data || !analyze.data.links) return null
-                const vid = analyze.data.vid
-                let k = null
-
-                if (isAudio) {
-                    k = Object.values(analyze.data.links.mp3 || {})[0]?.k
-                } else {
-                    const mp4 = analyze.data.links.mp4 || {}
-                    k = (Object.values(mp4).find(v => v.q === '720p') || Object.values(mp4)[0])?.k
-                }
-                
-                if (!k) return null
-
-                const convert = await axios.post('https://www.y2mate.com/mates/convertV2/ajax',
-                    new URLSearchParams({ vid, k }),
-                    { headers: { ...FAKE_HEADERS, 'Origin': 'https://www.y2mate.com', 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' } }
-                )
-                
-                return convert.data?.dlink
-            }
-        },
-        {
-            name: 'Cobalt (Tier 4)',
+            // TIER 1: COBALT (Corregido el error 400)
+            name: 'Cobalt Tools',
             async run() {
                 const payload = {
                     url: url,
                     filenamePattern: "basic",
-                    ...(isAudio ? { audioFormat: "mp3", isAudioOnly: true } : { videoQuality: "480" })
+                    // CORRECCIÓN CRÍTICA: Cobalt usa 'vQuality' no 'videoQuality'
+                    ...(isAudio 
+                        ? { isAudioOnly: true } 
+                        : { vQuality: "480" }) // 480p es más rápido y falla menos
                 }
+                
                 const { data } = await axios.post('https://api.cobalt.tools/api/json', payload, { 
-                    headers: { ...FAKE_HEADERS, 'Accept': 'application/json', 'Content-Type': 'application/json' } 
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'Mozilla/5.0' // Header simple para Cobalt
+                    }
                 })
+                
                 return data?.url
+            }
+        },
+        {
+            // TIER 2: YASIYA (Muy permisiva con VPS)
+            name: 'Yasiya API',
+            async run() {
+                const type = isAudio ? 'ytmp3' : 'ytmp4'
+                const { data } = await axios.get(`https://www.dark-yasiya-api.site/api/search/${type}?url=${encodeURIComponent(url)}`)
+                return data.result?.dl_link || data.result?.url
+            }
+        },
+        {
+            // TIER 3: DELIRIUS (Proxy)
+            name: 'Delirius API',
+            async run() {
+                const type = isAudio ? 'ytmp3' : 'ytmp4'
+                const { data } = await axios.get(`https://delirius-apiofc.vercel.app/download/${type}?url=${encodeURIComponent(url)}`)
+                return data.data?.download?.url || data.data?.url
+            }
+        },
+        {
+            // TIER 4: WIDIPE (Backup final)
+            name: 'Widipe',
+            async run() {
+                const { data } = await axios.get(`https://widipe.com.pl/api/ytdl?url=${encodeURIComponent(url)}`)
+                return isAudio ? data.result?.mp3 : data.result?.mp4
             }
         }
     ]
 
-    // 🔄 Bucle de intentos
+    // 🔄 BUCLE DE INTENTOS
     for (const api of apis) {
         try {
             console.log(`🔄 Probando motor: ${api.name}...`)
-            const link = await api.run()
             
+            // Timeout de 15s para no quedarnos colgados
+            const source = axios.CancelToken.source();
+            const timeout = setTimeout(() => source.cancel('Timeout'), 15000);
+
+            const link = await api.run()
+            clearTimeout(timeout)
+
             if (link && link.startsWith('http')) {
                 console.log(`✅ Éxito con ${api.name}`)
                 return { dl: link, title: 'Lucoa Media' }
@@ -111,10 +100,9 @@ async function getDownloadLink(url, isAudio) {
         } catch (e) {
             console.log(`❌ Falló ${api.name}: ${e.message}`)
         }
-        await new Promise(r => setTimeout(r, 500)) // Pausa de 0.5s
     }
 
-    throw new Error('Servidores saturados o bloqueados. Intenta con otro video.')
+    throw new Error('Lo siento, todas las rutas de descarga están bloqueadas en este servidor.')
 }
 
 // --- GESTIÓN DE PENDIENTES ---
@@ -155,12 +143,11 @@ export default {
         try {
             const { dl, title } = await getDownloadLink(pending.url, isAudio)
             
-            // Si la API no devolvió título, usamos el de la búsqueda
             const finalTitle = (title === 'Lucoa Media' || !title) ? pending.title : title
             const safeTitle = sanitizeFileName(finalTitle)
             const thumbBuffer = await getBuffer(pending.thumbnail)
 
-            const commonOptions = {
+            const commonInfo = {
                 contextInfo: {
                     externalAdReply: {
                         title: finalTitle,
@@ -178,7 +165,7 @@ export default {
                     audio: { url: dl },
                     mimetype: 'audio/mpeg',
                     fileName: safeTitle + '.mp3',
-                    ...commonOptions
+                    ...commonInfo
                 }, { quoted: m })
             } else if (text === '2') { // VIDEO
                 await client.sendMessage(m.chat, {
