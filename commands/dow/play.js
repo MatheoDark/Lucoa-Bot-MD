@@ -1,114 +1,70 @@
 import yts from 'yt-search'
+import { exec } from 'child_process'
+import fs from 'fs'
+import path from 'path'
 import axios from 'axios'
-import https from 'https'
-import dns from 'dns'
 
-// 🛑 1. PARCHE DE RED (Mantiene tu VPS en IPv4)
-try { if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first'); } catch (e) {}
-
-// 🛑 2. AGENTE "CIEGO" (Ignora seguridad SSL)
-const agent = new https.Agent({ rejectUnauthorized: false })
-
-// --- CONFIGURACIÓN ---
-const HEADERS = { 
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
-}
-
-const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
-
+// --- UTILIDADES ---
 async function getBuffer(url) {
     try {
-        const res = await axios.get(url, { responseType: 'arraybuffer', httpsAgent: agent })
+        const res = await axios.get(url, { responseType: 'arraybuffer' })
         return res.data
     } catch { return null }
 }
 
-// ==========================================
-// 🛡️ GESTOR DE DESCARGAS (ROTACIÓN DE INSTANCIAS)
-// ==========================================
-async function getDownloadLink(url, isAudio) {
-    
-    // LISTA DE SERVIDORES (Si uno bloquea tu IP, el otro no)
-    // Estos son servidores públicos de Cobalt.
-    const instances = [
-        'https://cobalt.xy24.eu',      // Instancia Europea (Suele funcionar en VPS)
-        'https://cobalt.wst.sh',       // Instancia alternativa
-        'https://api.cobalt.tools',    // Oficial (Probablemente bloqueado, pero se intenta)
-        'https://cobalt.tools'         // Backup
-    ]
+const sanitizeFileName = (s) => s.replace(/[^a-zA-Z0-9]/g, '_')
 
-    // 1. INTENTO CON COBALT (ROTATIVO)
-    for (const base of instances) {
-        try {
-            console.log(`🔄 Probando servidor: ${base}...`)
-            
-            const payload = {
-                url: url,
-                filenamePattern: "basic",
-                ...(isAudio ? { isAudioOnly: true } : { vQuality: "480" }) 
-            }
-
-            const { data } = await axios.post(`${base}/api/json`, payload, {
-                headers: HEADERS,
-                httpsAgent: agent,
-                timeout: 8000 // 8 segundos por servidor
-            })
-
-            if (data.url) {
-                console.log(`✅ ¡Conectado a ${base}!`)
-                return { dl: data.url, title: 'Lucoa Media' }
-            }
-        } catch (e) {
-            console.log(`❌ ${base} falló o bloqueó la IP.`)
+// --- FUNCIÓN QUE EJECUTA YT-DLP EN TU VPS ---
+function downloadWithYtDlp(url, isAudio) {
+    return new Promise((resolve, reject) => {
+        const tempId = Date.now()
+        // Guardamos en la carpeta tmp del bot
+        const outputTemplate = path.join(process.cwd(), 'tmp', `${tempId}.%(ext)s`)
+        
+        // Comandos mágicos para Linux
+        let command = ''
+        if (isAudio) {
+            // Descarga audio, convierte a mp3
+            command = `yt-dlp -x --audio-format mp3 -o "${outputTemplate}" "${url}"`
+        } else {
+            // Descarga video mp4 (calidad compatible con WhatsApp)
+            command = `yt-dlp -f "best[ext=mp4][height<=720]" -o "${outputTemplate}" "${url}"`
         }
-    }
 
-    // 2. INTENTO CON Y2MATE (RESPALDO FINAL - SCRAPER)
-    try {
-        console.log("🔄 Activando Protocolo Y2Mate...")
-        const type = isAudio ? 'mp3' : 'mp4'
-        const analyze = await axios.post('https://www.y2mate.com/mates/analyzeV2/ajax', 
-            new URLSearchParams({ k_query: url, k_page: 'home', hl: 'es', q_auto: '0' }),
-            { 
-                headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-                httpsAgent: agent
+        console.log(`💻 Ejecutando comando local: ${command}`)
+
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`❌ Error yt-dlp: ${stderr}`)
+                reject(error)
+                return
             }
-        )
-        if (analyze.data && analyze.data.links) {
-            const vid = analyze.data.vid
-            // Buscar la mejor calidad disponible
-            let table = isAudio ? analyze.data.links.mp3 : analyze.data.links.mp4
-            let k = Object.values(table || {})[0]?.k // Toma la primera opción
             
-            if (k) {
-                const convert = await axios.post('https://www.y2mate.com/mates/convertV2/ajax',
-                    new URLSearchParams({ vid, k }),
-                    { 
-                        headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-                        httpsAgent: agent
-                    }
-                )
-                if (convert.data.dlink) return { dl: convert.data.dlink, title: convert.data.title }
-            }
-        }
-    } catch (e) { console.log("❌ Y2Mate falló") }
-
-    throw new Error('Todos los servidores están bloqueados o caídos.')
+            // Buscamos el archivo generado
+            const expectedFile = path.join(process.cwd(), 'tmp', `${tempId}.${isAudio ? 'mp3' : 'mp4'}`)
+            
+            // A veces yt-dlp tarda en cerrar el archivo, esperamos 1s
+            setTimeout(() => {
+                if (fs.existsSync(expectedFile)) {
+                    resolve(expectedFile)
+                } else {
+                    reject(new Error('El archivo no se generó correctamente.'))
+                }
+            }, 1000)
+        })
+    })
 }
 
 // ==========================================
-// 🚀 COMANDO LUCOA PLAY
+// 🚀 COMANDO PLAY (MODO NATIVO)
 // ==========================================
 export default {
     command: ['play', 'mp3', 'mp4', 'ytmp3', 'ytmp4', 'playvideo', 'playaudio'],
     category: 'downloader',
     
-    // --- PARTE 1: MENÚ ---
     run: async ({ client, m, args, command, text }) => {
         try {
-            if (!text.trim()) return m.reply('Ara ara~ ¿Qué quieres escuchar, cariño? Escribe el nombre. 💋')
+            if (!text.trim()) return m.reply('Ara ara~ ¿Qué quieres escuchar? Escribe el nombre.')
 
             let url, title, videoInfo
             const isAutoMode = command !== 'play' 
@@ -117,21 +73,17 @@ export default {
             try {
                 if (text.match(/http/)) {
                     url = text
-                    try {
-                        const vId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop()
-                        videoInfo = await yts({ videoId: vId })
-                        title = videoInfo.title
-                    } catch { 
-                        title = 'Lucoa Media'; videoInfo = { thumbnail: 'https://i.imgur.com/4L7dK0O.png', timestamp: '??', views: '??', author: {name: '??'} }
-                    }
+                    const vId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop()
+                    videoInfo = await yts({ videoId: vId })
+                    title = videoInfo.title
                 } else {
                     const search = await yts(text)
-                    if (!search.all.length) return m.reply('Vaya... No encontré nada con ese nombre. ✨')
+                    if (!search.all.length) return m.reply('Vaya... No encontré nada. ✨')
                     videoInfo = search.all[0]
                     url = videoInfo.url
                     title = videoInfo.title
                 }
-            } catch (e) { return m.reply('Ups, error buscando... 😿') }
+            } catch (e) { return m.reply('Error buscando... 😿') }
 
             // 2. SI ES SOLO "PLAY", MUESTRA EL MENÚ
             if (!isAutoMode) {
@@ -139,7 +91,6 @@ export default {
 ╭━─━─━─≪ 🐉 ≫─━─━─━╮
 │ ❧ 𝐓𝐢́𝐭𝐮𝐥𝐨: ${title}
 │ ❧ 𝐃𝐮𝐫𝐚𝐜𝐢𝐨́𝐧: ${videoInfo.timestamp}
-│ ❧ 𝐕𝐢𝐬𝐭𝐚𝐬: ${videoInfo.views}
 │ ❧ 𝐂𝐚𝐧𝐚𝐥: ${videoInfo.author.name}
 ╰━─━─━─≪ 🥥 ≫─━─━─━╯
 
@@ -149,7 +100,7 @@ _Responde con:_
 🎵 *1* (Audio)
 🎬 *2* (Video)
 
-_Shouta-kun está esperando..._ 🍷
+_Usando motor interno del VPS..._ 🖥️
 `
                 const thumb = await getBuffer(videoInfo.thumbnail)
                 global.play_pending = global.play_pending || {}
@@ -164,7 +115,7 @@ _Shouta-kun está esperando..._ 🍷
             await processDownload(client, m, url, isAudio, title, videoInfo.thumbnail)
 
         } catch (error) {
-            m.reply(`❌ Ay... Algo se rompió: ${error.message}`)
+            m.reply(`❌ ${error.message}`)
         }
     },
 
@@ -184,48 +135,51 @@ _Shouta-kun está esperando..._ 🍷
     }
 }
 
-// --- FUNCIÓN DE DESCARGA ---
+// --- FUNCIÓN DE PROCESAMIENTO ---
 async function processDownload(client, m, url, isAudio, title, thumb) {
-    await m.reply(isAudio ? '🎧 _Ara ara~ Subiendo tu música..._ 🎵' : '🎬 _Aquí va tu video, tesoro..._ 📽️')
+    await m.reply(isAudio ? '🎧 _Procesando audio localmente..._' : '🎬 _Procesando video localmente..._')
     
     try {
-        const result = await getDownloadLink(url, isAudio)
-
-        if (!result || !result.dl) {
-            return m.reply('❌ Lo siento cariño, ningún servidor quiso responder a tu VPS. Intenta más tarde.')
-        }
-
-        const finalTitle = result.title || title
-        const fileName = `${sanitizeFileName(finalTitle)}.${isAudio ? 'mp3' : 'mp4'}`
+        // LLAMADA AL MOTOR LOCAL
+        const filePath = await downloadWithYtDlp(url, isAudio)
+        
         const thumbBuffer = typeof thumb === 'string' ? await getBuffer(thumb) : thumb
+        const fileName = `${sanitizeFileName(title)}.${isAudio ? 'mp3' : 'mp4'}`
 
-        const mediaMessage = isAudio 
-            ? { 
-                document: { url: result.dl }, 
-                mimetype: 'audio/mpeg', 
+        // LECTURA DEL ARCHIVO LOCAL
+        const fileBuffer = fs.readFileSync(filePath)
+
+        if (isAudio) {
+            await client.sendMessage(m.chat, {
+                document: fileBuffer,
+                mimetype: 'audio/mpeg',
                 fileName: fileName,
                 contextInfo: {
                     externalAdReply: {
-                        title: finalTitle,
-                        body: "🐉 Lucoa Player",
+                        title: title,
+                        body: "🐉 Lucoa VPS Engine",
                         thumbnail: thumbBuffer,
                         sourceUrl: url,
                         mediaType: 1,
                         renderLargerThumbnail: true
                     }
                 }
-              }
-            : { 
-                video: { url: result.dl }, 
-                fileName: fileName, 
-                mimetype: 'video/mp4', 
-                caption: `🎬 *${finalTitle}*\n_Disfruta~_ 💋`,
+            }, { quoted: m })
+        } else {
+            await client.sendMessage(m.chat, {
+                video: fileBuffer,
+                fileName: fileName,
+                mimetype: 'video/mp4',
+                caption: `🎬 *${title}*`,
                 jpegThumbnail: thumbBuffer 
-              }
+            }, { quoted: m })
+        }
 
-        await client.sendMessage(m.chat, mediaMessage, { quoted: m })
+        // 🗑️ LIMPIEZA: Borrar archivo del disco para no llenar el VPS
+        fs.unlinkSync(filePath)
 
     } catch (e) {
-        m.reply(`❌ Error técnico: ${e.message}`)
+        console.error(e)
+        m.reply(`❌ Fallo en el motor interno: ${e.message}`)
     }
 }
