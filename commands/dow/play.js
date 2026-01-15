@@ -4,7 +4,6 @@ import fetch from 'node-fetch'
 
 // --- CONFIGURACIÓN ---
 const PENDING_TTL_MS = 60 * 1000
-// User Agent rotativo para engañar a las APIs y que no nos bloqueen
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 // --- UTILIDADES ---
@@ -21,93 +20,71 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛡️ SISTEMA DE DESCARGA (APIs ACTUALIZADAS 2025)
+// 🛡️ SISTEMA DE DESCARGA (Estilo "Lista de APIs" de tu amigo)
 // ==========================================
 async function getDownloadLink(url, isAudio) {
     
-    // ---------------------------------------------------------
-    // 🔄 MOTOR 1: DELIRIUS API (Muy rápida y estable)
-    // ---------------------------------------------------------
-    try {
-        console.log("🔄 Tier 1: Probando Delirius...")
-        const type = isAudio ? 'ytmp3' : 'ytmp4'
-        const apiUrl = `https://delirius-apiofc.vercel.app/download/${type}?url=${encodeURIComponent(url)}`
-        
-        const res = await fetch(apiUrl)
-        const json = await res.json()
-
-        // Delirius suele devolver data.download.url o data.url
-        const downloadUrl = json.data?.download?.url || json.data?.url
-        
-        if (json.status && downloadUrl) {
-            return { 
-                dl: downloadUrl, 
-                title: json.data?.title || json.data?.filename || 'Lucoa Media',
-                size: 'Unknown'
+    // Aquí definimos la lista de APIs igual que en el código de tu amigo,
+    // pero con URLs que SÍ funcionan sin configuración extra.
+    const apis = [
+        {
+            name: 'Delirius',
+            async run() {
+                const type = isAudio ? 'ytmp3' : 'ytmp4'
+                const res = await fetch(`https://delirius-apiofc.vercel.app/download/${type}?url=${encodeURIComponent(url)}`)
+                const json = await res.json()
+                return json.data?.download?.url || json.data?.url
+            }
+        },
+        {
+            name: 'Dreaded',
+            async run() {
+                const type = isAudio ? 'audio' : 'video'
+                const res = await fetch(`https://api.dreaded.site/api/ytdl/${type}?url=${encodeURIComponent(url)}`)
+                const json = await res.json()
+                return json.result?.downloadLink
+            }
+        },
+        {
+            name: 'Cobalt',
+            async run() {
+                const res = await fetch('https://api.cobalt.tools/api/json', {
+                    method: 'POST',
+                    headers: { 
+                        'Accept': 'application/json', 
+                        'Content-Type': 'application/json',
+                        'User-Agent': USER_AGENT
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        filenamePattern: "basic",
+                        ...(isAudio 
+                            ? { audioFormat: "mp3", isAudioOnly: true } 
+                            : { videoQuality: "480" }) 
+                    })
+                })
+                const json = await res.json()
+                return json?.url
             }
         }
-    } catch (e) {
-        console.log("❌ Falló Delirius")
-    }
+    ]
 
-    // ---------------------------------------------------------
-    // 🔄 MOTOR 2: DREADED API (Backup Sólido)
-    // ---------------------------------------------------------
-    try {
-        console.log("🔄 Tier 2: Probando Dreaded...")
-        const type = isAudio ? 'audio' : 'video' // Dreaded usa 'audio'/'video'
-        const apiUrl = `https://api.dreaded.site/api/ytdl/${type}?url=${encodeURIComponent(url)}`
-        
-        const res = await fetch(apiUrl)
-        const json = await res.json()
-
-        if (json.status && json.result && json.result.downloadLink) {
-            return { 
-                dl: json.result.downloadLink, 
-                title: json.result.title || 'Lucoa Media',
-                size: 'Unknown' 
+    // 🔄 BUCLE DE INTENTOS (La lógica de tu amigo)
+    for (const api of apis) {
+        try {
+            console.log(`🔄 Probando motor: ${api.name}...`)
+            const link = await api.run()
+            if (link) {
+                return { dl: link, title: 'Lucoa Media', size: 'Unknown' }
             }
+        } catch (e) {
+            console.log(`❌ Falló ${api.name}`)
         }
-    } catch (e) {
-        console.log("❌ Falló Dreaded")
+        // Pequeña pausa entre intentos para no saturar
+        await new Promise(r => setTimeout(r, 500))
     }
 
-    // ---------------------------------------------------------
-    // 🔄 MOTOR 3: COBALT (Último recurso - Configuración agresiva)
-    // ---------------------------------------------------------
-    try {
-        console.log("🔄 Tier 3: Probando Cobalt...")
-        
-        const payload = {
-            url: url,
-            filenamePattern: "basic",
-            // Forzamos configuraciones compatibles
-            ...(isAudio 
-                ? { audioFormat: "mp3", isAudioOnly: true } 
-                : { videoQuality: "480" }) // Bajamos calidad a 480p para asegurar descarga rápida
-        }
-
-        const res = await fetch('https://api.cobalt.tools/api/json', {
-            method: 'POST',
-            headers: { 
-                'Accept': 'application/json', 
-                'Content-Type': 'application/json',
-                'User-Agent': USER_AGENT
-            },
-            body: JSON.stringify(payload)
-        })
-
-        const json = await res.json()
-        
-        if (json?.url) {
-            return { dl: json.url, title: 'Lucoa Media', size: 'Unknown' }
-        }
-    } catch (e) {
-        console.log("❌ Falló Cobalt")
-    }
-
-    // Si todo falla
-    throw new Error('❌ No se pudo descargar. Intenta con otra canción.')
+    throw new Error('Todas las APIs fallaron. Intenta más tarde.')
 }
 
 // --- ENVÍO DE MEDIA ---
@@ -124,7 +101,7 @@ async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl)
             contextInfo: {
                 externalAdReply: {
                     title: title,
-                    body: "🐉 Lucoa Bot Player",
+                    body: "🐉 Lucoa Bot Music",
                     thumbnail: thumbBuffer,
                     sourceUrl: originalUrl,
                     mediaType: 1,
@@ -160,7 +137,7 @@ async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl)
     }
 }
 
-// --- GESTIÓN DE PENDIENTES ---
+// --- GESTIÓN DE SESIÓN ---
 function setPending(chatId, sender, data) {
     if (!global.__playPending) global.__playPending = {}
     global.__playPending[chatId] = { sender, ...data, expires: Date.now() + PENDING_TTL_MS }
@@ -208,7 +185,7 @@ export default {
 
     // --- COMANDO PRINCIPAL ---
     run: async ({ client, m, text, command }) => {
-        if (!text) return m.reply(`🐉 *Ingresa el título.*\nEjemplo: *#${command} Linkin Park*`)
+        if (!text) return m.reply(`🐉 *Ingresa el nombre o enlace.*\nEjemplo: *#${command} Linkin Park*`)
 
         try {
             const search = await yts(text)
@@ -218,7 +195,7 @@ export default {
             const info = `
 *╭─✦ 🐉 LUCOA PLAYER ✦─╮*
 │ ❧ *Título:* ${video.title}
-│ ❧ *Tiempo:* ${video.timestamp}
+│ ❧ *Duración:* ${video.timestamp}
 │ ❧ *Canal:* ${video.author.name}
 ╰───────────────⬫
 
