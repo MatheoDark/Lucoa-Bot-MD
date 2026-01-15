@@ -1,18 +1,14 @@
 import yts from 'yt-search'
 import axios from 'axios'
-import https from 'https'
+import crypto from 'crypto'
 import dns from 'dns'
+import https from 'https'
 
-// 1. PARCHE DE RED (OBLIGATORIO)
+// 🛑 PARCHE DE RED (Vital para tu VPS)
 try { if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first'); } catch (e) {}
 
-// 2. IGNORAR SSL (Para que tu VPS conecte aunque los certificados fallen)
+// Agente SSL Permisivo
 const agent = new https.Agent({ rejectUnauthorized: false })
-
-// 3. HEADERS SIMPLES
-const headers = { 
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' 
-}
 
 // --- UTILIDADES ---
 const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
@@ -25,129 +21,213 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛡️ GESTOR DE DESCARGAS (NUEVAS APIS)
+// 🛠️ MOTOR 1: SAVETUBE (SCRAPER LOCAL)
 // ==========================================
-async function getDownloadLink(url, isAudio) {
-    
-    // TIER 1: ALYACHAN (La más estable ahora mismo)
+const decodeSavetube = (enc) => {
     try {
-        console.log("🔄 Intento 1: AlyaChan...")
-        const type = isAudio ? 'ytmp3' : 'ytmp4'
-        const { data } = await axios.get(`https://api.alyachan.dev/api/${type}?url=${encodeURIComponent(url)}`, { 
-            httpsAgent: agent,
-            timeout: 10000 
+        const secret_key = 'C5D58EF67A7584E4A29F6C35BBC4EB12'
+        const data = Buffer.from(enc, 'base64')
+        const iv = data.slice(0, 16)
+        const content = data.slice(16)
+        const key = Buffer.from(secret_key, 'hex')
+        const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv) 
+        let decrypted = Buffer.concat([decipher.update(content), decipher.final()])
+        return JSON.parse(decrypted.toString())
+    } catch (error) { return null }
+}
+
+async function savetubeScraper(link, type) {
+    try {
+        const quality = type === 'audio' ? '128' : '720'
+        const dlType = type === 'audio' ? 'audio' : 'video'
+        const cdn = (await axios.get("https://media.savetube.me/api/random-cdn")).data.cdn
+        const infoget = await axios.post(`https://${cdn}/v2/info`, { 'url': link }, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36', 'Referer': 'https://yt.savetube.me/' }
         })
-        
-        if (data.status && data.data) {
-            // Alya devuelve .url o .download
-            return { dl: data.data.url || data.data.download, title: data.data.title }
-        }
-    } catch (e) { console.log("❌ AlyaChan falló") }
-
-    // TIER 2: COBALT (Payload arreglado para evitar Error 400)
-    try {
-        console.log("🔄 Intento 2: Cobalt...")
-        const payload = {
-            url: url,
-            filenamePattern: "basic",
-            // Solo enviamos lo estrictamente necesario
-            ...(isAudio ? { isAudioOnly: true } : { vQuality: "480" }) 
-        }
-        
-        const { data } = await axios.post('https://api.cobalt.tools/api/json', payload, {
-            headers: { ...headers, 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            httpsAgent: agent
+        const info = decodeSavetube(infoget.data.data)
+        if (!info) throw new Error('Error decode')
+        const response = await axios.post(`https://${cdn}/download`, {
+            'downloadType': dlType, 'quality': quality, 'key': info.key
+        }, {
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36', 'Referer': 'https://yt.savetube.me/' }
         })
-
-        if (data.url) return { dl: data.url, title: 'Lucoa Media' }
-    } catch (e) { console.log("❌ Cobalt falló") }
-
-    // TIER 3: DELIRIUS (Respaldo)
-    try {
-        console.log("🔄 Intento 3: Delirius...")
-        const type = isAudio ? 'ytmp3' : 'ytmp4'
-        const { data } = await axios.get(`https://delirius-apiofc.vercel.app/download/${type}?url=${encodeURIComponent(url)}`, { httpsAgent: agent })
-        if (data.data?.download?.url) return { dl: data.data.download.url, title: 'Lucoa Media' }
-    } catch (e) {}
-
-    throw new Error('Todas las APIs fallaron. Tu VPS tiene problemas de conexión.')
+        if (response.data.data.downloadUrl) return { dl: response.data.data.downloadUrl, title: info.title }
+    } catch (e) { return null }
+    return null
 }
 
 // ==========================================
-// 🚀 COMANDO PLAY
+// 🛠️ MOTOR 2: OGMP3 (SCRAPER LOCAL)
+// ==========================================
+const ogmp3 = {
+    api: { base: "https://api3.apiapi.lat", endpoints: { a: "https://api5.apiapi.lat" } },
+    headers: { 'content-type': 'application/json', 'user-agent': 'Postify/1.0.0' },
+    utils: {
+        hash: () => crypto.randomBytes(8).toString('hex'),
+        encoded: (str) => {
+            let result = "";
+            for (let i = 0; i < str.length; i++) { result += String.fromCharCode(str.charCodeAt(i) ^ 1); }
+            return result;
+        },
+        enc_url: (url) => {
+            const codes = [];
+            for (let i = 0; i < url.length; i++) { codes.push(url.charCodeAt(i)); }
+            return codes.join(",").split(",").reverse().join(",");
+        }
+    },
+    request: async (endpoint, data = {}) => {
+        try {
+            const { data: response } = await axios({ method: 'post', url: `https://api5.apiapi.lat${endpoint}`, data: data, headers: ogmp3.headers });
+            return { status: true, data: response };
+        } catch (error) { return { status: false }; }
+    },
+    download: async (link, type) => {
+        try {
+            const c = ogmp3.utils.hash();
+            const d = ogmp3.utils.hash();
+            const req = {
+                data: ogmp3.utils.encoded(link),
+                format: type === 'audio' ? "0" : "1",
+                mp3Quality: type === 'audio' ? "128" : null,
+                mp4Quality: type === 'video' ? "360" : null,
+                userTimeZone: "0"
+            };
+            const resx = await ogmp3.request(`/${c}/init/${ogmp3.utils.enc_url(link)}/${d}/`, req);
+            if (!resx.status || !resx.data || resx.data.s !== "C") return null;
+            return {
+                dl: `${ogmp3.api.base}/${ogmp3.utils.hash()}/download/${ogmp3.utils.encoded(resx.data.i)}/${ogmp3.utils.hash()}/`,
+                title: resx.data.t || "Media"
+            }
+        } catch (e) { return null }
+    }
+};
+
+// ==========================================
+// 🐉 COMANDO LUCOA PLAY 🐉
 // ==========================================
 export default {
     command: ['play', 'mp3', 'mp4', 'ytmp3', 'ytmp4', 'playvideo', 'playaudio'],
     category: 'downloader',
     
+    // --- BÚSQUEDA ---
     run: async ({ client, m, args, command, text }) => {
         try {
-            if (!text.trim()) return m.reply('✎ Ingresa el nombre o URL.')
+            if (!text.trim()) return m.reply('Ara ara~ ¿Qué quieres escuchar, cariño? Tienes que decirme el nombre o darme el link. 💋')
 
             let url, title, videoInfo
-            const isAudio = ['play', 'mp3', 'playaudio', 'ytmp3'].includes(command)
+            const isAutoMode = command !== 'play' 
 
             // 1. BUSCAR EN YOUTUBE
             try {
-                // Si es URL
                 if (text.match(/http/)) {
                     url = text
-                    try {
-                        const vId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop()
-                        videoInfo = await yts({ videoId: vId })
-                        title = videoInfo.title
-                    } catch { 
-                        title = 'Lucoa Media'; videoInfo = { thumbnail: 'https://i.imgur.com/4L7dK0O.png' } 
-                    }
-                } 
-                // Si es Texto
-                else {
+                    const vId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop()
+                    videoInfo = await yts({ videoId: vId })
+                    title = videoInfo.title
+                } else {
                     const search = await yts(text)
-                    if (!search.all.length) return m.reply('✎ No encontrado.')
+                    if (!search.all.length) return m.reply('Vaya... No encontré nada con ese nombre. ¿Seguro que no te equivocaste? ✨')
                     videoInfo = search.all[0]
                     url = videoInfo.url
                     title = videoInfo.title
-                    
-                    const infoMessage = `
-*𖹭.╭╭ִ╼ׅ࣪ﮩ٨ـﮩ𝗒𝗈𝗎𝗍𝗎𝗏𝖾-𝗉꯭𝗅꯭𝖺꯭𝗒ﮩ٨ـﮩׅ╾࣪╮╮.𖹭*
-> ♡ *Título:* ${title}
-> ♡ *Duración:* ${videoInfo.timestamp}
-> ♡ *Canal:* ${videoInfo.author.name}
-*⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ۛ۫۫۫۫۫۫ۜ*`
-                    
-                    const thumb = await getBuffer(videoInfo.thumbnail)
-                    await client.sendMessage(m.chat, thumb ? { image: thumb, caption: infoMessage } : { text: infoMessage }, { quoted: m })
                 }
-            } catch (e) {
-                return m.reply('Error buscando: ' + e.message)
+            } catch (e) { return m.reply('Ups, mis poderes fallaron buscando eso... 😿') }
+
+            // 2. SI ES SOLO "PLAY", MUESTRA EL MENÚ DE LUCOA
+            if (!isAutoMode) {
+                const caption = `
+╭━─━─━─≪ 🐉 ≫─━─━─━╮
+│ ❧ 𝐓𝐢́𝐭𝐮𝐥𝐨: ${title}
+│ ❧ 𝐃𝐮𝐫𝐚𝐜𝐢𝐨́𝐧: ${videoInfo.timestamp}
+│ ❧ 𝐕𝐢𝐬𝐭𝐚𝐬: ${videoInfo.views}
+│ ❧ 𝐂𝐚𝐧𝐚𝐥: ${videoInfo.author.name}
+╰━─━─━─≪ 🥥 ≫─━─━─━╯
+
+*Ara ara~ ¿Cómo lo quieres, tesoro? 💕*
+_Responde con el número o escribe:_
+
+🎵 *1* o *mp3* (Audio)
+🎬 *2* o *mp4* (Video)
+
+_¡Date prisa, Shouta-kun está esperando!_ 🍷
+`
+                const thumb = await getBuffer(videoInfo.thumbnail)
+                global.play_pending = global.play_pending || {}
+                global.play_pending[m.chat] = { url, title, thumb, sender: m.sender }
+
+                await client.sendMessage(m.chat, { image: thumb, caption: caption }, { quoted: m })
+                return
             }
 
-            // 2. DESCARGAR
-            m.reply(isAudio ? '🎧 _Subiendo audio..._' : '🎬 _Subiendo video..._')
-            
-            const result = await getDownloadLink(url, isAudio)
-            const finalTitle = result.title && result.title !== 'Lucoa Media' ? result.title : title
-            const fileName = `${sanitizeFileName(finalTitle)}.${isAudio ? 'mp3' : 'mp4'}`
-
-            // 3. ENVIAR
-            if (isAudio) {
-                await client.sendMessage(m.chat, {
-                    document: { url: result.dl },
-                    mimetype: 'audio/mpeg',
-                    fileName: fileName
-                }, { quoted: m })
-            } else {
-                await client.sendMessage(m.chat, {
-                    video: { url: result.dl },
-                    fileName: fileName,
-                    mimetype: 'video/mp4',
-                    caption: `🎬 ${finalTitle}`
-                }, { quoted: m })
-            }
+            // 3. DESCARGA DIRECTA (#MP3 / #MP4)
+            const isAudio = ['mp3', 'playaudio', 'ytmp3'].includes(command)
+            await processDownload(client, m, url, isAudio, title, videoInfo.thumbnail)
 
         } catch (error) {
-            console.error(error)
-            m.reply(`❌ ${error.message}`)
+            m.reply(`❌ Ay... Algo se rompió: ${error.message}`)
         }
+    },
+
+    // --- RESPUESTA DEL MENÚ ---
+    before: async (m, { client }) => {
+        const text = m.text?.toLowerCase().trim()
+        if (!['1', '2', 'mp3', 'mp4', 'audio', 'video'].includes(text)) return false
+
+        const pending = global.play_pending?.[m.chat]
+        if (!pending || pending.sender !== m.sender) return false
+
+        delete global.play_pending[m.chat]
+        
+        const isAudio = ['1', 'mp3', 'audio'].includes(text)
+        await processDownload(client, m, pending.url, isAudio, pending.title, pending.thumb)
+        return true
+    }
+}
+
+// --- FUNCIÓN DE DESCARGA ---
+async function processDownload(client, m, url, isAudio, title, thumb) {
+    await m.reply(isAudio ? '🎧 _Ara ara~ Subiendo tu música..._ 🎵' : '🎬 _Aquí va tu video, tesoro..._ 📽️')
+    
+    try {
+        const type = isAudio ? 'audio' : 'video'
+        
+        // MOTOR 1: SAVETUBE
+        let result = await savetubeScraper(url, type)
+        // MOTOR 2: OGMP3
+        if (!result) result = await ogmp3.download(url, type)
+
+        if (!result || !result.dl) return m.reply('❌ No pude descargarlo, cariño. Parece que los servidores están rebeldes hoy.')
+
+        const finalTitle = result.title || title
+        const fileName = `${sanitizeFileName(finalTitle)}.${isAudio ? 'mp3' : 'mp4'}`
+        const thumbBuffer = typeof thumb === 'string' ? await getBuffer(thumb) : thumb
+
+        if (isAudio) {
+            await client.sendMessage(m.chat, {
+                document: { url: result.dl },
+                mimetype: 'audio/mpeg',
+                fileName: fileName,
+                contextInfo: {
+                    externalAdReply: {
+                        title: finalTitle,
+                        body: "🐉 Lucoa Player",
+                        thumbnail: thumbBuffer,
+                        sourceUrl: url,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    }
+                }
+            }, { quoted: m })
+        } else {
+            await client.sendMessage(m.chat, {
+                video: { url: result.dl },
+                fileName: fileName,
+                mimetype: 'video/mp4',
+                caption: `🎬 *${finalTitle}*\n_Aquí tienes, disfruta~_ 💋`,
+                jpegThumbnail: thumbBuffer
+            }, { quoted: m })
+        }
+    } catch (e) {
+        m.reply(`❌ Ups, falló algo: ${e.message}`)
     }
 }
