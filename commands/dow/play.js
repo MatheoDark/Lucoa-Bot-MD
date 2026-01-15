@@ -2,11 +2,9 @@ import yts from 'yt-search'
 import axios from 'axios'
 import fetch from 'node-fetch'
 
-// --- IMPORTAMOS TUS LIBRERÍAS LOCALES ---
-import { ytmp3, ytmp4 } from '../../lib/ytscraper.js'
-import { ogmp3 } from '../../lib/youtubedl.js'
-
+// --- CONFIGURACIÓN ---
 const PENDING_TTL_MS = 60 * 1000
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 // --- UTILIDADES ---
 const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
@@ -22,45 +20,70 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛡️ SISTEMA DE DESCARGA (Fuerza Bruta)
+// 🛡️ NUEVO SISTEMA DE DESCARGA (APIs Públicas)
 // ==========================================
 async function getDownloadLink(url, isAudio) {
-    // 1. YtScraper (Local)
+    
+    // ---------------------------------------------------------
+    // 🔄 MOTOR 1: AGATZ (Muy estable para MD bots)
+    // ---------------------------------------------------------
     try {
-        console.log("🔄 Tier 1: Probando YtScraper...")
-        const data = isAudio ? await ytmp3(url) : await ytmp4(url)
-        if (data.status && data.download.url) {
-            return { dl: data.download.url, title: data.metadata.title, size: 'Unknown' }
-        }
-    } catch (e) { console.log("❌ Falló YtScraper") }
+        console.log("🔄 Tier 1: Probando Agatz API...")
+        const type = isAudio ? 'mp3' : 'mp4'
+        const apiUrl = `https://api.agatz.xyz/api/yt${type}?url=${encodeURIComponent(url)}`
+        
+        const res = await fetch(apiUrl)
+        const json = await res.json()
 
-    // 2. OGMP3 (Local 2)
-    try {
-        console.log("🔄 Tier 2: Probando OGMP3...")
-        const quality = isAudio ? '128' : '720'
-        const type = isAudio ? 'audio' : 'video'
-        const data = await ogmp3.download(url, quality, type)
-        if (data.status && data.result.download) {
-            return { dl: data.result.download, title: data.result.title, size: 'Unknown' }
+        if (json.status === 200 && json.data && json.data.downloadUrl) {
+            return { 
+                dl: json.data.downloadUrl, 
+                title: json.data.title || 'Lucoa Media',
+                size: 'Unknown'
+            }
         }
-    } catch (e) { console.log("❌ Falló OGMP3") }
+    } catch (e) {
+        console.log("❌ Falló Agatz:", e.message)
+    }
 
-    // 3. Cobalt (Respaldo externo)
+    // ---------------------------------------------------------
+    // 🔄 MOTOR 2: COBALT (Configuración corregida)
+    // ---------------------------------------------------------
     try {
-        console.log("🔄 Tier 3: Probando Cobalt...")
+        console.log("🔄 Tier 2: Probando Cobalt Tools...")
+        
+        const payload = {
+            url: url,
+            filenamePattern: "basic",
+            // Si es audio, pedimos mp3, si es video, dejamos que decida (o forzamos 720/max)
+            ...(isAudio ? { audioFormat: "mp3", isAudioOnly: true } : { videoQuality: "720" })
+        }
+
         const res = await fetch('https://api.cobalt.tools/api/json', {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: url, vQuality: isAudio ? '128' : '720', isAudioOnly: isAudio })
+            headers: { 
+                'Accept': 'application/json', 
+                'Content-Type': 'application/json',
+                'User-Agent': USER_AGENT
+            },
+            body: JSON.stringify(payload)
         })
-        const json = await res.json()
-        if (json?.url) return { dl: json.url, title: 'Lucoa Media', size: 'Unknown' }
-    } catch (e) { console.log("❌ Falló Cobalt") }
 
-    throw new Error('No pude descargar el archivo. Intenta de nuevo.')
+        const json = await res.json()
+        
+        // Cobalt a veces devuelve "stream" o "url"
+        if (json?.url) {
+            return { dl: json.url, title: 'Lucoa Media', size: 'Unknown' }
+        }
+    } catch (e) {
+        console.log("❌ Falló Cobalt:", e.message)
+    }
+
+    // Si todo falla
+    throw new Error('Servidores ocupados. Intenta en 1 minuto.')
 }
 
-// --- ENVÍO DE MEDIA (SEGÚN LA OPCIÓN ELEGIDA) ---
+// --- ENVÍO DE MEDIA ---
 async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl) {
     const safeTitle = sanitizeFileName(title)
     
@@ -97,20 +120,20 @@ async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl)
         return await client.sendMessage(m.chat, msg, { quoted: m })
     }
 
-    // OPCIÓN 3: DOCUMENTO (Archivo MP3 con foto miniatura)
+    // OPCIÓN 3: DOCUMENTO
     else if (option === '3') {
         const msg = {
             document: { url: dl },
             mimetype: 'audio/mpeg',
             fileName: safeTitle + '.mp3',
             caption: `📂 *${title}*`,
-            jpegThumbnail: thumbBuffer // Esto pone la foto en el icono del archivo
+            jpegThumbnail: thumbBuffer
         }
         return await client.sendMessage(m.chat, msg, { quoted: m })
     }
 }
 
-// --- GESTIÓN DE SESIÓN ---
+// --- GESTIÓN DE SESIÓN (PENDIENTES) ---
 function setPending(chatId, sender, data) {
     if (!global.__playPending) global.__playPending = {}
     global.__playPending[chatId] = { sender, ...data, expires: Date.now() + PENDING_TTL_MS }
@@ -132,36 +155,37 @@ export default {
     // --- CAPTURA RESPUESTA "1", "2" o "3" ---
     before: async (m, { client }) => {
         const text = m.text?.trim()
-        if (text !== '1' && text !== '2' && text !== '3') return
+        // Solo actuamos si es 1, 2 o 3 y hay algo pendiente
+        if (text !== '1' && text !== '2' && text !== '3') return false
 
         const pending = getPending(m.chat)
-        if (!pending || pending.sender !== m.sender) return
+        if (!pending || pending.sender !== m.sender) return false
 
+        // Limpiamos el pendiente para que no se use dos veces
         delete global.__playPending[m.chat]
         
-        // Si elige 1 (Audio) o 3 (Documento), necesitamos el enlace de audio (mp3)
-        // Si elige 2, es video (mp4)
+        // 1 y 3 son Audio, 2 es Video
         const needAudioLink = (text === '1' || text === '3')
 
         await m.reply(needAudioLink ? '🎧 *Procesando audio...*' : '🎬 *Procesando video...*')
 
         try {
             const thumbBuffer = await getBuffer(pending.thumbnail)
+            // Aquí llamamos a la nueva función sin depender de librerías locales
             const { dl, title } = await getDownloadLink(pending.url, needAudioLink)
             
-            // Enviamos pasando la opción elegida (text = "1", "2" o "3")
             await sendMedia(client, m, dl, title || pending.title, thumbBuffer, text, pending.url)
             
         } catch (e) {
             console.error(e)
-            m.reply(`⚠️ Hubo un error procesando el archivo.`)
+            m.reply(`⚠️ ${e.message || 'Error desconocido'}`)
         }
         return true
     },
 
     // --- COMANDO PRINCIPAL ---
-    run: async ({ client, m, text }) => {
-        if (!text) return m.reply('¿Qué canción busco?')
+    run: async ({ client, m, text, args, command }) => {
+        if (!text) return m.reply(`🐉 *Ingresa el nombre o enlace.*\nEjemplo: *#${command} Bad Bunny*`)
 
         try {
             const search = await yts(text)
@@ -188,7 +212,8 @@ export default {
             setPending(m.chat, m.sender, { url: video.url, title: video.title, thumbnail: video.thumbnail })
 
         } catch (e) {
-            m.reply('❌ Error al buscar.')
+            console.error(e)
+            m.reply('❌ Error al buscar en YouTube.')
         }
     }
 }
