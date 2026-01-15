@@ -2,118 +2,98 @@ import yts from 'yt-search'
 import axios from 'axios'
 import https from 'https'
 
-// 🛡️ AGENTE HTTPS QUE IGNORA CERTIFICADOS (Clave para conectar por IP)
-const HACKER_AGENT = new https.Agent({ 
-    rejectUnauthorized: false, // ¡Esto permite conectar directo a la IP!
-    keepAlive: true 
-})
+const MAGIC_IP = '172.67.151.137' 
 
-// Configuración de Headers
+// Agente para ignorar SSL (necesario al conectar por IP directa)
+const HACKER_AGENT = new https.Agent({ rejectUnauthorized: false, keepAlive: true })
+
 const BASE_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Referer': 'https://google.com'
+    'Origin': 'https://cobalt.tools',
+    'Referer': 'https://cobalt.tools/'
 }
 
 const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
 
-// --- UTILIDAD DE MINIATURA ---
 async function getBuffer(url) {
     try {
+        // Intentamos obtener el buffer normalmente, si falla no es crítico
         const res = await axios.get(url, { responseType: 'arraybuffer', httpsAgent: HACKER_AGENT })
         return res.data
-    } catch {
-        return null
-    }
+    } catch { return null }
 }
 
-// 🔥 LA MAGIA: RESOLVER DNS (CORREGIDO) 🔥
-async function fetchBlindado(originalUrl, method = 'GET', body = null) {
+// 🔥 FUNCIÓN DE CONEXIÓN DIRECTA (DOMAIN FRONTING) 🔥
+async function requestMagic(domain, path, method = 'GET', body = null) {
     try {
-        const urlObj = new URL(originalUrl)
-        const hostname = urlObj.hostname
-
-        // 1. Preguntamos a dns.google (Endpoint oficial, más estable)
-        console.log(`🔍 Resolviendo IP para: ${hostname}...`)
-        const dnsRes = await axios.get(`https://dns.google/resolve?name=${hostname}&type=A`, { 
-            httpsAgent: HACKER_AGENT,
-            timeout: 5000 
-        })
-
-        if (!dnsRes.data.Answer) throw new Error(`DNS Google falló para ${hostname}`)
+        console.log(`🚀 Fronting: Conectando a ${MAGIC_IP} disfrazado de ${domain}...`)
         
-        // 2. Tomamos la IP
-        const serverIP = dnsRes.data.Answer.find(r => r.type === 1)?.data
-        if (!serverIP) throw new Error('No IPv4 found')
-
-        // 3. Construimos URL con IP
-        const ipUrl = originalUrl.replace(hostname, serverIP)
-        console.log(`🚀 Conectando a ${serverIP} (Spoofing ${hostname})...`)
-
-        // 4. Petición "Sucia" (Directa a IP + Headers Falsos + Sin SSL Check)
-        const axiosConfig = {
+        const response = await axios({
             method: method,
-            url: ipUrl,
+            url: `https://${MAGIC_IP}${path}`, // Conectamos a la IP
             headers: {
                 ...BASE_HEADERS,
-                'Host': hostname, // Engañamos al servidor
+                'Host': domain, // 🎭 LA MÁSCARA: Engañamos al servidor
                 ...(method === 'POST' ? { 'Content-Type': 'application/json', 'Accept': 'application/json' } : {})
             },
-            httpsAgent: HACKER_AGENT, // Importante
-            timeout: 15000,
-            data: body
-        }
-
-        const response = await axios(axiosConfig)
+            httpsAgent: HACKER_AGENT,
+            data: body,
+            timeout: 15000
+        })
         return response.data
-
     } catch (e) {
-        console.log(`❌ Falló conexión a ${originalUrl}: ${e.message}`)
+        console.log(`❌ Error en ${domain}: ${e.response ? e.response.status : e.message}`)
         return null
     }
 }
 
 // ==========================================
-// 🛡️ GESTOR DE DESCARGAS (MODO HACKER)
+// 🛡️ GESTOR DE DESCARGAS
 // ==========================================
 async function getDownloadLink(url, isAudio) {
     
-    // TIER 1: COBALT (La mejor, ahora con bypass de DNS)
+    // TIER 1: COBALT (Corregido Payload Error 400)
     try {
-        console.log("🔄 Intento 1: Cobalt...")
+        console.log("🔄 Intento 1: Cobalt (Vía IP Maestra)...")
         const payload = {
             url: url,
             filenamePattern: "basic",
-            // Configuración exacta para Cobalt 2026
+            // ⚠️ FIX: Usamos los parámetros clásicos que nunca fallan
             ...(isAudio 
-                ? { downloadMode: "audio", audioFormat: "mp3" } 
-                : { downloadMode: "auto", videoQuality: "480" }) 
+                ? { isAudioOnly: true } 
+                : { vQuality: "480" }) 
         }
-        // Usamos POST con el bypass
-        const data = await fetchBlindado('https://api.cobalt.tools/api/json', 'POST', payload)
+        
+        const data = await requestMagic('api.cobalt.tools', '/api/json', 'POST', payload)
         if (data && data.url) return { dl: data.url }
     } catch (e) {}
 
-    // TIER 2: BTCH
+    // TIER 2: BTCH (Vía IP Maestra)
     try {
-        console.log("🔄 Intento 2: Btch...")
+        console.log("🔄 Intento 2: Btch (Vía IP Maestra)...")
         const type = isAudio ? 'audio' : 'video'
-        const apiUrl = `https://api.btch.bz/download/${type}?url=${encodeURIComponent(url)}`
+        // Btch usa GET
+        const path = `/download/${type}?url=${encodeURIComponent(url)}`
         
-        const data = await fetchBlindado(apiUrl)
+        const data = await requestMagic('api.btch.bz', path, 'GET')
         if (data && (data.url || data.result?.url)) return { dl: data.url || data.result.url }
     } catch (e) {}
 
-    // TIER 3: AGATZ
     try {
-        console.log("🔄 Intento 3: Agatz...")
+        console.log("🔄 Intento 3: Agatz (IP Específica)...")
         const type = isAudio ? 'mp3' : 'mp4'
-        const apiUrl = `https://api.agatz.xyz/api/yt${type}?url=${encodeURIComponent(url)}`
+        const agatzIP = '103.224.182.212' 
         
-        const data = await fetchBlindado(apiUrl)
-        if (data && data.data?.downloadUrl) return { dl: data.data.downloadUrl }
-    } catch (e) {}
+        const response = await axios.get(`https://${agatzIP}/api/yt${type}?url=${encodeURIComponent(url)}`, {
+            headers: { ...BASE_HEADERS, 'Host': 'api.agatz.xyz' },
+            httpsAgent: HACKER_AGENT,
+            timeout: 10000
+        })
+        
+        if (response.data && response.data.status === 200) return { dl: response.data.data.downloadUrl }
+    } catch (e) { console.log(`❌ Agatz falló: ${e.message}`) }
 
-    throw new Error('Tu VPS no deja salir el tráfico a ninguna API.')
+    throw new Error('Todas las rutas fallaron. El firewall de tu VPS es impenetrable.')
 }
 
 // ==========================================
@@ -127,7 +107,7 @@ export default {
         if (!text) return m.reply(`🐉 *Ingresa el título.*`)
 
         try {
-            // 1. BUSCAR (Usa yt-search normal, si falla es DNS del sistema)
+            // 1. BUSCAR
             const search = await yts(text)
             const video = search.videos[0]
             if (!video) return m.reply('❌ No encontrado.')
@@ -138,9 +118,8 @@ export default {
 │ ❧ *Tiempo:* ${video.timestamp}
 │ ❧ *Canal:* ${video.author.name}
 ╰───────────────⬫
-_⏳ Hackeando red para descargar..._`
+_⏳ Descargando via Direct-IP..._`
 
-            // Intentamos bajar miniatura con el agente hacker también
             const thumbBuffer = await getBuffer(video.thumbnail)
             await client.sendMessage(m.chat, { image: thumbBuffer || { url: video.thumbnail }, caption: info }, { quoted: m })
 
@@ -178,7 +157,7 @@ _⏳ Hackeando red para descargar..._`
 
         } catch (e) {
             console.error(e)
-            m.reply(`❌ Fallo crítico: ${e.message}`)
+            m.reply(`❌ Error: ${e.message}`)
         }
     }
 }
