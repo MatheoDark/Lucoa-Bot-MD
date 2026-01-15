@@ -47,7 +47,7 @@ Olvídate de instalar cosas manualmente. Hemos creado un instalador universal.
 
 1. **Clonar el repositorio:**
 ```
-git clone [https://github.com/MatheoDark/Lucoa-Bot-MD](https://github.com/MatheoDark/Lucoa-Bot-MD)
+git clone https://github.com/MatheoDark/Lucoa-Bot-MD
 cd Lucoa-Bot-MD
 
 ```
