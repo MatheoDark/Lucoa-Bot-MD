@@ -14,34 +14,55 @@ async function getBuffer(url) {
 
 const sanitizeFileName = (s) => s.replace(/[^a-zA-Z0-9]/g, '_')
 
-// --- MOTOR INTERNO (YT-DLP) ---
+// --- LIMPIEZA AUTOMÁTICA AL INICIAR ---
+const tmpDir = path.join(process.cwd(), 'tmp')
+if (fs.existsSync(tmpDir)) {
+    fs.readdir(tmpDir, (err, files) => {
+        if (err) return;
+        for (const file of files) {
+            fs.unlink(path.join(tmpDir, file), () => {});
+        }
+    });
+}
+
+// --- MOTOR INTERNO (MODO ANDROID ANTI-BLOQUEO) ---
 function downloadWithYtDlp(url, isAudio) {
     return new Promise((resolve, reject) => {
         const tempId = Date.now()
         const outputTemplate = path.join(process.cwd(), 'tmp', `${tempId}.%(ext)s`)
         
+        // 🚨 EL SECRETO: 'player_client=android'
+        // Esto hace que YouTube crea que somos una App de Android, saltando el bloqueo de VPS.
+        const baseFlags = '--no-check-certificate --force-ipv4 --extractor-args "youtube:player_client=android"'
+        
         let command = ''
         if (isAudio) {
-            // Descarga audio y convierte a mp3
-            command = `yt-dlp -x --audio-format mp3 -o "${outputTemplate}" "${url}"`
+            command = `yt-dlp ${baseFlags} -x --audio-format mp3 -o "${outputTemplate}" "${url}"`
         } else {
-            // Descarga video compatible con WhatsApp
-            command = `yt-dlp -f "best[ext=mp4][height<=720]" -o "${outputTemplate}" "${url}"`
+            command = `yt-dlp ${baseFlags} -f "best[ext=mp4][height<=720]" -o "${outputTemplate}" "${url}"`
         }
 
         exec(command, (error, stdout, stderr) => {
             if (error) {
                 console.error(`❌ Error yt-dlp: ${stderr}`)
-                reject(error)
+                if (stderr.includes('No space left')) {
+                    reject(new Error('Disco lleno'))
+                } else {
+                    reject(new Error('Fallo al descargar (Bloqueo IP)'))
+                }
                 return
             }
             
-            // Verificamos si existe el archivo
             const expectedFile = path.join(process.cwd(), 'tmp', `${tempId}.${isAudio ? 'mp3' : 'mp4'}`)
             
             setTimeout(() => {
                 if (fs.existsSync(expectedFile)) {
-                    resolve(expectedFile)
+                    const stats = fs.statSync(expectedFile)
+                    if (stats.size > 0) {
+                        resolve(expectedFile)
+                    } else {
+                        reject(new Error('Archivo vacío (YouTube bloqueó la petición).'))
+                    }
                 } else {
                     reject(new Error('El archivo no se generó.'))
                 }
@@ -51,7 +72,7 @@ function downloadWithYtDlp(url, isAudio) {
 }
 
 // ==========================================
-// 🚀 COMANDO LUCOA PLAY (3 OPCIONES)
+// 🚀 COMANDO LUCOA PLAY
 // ==========================================
 export default {
     command: ['play', 'mp3', 'mp4', 'ytmp3', 'ytmp4', 'playvideo', 'playaudio'],
@@ -80,7 +101,7 @@ export default {
                 }
             } catch (e) { return m.reply('Error buscando... 😿') }
 
-            // 2. SI ES SOLO "PLAY", MUESTRA EL MENÚ CON 3 OPCIONES
+            // 2. MENÚ 3 OPCIONES
             if (!isAutoMode) {
                 const caption = `
 ╭━─━─━─≪ 🐉 ≫─━─━─━╮
@@ -96,7 +117,7 @@ _Responde con:_
 🎬 *2* (Video)
 📂 *3* (Documento MP3)
 
-_Usando motor interno..._ 🖥️
+_Modo: Android Client_ 📱
 `
                 const thumb = await getBuffer(videoInfo.thumbnail)
                 global.play_pending = global.play_pending || {}
@@ -106,8 +127,7 @@ _Usando motor interno..._ 🖥️
                 return
             }
 
-            // 3. DESCARGA DIRECTA (Comandos rápidos)
-            // Si usa #mp3 es tipo 1, si usa #mp4 es tipo 2
+            // 3. DESCARGA DIRECTA
             const type = ['mp3', 'playaudio', 'ytmp3'].includes(command) ? 'audio' : 'video'
             await processDownload(client, m, url, type, title, videoInfo.thumbnail)
 
@@ -116,7 +136,6 @@ _Usando motor interno..._ 🖥️
         }
     },
 
-    // --- PARTE 2: RESPUESTA ---
     before: async (m, { client }) => {
         const text = m.text?.toLowerCase().trim()
         if (!['1', '2', '3', 'audio', 'video', 'doc'].includes(text)) return false
@@ -126,7 +145,6 @@ _Usando motor interno..._ 🖥️
 
         delete global.play_pending[m.chat]
         
-        // Mapear respuesta a tipo
         let type = 'audio'
         if (text === '1' || text === 'audio') type = 'audio'
         if (text === '2' || text === 'video') type = 'video'
@@ -137,21 +155,17 @@ _Usando motor interno..._ 🖥️
     }
 }
 
-// --- FUNCIÓN DE PROCESAMIENTO (3 TIPOS) ---
 async function processDownload(client, m, url, type, title, thumb) {
     const isAudioDownload = type === 'audio' || type === 'document'
-    
-    await m.reply(isAudioDownload ? '🎧 _Procesando audio localmente..._' : '🎬 _Procesando video localmente..._')
+    await m.reply(isAudioDownload ? '🎧 _Procesando audio..._' : '🎬 _Procesando video..._')
     
     try {
-        // Descargamos (Si es 'document', descargamos como audio mp3)
         const filePath = await downloadWithYtDlp(url, isAudioDownload)
         
         const thumbBuffer = typeof thumb === 'string' ? await getBuffer(thumb) : thumb
         const fileName = `${sanitizeFileName(title)}.${isAudioDownload ? 'mp3' : 'mp4'}`
         const fileBuffer = fs.readFileSync(filePath)
 
-        // OPCIÓN 1: AUDIO (Nota de voz/Audio reproducible)
         if (type === 'audio') {
             await client.sendMessage(m.chat, {
                 audio: fileBuffer,
@@ -160,7 +174,7 @@ async function processDownload(client, m, url, type, title, thumb) {
                 contextInfo: {
                     externalAdReply: {
                         title: title,
-                        body: "🐉 Lucoa VPS Engine",
+                        body: "🐉 Lucoa Player",
                         thumbnail: thumbBuffer,
                         sourceUrl: url,
                         mediaType: 1,
@@ -168,9 +182,7 @@ async function processDownload(client, m, url, type, title, thumb) {
                     }
                 }
             }, { quoted: m })
-        } 
-        // OPCIÓN 2: VIDEO
-        else if (type === 'video') {
+        } else if (type === 'video') {
             await client.sendMessage(m.chat, {
                 video: fileBuffer,
                 fileName: fileName,
@@ -178,23 +190,20 @@ async function processDownload(client, m, url, type, title, thumb) {
                 caption: `🎬 *${title}*`,
                 jpegThumbnail: thumbBuffer 
             }, { quoted: m })
-        } 
-        // OPCIÓN 3: DOCUMENTO (Archivo MP3 puro)
-        else if (type === 'document') {
+        } else if (type === 'document') {
             await client.sendMessage(m.chat, {
                 document: fileBuffer,
-                mimetype: 'audio/mpeg', // Mimetype de audio para que no se corrompa
+                mimetype: 'audio/mpeg',
                 fileName: fileName,
                 caption: `📂 *${title}*`,
                 jpegThumbnail: thumbBuffer
             }, { quoted: m })
         }
 
-        // Limpieza
         fs.unlinkSync(filePath)
 
     } catch (e) {
         console.error(e)
-        m.reply(`❌ Fallo en el motor interno: ${e.message}`)
+        m.reply(`❌ ${e.message}`)
     }
 }
