@@ -1,16 +1,21 @@
 import yts from 'yt-search'
 import axios from 'axios'
-import crypto from 'crypto'
-import dns from 'dns'
 import https from 'https'
+import dns from 'dns'
 
-// 🛑 PARCHE DE RED (Vital para tu VPS)
+// 🛑 1. PARCHE DE RED (Mantiene tu VPS en IPv4)
 try { if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first'); } catch (e) {}
 
-// Agente SSL Permisivo
+// 🛑 2. AGENTE "CIEGO" (Ignora seguridad SSL)
 const agent = new https.Agent({ rejectUnauthorized: false })
 
-// --- UTILIDADES ---
+// --- CONFIGURACIÓN ---
+const HEADERS = { 
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+}
+
 const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
 
 async function getBuffer(url) {
@@ -21,98 +26,89 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛠️ MOTOR 1: SAVETUBE (SCRAPER LOCAL)
+// 🛡️ GESTOR DE DESCARGAS (ROTACIÓN DE INSTANCIAS)
 // ==========================================
-const decodeSavetube = (enc) => {
-    try {
-        const secret_key = 'C5D58EF67A7584E4A29F6C35BBC4EB12'
-        const data = Buffer.from(enc, 'base64')
-        const iv = data.slice(0, 16)
-        const content = data.slice(16)
-        const key = Buffer.from(secret_key, 'hex')
-        const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv) 
-        let decrypted = Buffer.concat([decipher.update(content), decipher.final()])
-        return JSON.parse(decrypted.toString())
-    } catch (error) { return null }
-}
+async function getDownloadLink(url, isAudio) {
+    
+    // LISTA DE SERVIDORES (Si uno bloquea tu IP, el otro no)
+    // Estos son servidores públicos de Cobalt.
+    const instances = [
+        'https://cobalt.xy24.eu',      // Instancia Europea (Suele funcionar en VPS)
+        'https://cobalt.wst.sh',       // Instancia alternativa
+        'https://api.cobalt.tools',    // Oficial (Probablemente bloqueado, pero se intenta)
+        'https://cobalt.tools'         // Backup
+    ]
 
-async function savetubeScraper(link, type) {
-    try {
-        const quality = type === 'audio' ? '128' : '720'
-        const dlType = type === 'audio' ? 'audio' : 'video'
-        const cdn = (await axios.get("https://media.savetube.me/api/random-cdn")).data.cdn
-        const infoget = await axios.post(`https://${cdn}/v2/info`, { 'url': link }, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36', 'Referer': 'https://yt.savetube.me/' }
-        })
-        const info = decodeSavetube(infoget.data.data)
-        if (!info) throw new Error('Error decode')
-        const response = await axios.post(`https://${cdn}/download`, {
-            'downloadType': dlType, 'quality': quality, 'key': info.key
-        }, {
-            headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36', 'Referer': 'https://yt.savetube.me/' }
-        })
-        if (response.data.data.downloadUrl) return { dl: response.data.data.downloadUrl, title: info.title }
-    } catch (e) { return null }
-    return null
-}
-
-// ==========================================
-// 🛠️ MOTOR 2: OGMP3 (SCRAPER LOCAL)
-// ==========================================
-const ogmp3 = {
-    api: { base: "https://api3.apiapi.lat", endpoints: { a: "https://api5.apiapi.lat" } },
-    headers: { 'content-type': 'application/json', 'user-agent': 'Postify/1.0.0' },
-    utils: {
-        hash: () => crypto.randomBytes(8).toString('hex'),
-        encoded: (str) => {
-            let result = "";
-            for (let i = 0; i < str.length; i++) { result += String.fromCharCode(str.charCodeAt(i) ^ 1); }
-            return result;
-        },
-        enc_url: (url) => {
-            const codes = [];
-            for (let i = 0; i < url.length; i++) { codes.push(url.charCodeAt(i)); }
-            return codes.join(",").split(",").reverse().join(",");
-        }
-    },
-    request: async (endpoint, data = {}) => {
+    // 1. INTENTO CON COBALT (ROTATIVO)
+    for (const base of instances) {
         try {
-            const { data: response } = await axios({ method: 'post', url: `https://api5.apiapi.lat${endpoint}`, data: data, headers: ogmp3.headers });
-            return { status: true, data: response };
-        } catch (error) { return { status: false }; }
-    },
-    download: async (link, type) => {
-        try {
-            const c = ogmp3.utils.hash();
-            const d = ogmp3.utils.hash();
-            const req = {
-                data: ogmp3.utils.encoded(link),
-                format: type === 'audio' ? "0" : "1",
-                mp3Quality: type === 'audio' ? "128" : null,
-                mp4Quality: type === 'video' ? "360" : null,
-                userTimeZone: "0"
-            };
-            const resx = await ogmp3.request(`/${c}/init/${ogmp3.utils.enc_url(link)}/${d}/`, req);
-            if (!resx.status || !resx.data || resx.data.s !== "C") return null;
-            return {
-                dl: `${ogmp3.api.base}/${ogmp3.utils.hash()}/download/${ogmp3.utils.encoded(resx.data.i)}/${ogmp3.utils.hash()}/`,
-                title: resx.data.t || "Media"
+            console.log(`🔄 Probando servidor: ${base}...`)
+            
+            const payload = {
+                url: url,
+                filenamePattern: "basic",
+                ...(isAudio ? { isAudioOnly: true } : { vQuality: "480" }) 
             }
-        } catch (e) { return null }
+
+            const { data } = await axios.post(`${base}/api/json`, payload, {
+                headers: HEADERS,
+                httpsAgent: agent,
+                timeout: 8000 // 8 segundos por servidor
+            })
+
+            if (data.url) {
+                console.log(`✅ ¡Conectado a ${base}!`)
+                return { dl: data.url, title: 'Lucoa Media' }
+            }
+        } catch (e) {
+            console.log(`❌ ${base} falló o bloqueó la IP.`)
+        }
     }
-};
+
+    // 2. INTENTO CON Y2MATE (RESPALDO FINAL - SCRAPER)
+    try {
+        console.log("🔄 Activando Protocolo Y2Mate...")
+        const type = isAudio ? 'mp3' : 'mp4'
+        const analyze = await axios.post('https://www.y2mate.com/mates/analyzeV2/ajax', 
+            new URLSearchParams({ k_query: url, k_page: 'home', hl: 'es', q_auto: '0' }),
+            { 
+                headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                httpsAgent: agent
+            }
+        )
+        if (analyze.data && analyze.data.links) {
+            const vid = analyze.data.vid
+            // Buscar la mejor calidad disponible
+            let table = isAudio ? analyze.data.links.mp3 : analyze.data.links.mp4
+            let k = Object.values(table || {})[0]?.k // Toma la primera opción
+            
+            if (k) {
+                const convert = await axios.post('https://www.y2mate.com/mates/convertV2/ajax',
+                    new URLSearchParams({ vid, k }),
+                    { 
+                        headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                        httpsAgent: agent
+                    }
+                )
+                if (convert.data.dlink) return { dl: convert.data.dlink, title: convert.data.title }
+            }
+        }
+    } catch (e) { console.log("❌ Y2Mate falló") }
+
+    throw new Error('Todos los servidores están bloqueados o caídos.')
+}
 
 // ==========================================
-// 🐉 COMANDO LUCOA PLAY 🐉
+// 🚀 COMANDO LUCOA PLAY
 // ==========================================
 export default {
     command: ['play', 'mp3', 'mp4', 'ytmp3', 'ytmp4', 'playvideo', 'playaudio'],
     category: 'downloader',
     
-    // --- BÚSQUEDA ---
+    // --- PARTE 1: MENÚ ---
     run: async ({ client, m, args, command, text }) => {
         try {
-            if (!text.trim()) return m.reply('Ara ara~ ¿Qué quieres escuchar, cariño? Tienes que decirme el nombre o darme el link. 💋')
+            if (!text.trim()) return m.reply('Ara ara~ ¿Qué quieres escuchar, cariño? Escribe el nombre. 💋')
 
             let url, title, videoInfo
             const isAutoMode = command !== 'play' 
@@ -121,19 +117,23 @@ export default {
             try {
                 if (text.match(/http/)) {
                     url = text
-                    const vId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop()
-                    videoInfo = await yts({ videoId: vId })
-                    title = videoInfo.title
+                    try {
+                        const vId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop()
+                        videoInfo = await yts({ videoId: vId })
+                        title = videoInfo.title
+                    } catch { 
+                        title = 'Lucoa Media'; videoInfo = { thumbnail: 'https://i.imgur.com/4L7dK0O.png', timestamp: '??', views: '??', author: {name: '??'} }
+                    }
                 } else {
                     const search = await yts(text)
-                    if (!search.all.length) return m.reply('Vaya... No encontré nada con ese nombre. ¿Seguro que no te equivocaste? ✨')
+                    if (!search.all.length) return m.reply('Vaya... No encontré nada con ese nombre. ✨')
                     videoInfo = search.all[0]
                     url = videoInfo.url
                     title = videoInfo.title
                 }
-            } catch (e) { return m.reply('Ups, mis poderes fallaron buscando eso... 😿') }
+            } catch (e) { return m.reply('Ups, error buscando... 😿') }
 
-            // 2. SI ES SOLO "PLAY", MUESTRA EL MENÚ DE LUCOA
+            // 2. SI ES SOLO "PLAY", MUESTRA EL MENÚ
             if (!isAutoMode) {
                 const caption = `
 ╭━─━─━─≪ 🐉 ≫─━─━─━╮
@@ -144,12 +144,12 @@ export default {
 ╰━─━─━─≪ 🥥 ≫─━─━─━╯
 
 *Ara ara~ ¿Cómo lo quieres, tesoro? 💕*
-_Responde con el número o escribe:_
+_Responde con:_
 
-🎵 *1* o *mp3* (Audio)
-🎬 *2* o *mp4* (Video)
+🎵 *1* (Audio)
+🎬 *2* (Video)
 
-_¡Date prisa, Shouta-kun está esperando!_ 🍷
+_Shouta-kun está esperando..._ 🍷
 `
                 const thumb = await getBuffer(videoInfo.thumbnail)
                 global.play_pending = global.play_pending || {}
@@ -159,7 +159,7 @@ _¡Date prisa, Shouta-kun está esperando!_ 🍷
                 return
             }
 
-            // 3. DESCARGA DIRECTA (#MP3 / #MP4)
+            // 3. DESCARGA DIRECTA
             const isAudio = ['mp3', 'playaudio', 'ytmp3'].includes(command)
             await processDownload(client, m, url, isAudio, title, videoInfo.thumbnail)
 
@@ -168,7 +168,7 @@ _¡Date prisa, Shouta-kun está esperando!_ 🍷
         }
     },
 
-    // --- RESPUESTA DEL MENÚ ---
+    // --- PARTE 2: RESPUESTA ---
     before: async (m, { client }) => {
         const text = m.text?.toLowerCase().trim()
         if (!['1', '2', 'mp3', 'mp4', 'audio', 'video'].includes(text)) return false
@@ -189,23 +189,20 @@ async function processDownload(client, m, url, isAudio, title, thumb) {
     await m.reply(isAudio ? '🎧 _Ara ara~ Subiendo tu música..._ 🎵' : '🎬 _Aquí va tu video, tesoro..._ 📽️')
     
     try {
-        const type = isAudio ? 'audio' : 'video'
-        
-        // MOTOR 1: SAVETUBE
-        let result = await savetubeScraper(url, type)
-        // MOTOR 2: OGMP3
-        if (!result) result = await ogmp3.download(url, type)
+        const result = await getDownloadLink(url, isAudio)
 
-        if (!result || !result.dl) return m.reply('❌ No pude descargarlo, cariño. Parece que los servidores están rebeldes hoy.')
+        if (!result || !result.dl) {
+            return m.reply('❌ Lo siento cariño, ningún servidor quiso responder a tu VPS. Intenta más tarde.')
+        }
 
         const finalTitle = result.title || title
         const fileName = `${sanitizeFileName(finalTitle)}.${isAudio ? 'mp3' : 'mp4'}`
         const thumbBuffer = typeof thumb === 'string' ? await getBuffer(thumb) : thumb
 
-        if (isAudio) {
-            await client.sendMessage(m.chat, {
-                document: { url: result.dl },
-                mimetype: 'audio/mpeg',
+        const mediaMessage = isAudio 
+            ? { 
+                document: { url: result.dl }, 
+                mimetype: 'audio/mpeg', 
                 fileName: fileName,
                 contextInfo: {
                     externalAdReply: {
@@ -217,17 +214,18 @@ async function processDownload(client, m, url, isAudio, title, thumb) {
                         renderLargerThumbnail: true
                     }
                 }
-            }, { quoted: m })
-        } else {
-            await client.sendMessage(m.chat, {
-                video: { url: result.dl },
-                fileName: fileName,
-                mimetype: 'video/mp4',
-                caption: `🎬 *${finalTitle}*\n_Aquí tienes, disfruta~_ 💋`,
-                jpegThumbnail: thumbBuffer
-            }, { quoted: m })
-        }
+              }
+            : { 
+                video: { url: result.dl }, 
+                fileName: fileName, 
+                mimetype: 'video/mp4', 
+                caption: `🎬 *${finalTitle}*\n_Disfruta~_ 💋`,
+                jpegThumbnail: thumbBuffer 
+              }
+
+        await client.sendMessage(m.chat, mediaMessage, { quoted: m })
+
     } catch (e) {
-        m.reply(`❌ Ups, falló algo: ${e.message}`)
+        m.reply(`❌ Error técnico: ${e.message}`)
     }
 }
