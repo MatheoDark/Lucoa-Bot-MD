@@ -1,66 +1,73 @@
 import yts from 'yt-search'
 import axios from 'axios'
+import https from 'https'
 
-// --- CONFIGURACIÓN ---
-// Usamos el IP de Google DNS directamente para saltarnos el fallo de tu VPS
-const GOOGLE_DNS_API = 'https://8.8.8.8/resolve' 
+// 🛡️ AGENTE HTTPS QUE IGNORA CERTIFICADOS (Clave para conectar por IP)
+const HACKER_AGENT = new https.Agent({ 
+    rejectUnauthorized: false, // ¡Esto permite conectar directo a la IP!
+    keepAlive: true 
+})
 
-// Headers para parecer un navegador
+// Configuración de Headers
 const BASE_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Referer': 'https://google.com'
 }
 
-// --- UTILIDADES ---
 const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
 
+// --- UTILIDAD DE MINIATURA ---
 async function getBuffer(url) {
     try {
-        const res = await axios.get(url, { responseType: 'arraybuffer', headers: BASE_HEADERS })
+        const res = await axios.get(url, { responseType: 'arraybuffer', httpsAgent: HACKER_AGENT })
         return res.data
     } catch {
         return null
     }
 }
 
-// 🔥 LA MAGIA: RESOLVER DNS MANUALMENTE VIA HTTP 🔥
-// Esto arregla el "getaddrinfo ENOTFOUND"
-async function fetchBlindado(originalUrl) {
+// 🔥 LA MAGIA: RESOLVER DNS (CORREGIDO) 🔥
+async function fetchBlindado(originalUrl, method = 'GET', body = null) {
     try {
         const urlObj = new URL(originalUrl)
         const hostname = urlObj.hostname
 
-        // 1. Preguntamos a Google cual es la IP del dominio (Saltamos el DNS del VPS)
-        const dnsRes = await axios.get(`${GOOGLE_DNS_API}?name=${hostname}&type=A`, { 
-            validateStatus: () => true 
+        // 1. Preguntamos a dns.google (Endpoint oficial, más estable)
+        console.log(`🔍 Resolviendo IP para: ${hostname}...`)
+        const dnsRes = await axios.get(`https://dns.google/resolve?name=${hostname}&type=A`, { 
+            httpsAgent: HACKER_AGENT,
+            timeout: 5000 
         })
 
-        if (!dnsRes.data.Answer || !dnsRes.data.Answer[0]) {
-            throw new Error(`DNS Google no conoce a ${hostname}`)
-        }
-
-        // 2. Tomamos la primera IP
+        if (!dnsRes.data.Answer) throw new Error(`DNS Google falló para ${hostname}`)
+        
+        // 2. Tomamos la IP
         const serverIP = dnsRes.data.Answer.find(r => r.type === 1)?.data
         if (!serverIP) throw new Error('No IPv4 found')
 
-        // 3. Reemplazamos el dominio por la IP en la URL
+        // 3. Construimos URL con IP
         const ipUrl = originalUrl.replace(hostname, serverIP)
+        console.log(`🚀 Conectando a ${serverIP} (Spoofing ${hostname})...`)
 
-        console.log(`🛡️ Bypass DNS: Conectando a ${serverIP} en lugar de ${hostname}...`)
-
-        // 4. Hacemos la petición a la IP, pero decimos que somos el dominio (Host Spoofing)
-        const response = await axios.get(ipUrl, {
+        // 4. Petición "Sucia" (Directa a IP + Headers Falsos + Sin SSL Check)
+        const axiosConfig = {
+            method: method,
+            url: ipUrl,
             headers: {
                 ...BASE_HEADERS,
-                'Host': hostname // ¡Esto engaña al servidor!
+                'Host': hostname, // Engañamos al servidor
+                ...(method === 'POST' ? { 'Content-Type': 'application/json', 'Accept': 'application/json' } : {})
             },
-            timeout: 15000
-        })
+            httpsAgent: HACKER_AGENT, // Importante
+            timeout: 15000,
+            data: body
+        }
 
+        const response = await axios(axiosConfig)
         return response.data
 
     } catch (e) {
-        console.log(`❌ Bypass falló para ${originalUrl}: ${e.message}`)
+        console.log(`❌ Falló conexión a ${originalUrl}: ${e.message}`)
         return null
     }
 }
@@ -70,9 +77,25 @@ async function fetchBlindado(originalUrl) {
 // ==========================================
 async function getDownloadLink(url, isAudio) {
     
-    // API 1: Btch (La mejor, accediendo via IP directa)
+    // TIER 1: COBALT (La mejor, ahora con bypass de DNS)
     try {
-        console.log("🔄 Intento 1: Btch (Modo Blindado)...")
+        console.log("🔄 Intento 1: Cobalt...")
+        const payload = {
+            url: url,
+            filenamePattern: "basic",
+            // Configuración exacta para Cobalt 2026
+            ...(isAudio 
+                ? { downloadMode: "audio", audioFormat: "mp3" } 
+                : { downloadMode: "auto", videoQuality: "480" }) 
+        }
+        // Usamos POST con el bypass
+        const data = await fetchBlindado('https://api.cobalt.tools/api/json', 'POST', payload)
+        if (data && data.url) return { dl: data.url }
+    } catch (e) {}
+
+    // TIER 2: BTCH
+    try {
+        console.log("🔄 Intento 2: Btch...")
         const type = isAudio ? 'audio' : 'video'
         const apiUrl = `https://api.btch.bz/download/${type}?url=${encodeURIComponent(url)}`
         
@@ -80,27 +103,17 @@ async function getDownloadLink(url, isAudio) {
         if (data && (data.url || data.result?.url)) return { dl: data.url || data.result.url }
     } catch (e) {}
 
-    // API 2: Agatz (Backup)
+    // TIER 3: AGATZ
     try {
-        console.log("🔄 Intento 2: Agatz (Modo Blindado)...")
+        console.log("🔄 Intento 3: Agatz...")
         const type = isAudio ? 'mp3' : 'mp4'
         const apiUrl = `https://api.agatz.xyz/api/yt${type}?url=${encodeURIComponent(url)}`
         
         const data = await fetchBlindado(apiUrl)
-        if (data && data.status === 200) return { dl: data.data.downloadUrl }
+        if (data && data.data?.downloadUrl) return { dl: data.data.downloadUrl }
     } catch (e) {}
 
-    // API 3: Yasiya (Backup 2)
-    try {
-        console.log("🔄 Intento 3: Yasiya (Modo Blindado)...")
-        const type = isAudio ? 'ytmp3' : 'ytmp4'
-        const apiUrl = `https://www.dark-yasiya-api.site/api/search/${type}?url=${encodeURIComponent(url)}`
-        
-        const data = await fetchBlindado(apiUrl)
-        if (data && data.result?.dl_link) return { dl: data.result.dl_link }
-    } catch (e) {}
-
-    throw new Error('Imposible conectar. Tu VPS tiene un bloqueo de firewall profundo.')
+    throw new Error('Tu VPS no deja salir el tráfico a ninguna API.')
 }
 
 // ==========================================
@@ -114,7 +127,7 @@ export default {
         if (!text) return m.reply(`🐉 *Ingresa el título.*`)
 
         try {
-            // 1. BUSCAR (Esto usa yt-search, si esto falla, es Game Over)
+            // 1. BUSCAR (Usa yt-search normal, si falla es DNS del sistema)
             const search = await yts(text)
             const video = search.videos[0]
             if (!video) return m.reply('❌ No encontrado.')
@@ -125,8 +138,9 @@ export default {
 │ ❧ *Tiempo:* ${video.timestamp}
 │ ❧ *Canal:* ${video.author.name}
 ╰───────────────⬫
-_⏳ Hackeando la matrix para descargar..._`
+_⏳ Hackeando red para descargar..._`
 
+            // Intentamos bajar miniatura con el agente hacker también
             const thumbBuffer = await getBuffer(video.thumbnail)
             await client.sendMessage(m.chat, { image: thumbBuffer || { url: video.thumbnail }, caption: info }, { quoted: m })
 
