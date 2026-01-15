@@ -12,10 +12,6 @@ import path from "path"
 import fs from "fs"
 import chalk from "chalk"
 
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
 // --- 🧹 SISTEMA DE LIMPIEZA SEMANAL ---
 function clearTmp() {
     const __dirname = path.dirname(fileURLToPath(import.meta.url))
