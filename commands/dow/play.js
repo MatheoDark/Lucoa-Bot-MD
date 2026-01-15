@@ -20,16 +20,46 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛡️ SISTEMA DE DESCARGA (Estilo "Lista de APIs" de tu amigo)
+// 🛡️ SISTEMA DE DESCARGA MULTI-MOTOR (5 CAPAS)
 // ==========================================
 async function getDownloadLink(url, isAudio) {
     
-    // Aquí definimos la lista de APIs igual que en el código de tu amigo,
-    // pero con URLs que SÍ funcionan sin configuración extra.
+    // Lista de APIs ordenada por estabilidad actual
     const apis = [
         {
-            name: 'Delirius',
+            name: 'Widipe (Tier 1)',
             async run() {
+                // Widipe suele ser muy rápida
+                const res = await fetch(`https://widipe.com.pl/api/ytdl?url=${encodeURIComponent(url)}`)
+                const json = await res.json()
+                const result = json.result
+                return isAudio ? result?.mp3 : result?.mp4
+            }
+        },
+        {
+            name: 'DavidCyril (Tier 2)',
+            async run() {
+                // Soporta mp3 y mp4
+                const type = isAudio ? 'mp3' : 'mp4'
+                const res = await fetch(`https://api.davidcyriltech.my.id/youtube/${type}?url=${encodeURIComponent(url)}`)
+                const json = await res.json()
+                return json.result?.downloadUrl || json.downloadUrl
+            }
+        },
+        {
+            name: 'Yasiya (Tier 3)',
+            async run() {
+                // Buena alternativa
+                const type = isAudio ? 'ytmp3' : 'ytmp4'
+                const res = await fetch(`https://www.dark-yasiya-api.site/api/search/${type}?url=${encodeURIComponent(url)}`)
+                const json = await res.json()
+                return json.result?.dl_link || json.result?.url
+            }
+        },
+        {
+            name: 'Delirius (Tier 4)',
+            async run() {
+                // A veces falla, pero sirve de backup
                 const type = isAudio ? 'ytmp3' : 'ytmp4'
                 const res = await fetch(`https://delirius-apiofc.vercel.app/download/${type}?url=${encodeURIComponent(url)}`)
                 const json = await res.json()
@@ -37,17 +67,9 @@ async function getDownloadLink(url, isAudio) {
             }
         },
         {
-            name: 'Dreaded',
+            name: 'Cobalt (Tier 5)',
             async run() {
-                const type = isAudio ? 'audio' : 'video'
-                const res = await fetch(`https://api.dreaded.site/api/ytdl/${type}?url=${encodeURIComponent(url)}`)
-                const json = await res.json()
-                return json.result?.downloadLink
-            }
-        },
-        {
-            name: 'Cobalt',
-            async run() {
+                // Último recurso, configuración agresiva
                 const res = await fetch('https://api.cobalt.tools/api/json', {
                     method: 'POST',
                     headers: { 
@@ -58,6 +80,7 @@ async function getDownloadLink(url, isAudio) {
                     body: JSON.stringify({
                         url: url,
                         filenamePattern: "basic",
+                        // Si es video, forzamos 480p para evitar errores de servidor
                         ...(isAudio 
                             ? { audioFormat: "mp3", isAudioOnly: true } 
                             : { videoQuality: "480" }) 
@@ -69,22 +92,33 @@ async function getDownloadLink(url, isAudio) {
         }
     ]
 
-    // 🔄 BUCLE DE INTENTOS (La lógica de tu amigo)
+    // 🔄 BUCLE DE INTENTOS
     for (const api of apis) {
         try {
             console.log(`🔄 Probando motor: ${api.name}...`)
-            const link = await api.run()
-            if (link) {
+            // Timeout de 10 segundos por API para no quedarnos pegados
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), 10000)
+            
+            const link = await Promise.race([
+                api.run(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+            ])
+            
+            clearTimeout(timeout)
+
+            if (link && link.startsWith('http')) {
+                console.log(`✅ Éxito con ${api.name}`)
                 return { dl: link, title: 'Lucoa Media', size: 'Unknown' }
             }
         } catch (e) {
-            console.log(`❌ Falló ${api.name}`)
+            console.log(`❌ Falló ${api.name}: ${e.message}`)
         }
-        // Pequeña pausa entre intentos para no saturar
-        await new Promise(r => setTimeout(r, 500))
+        // Breve pausa para no saturar CPU
+        await new Promise(r => setTimeout(r, 200))
     }
 
-    throw new Error('Todas las APIs fallaron. Intenta más tarde.')
+    throw new Error('Todas las APIs fallaron. YouTube está bloqueando las IPs, intenta en 5 min.')
 }
 
 // --- ENVÍO DE MEDIA ---
@@ -137,7 +171,7 @@ async function sendMedia(client, m, dl, title, thumbBuffer, option, originalUrl)
     }
 }
 
-// --- GESTIÓN DE SESIÓN ---
+// --- GESTIÓN DE PENDIENTES ---
 function setPending(chatId, sender, data) {
     if (!global.__playPending) global.__playPending = {}
     global.__playPending[chatId] = { sender, ...data, expires: Date.now() + PENDING_TTL_MS }
@@ -185,7 +219,7 @@ export default {
 
     // --- COMANDO PRINCIPAL ---
     run: async ({ client, m, text, command }) => {
-        if (!text) return m.reply(`🐉 *Ingresa el nombre o enlace.*\nEjemplo: *#${command} Linkin Park*`)
+        if (!text) return m.reply(`🐉 *Ingresa el título.*\nEjemplo: *#${command} Linkin Park*`)
 
         try {
             const search = await yts(text)
@@ -195,7 +229,7 @@ export default {
             const info = `
 *╭─✦ 🐉 LUCOA PLAYER ✦─╮*
 │ ❧ *Título:* ${video.title}
-│ ❧ *Duración:* ${video.timestamp}
+│ ❧ *Tiempo:* ${video.timestamp}
 │ ❧ *Canal:* ${video.author.name}
 ╰───────────────⬫
 
