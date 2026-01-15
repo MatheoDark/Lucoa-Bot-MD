@@ -2,20 +2,20 @@ import yts from 'yt-search'
 import axios from 'axios'
 
 // --- CONFIGURACIÓN ---
-const PENDING_TTL_MS = 60 * 1000
+const LIMIT_MB = 300 // Límite de tamaño para evitar crash
 
-// Headers rotativos para evitar bloqueo
-const FAKE_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-    'Content-Type': 'application/json'
+// Headers para evitar bloqueo de Cloudflare
+const HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Referer': 'https://google.com'
 }
 
+// --- UTILIDADES ---
 const sanitizeFileName = (s = '') => String(s).replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 80) || 'Lucoa_Media'
 
 async function getBuffer(url) {
     try {
-        const res = await axios.get(url, { responseType: 'arraybuffer' })
+        const res = await axios.get(url, { responseType: 'arraybuffer', headers: HEADERS })
         return res.data
     } catch {
         return null
@@ -23,39 +23,22 @@ async function getBuffer(url) {
 }
 
 // ==========================================
-// 🛡️ GESTOR DE DESCARGAS (FIX COBALT + YASIYA)
+// 🛡️ GESTOR DE DESCARGAS (MOTORES ACTIVOS)
 // ==========================================
 async function getDownloadLink(url, isAudio) {
     
-    // Lista de Motores
+    // Lista de APIs ordenadas por velocidad y estabilidad
     const apis = [
         {
-            // TIER 1: COBALT (Corregido el error 400)
-            name: 'Cobalt Tools',
+            name: 'Btch API (Tier 1)', // La más rápida actualmente
             async run() {
-                const payload = {
-                    url: url,
-                    filenamePattern: "basic",
-                    // CORRECCIÓN CRÍTICA: Cobalt usa 'vQuality' no 'videoQuality'
-                    ...(isAudio 
-                        ? { isAudioOnly: true } 
-                        : { vQuality: "480" }) // 480p es más rápido y falla menos
-                }
-                
-                const { data } = await axios.post('https://api.cobalt.tools/api/json', payload, { 
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'User-Agent': 'Mozilla/5.0' // Header simple para Cobalt
-                    }
-                })
-                
-                return data?.url
+                const type = isAudio ? 'audio' : 'video'
+                const { data } = await axios.get(`https://api.btch.bz/download/${type}?url=${encodeURIComponent(url)}`)
+                return data.result?.url || data.url
             }
         },
         {
-            // TIER 2: YASIYA (Muy permisiva con VPS)
-            name: 'Yasiya API',
+            name: 'Yasiya API (Tier 2)',
             async run() {
                 const type = isAudio ? 'ytmp3' : 'ytmp4'
                 const { data } = await axios.get(`https://www.dark-yasiya-api.site/api/search/${type}?url=${encodeURIComponent(url)}`)
@@ -63,166 +46,115 @@ async function getDownloadLink(url, isAudio) {
             }
         },
         {
-            // TIER 3: DELIRIUS (Proxy)
-            name: 'Delirius API',
+            name: 'Cobalt (Tier 3)', // Respaldo sólido
             async run() {
-                const type = isAudio ? 'ytmp3' : 'ytmp4'
-                const { data } = await axios.get(`https://delirius-apiofc.vercel.app/download/${type}?url=${encodeURIComponent(url)}`)
-                return data.data?.download?.url || data.data?.url
-            }
-        },
-        {
-            // TIER 4: WIDIPE (Backup final)
-            name: 'Widipe',
-            async run() {
-                const { data } = await axios.get(`https://widipe.com.pl/api/ytdl?url=${encodeURIComponent(url)}`)
-                return isAudio ? data.result?.mp3 : data.result?.mp4
+                const payload = {
+                    url: url,
+                    filenamePattern: "basic",
+                    ...(isAudio ? { downloadMode: "audio", audioFormat: "mp3" } : { downloadMode: "auto", videoQuality: "480" })
+                }
+                const { data } = await axios.post('https://api.cobalt.tools/api/json', payload, { 
+                    headers: { ...HEADERS, 'Accept': 'application/json', 'Content-Type': 'application/json' } 
+                })
+                return data?.url
             }
         }
     ]
 
-    // 🔄 BUCLE DE INTENTOS
+    // Bucle de intentos
     for (const api of apis) {
         try {
             console.log(`🔄 Probando motor: ${api.name}...`)
-            
-            // Timeout de 15s para no quedarnos colgados
             const source = axios.CancelToken.source();
-            const timeout = setTimeout(() => source.cancel('Timeout'), 15000);
+            const timeout = setTimeout(() => source.cancel('Timeout'), 10000); // 10s timeout
 
             const link = await api.run()
             clearTimeout(timeout)
 
-            if (link && link.startsWith('http')) {
-                console.log(`✅ Éxito con ${api.name}`)
-                return { dl: link, title: 'Lucoa Media' }
-            }
+            if (link && link.startsWith('http')) return { dl: link }
         } catch (e) {
-            console.log(`❌ Falló ${api.name}: ${e.message}`)
+            console.log(`❌ Falló ${api.name}`)
         }
     }
-
-    throw new Error('Lo siento, todas las rutas de descarga están bloqueadas en este servidor.')
-}
-
-// --- GESTIÓN DE PENDIENTES ---
-function setPending(chatId, sender, data) {
-    if (!global.__playPending) global.__playPending = {}
-    global.__playPending[chatId] = { sender, ...data, expires: Date.now() + PENDING_TTL_MS }
-}
-
-function getPending(chatId) {
-    const data = global.__playPending?.[chatId]
-    if (data && Date.now() > data.expires) {
-        delete global.__playPending[chatId]
-        return null
-    }
-    return data
+    throw new Error('No se pudo descargar. Intenta más tarde.')
 }
 
 // ==========================================
 // 🚀 COMANDO EXPORTADO
 // ==========================================
 export default {
-    command: ['play', 'mp3', 'mp4'],
+    command: ['play', 'mp3', 'mp4', 'ytmp3', 'ytmp4', 'playvideo', 'playaudio'],
     category: 'downloader',
 
-    // --- ESCUCHA 1, 2, 3 ---
-    before: async (m, { client }) => {
-        const text = m.text?.trim()
-        if (!['1', '2', '3'].includes(text)) return false
-
-        const pending = getPending(m.chat)
-        if (!pending || pending.sender !== m.sender) return false
-
-        delete global.__playPending[m.chat]
-        const isAudio = (text === '1' || text === '3')
-
-        await m.reply(isAudio ? '🎧 *Descargando audio...*' : '🎬 *Descargando video...*')
-
-        try {
-            const { dl, title } = await getDownloadLink(pending.url, isAudio)
-            
-            const finalTitle = (title === 'Lucoa Media' || !title) ? pending.title : title
-            const safeTitle = sanitizeFileName(finalTitle)
-            const thumbBuffer = await getBuffer(pending.thumbnail)
-
-            const commonInfo = {
-                contextInfo: {
-                    externalAdReply: {
-                        title: finalTitle,
-                        body: "🐉 Lucoa Player",
-                        thumbnail: thumbBuffer,
-                        sourceUrl: pending.url,
-                        mediaType: 1,
-                        renderLargerThumbnail: true
-                    }
-                }
-            }
-
-            if (text === '1') { // AUDIO
-                await client.sendMessage(m.chat, {
-                    audio: { url: dl },
-                    mimetype: 'audio/mpeg',
-                    fileName: safeTitle + '.mp3',
-                    ...commonInfo
-                }, { quoted: m })
-            } else if (text === '2') { // VIDEO
-                await client.sendMessage(m.chat, {
-                    video: { url: dl },
-                    caption: `🎬 *${finalTitle}*`,
-                    mimetype: 'video/mp4',
-                    fileName: safeTitle + '.mp4',
-                    jpegThumbnail: thumbBuffer
-                }, { quoted: m })
-            } else if (text === '3') { // DOCUMENTO
-                await client.sendMessage(m.chat, {
-                    document: { url: dl },
-                    mimetype: 'audio/mpeg',
-                    fileName: safeTitle + '.mp3',
-                    caption: `📂 *${finalTitle}*`,
-                    jpegThumbnail: thumbBuffer
-                }, { quoted: m })
-            }
-
-        } catch (e) {
-            console.error(e)
-            m.reply(`⚠️ ${e.message}`)
-        }
-        return true
-    },
-
-    // --- BÚSQUEDA ---
     run: async ({ client, m, text, command }) => {
-        if (!text) return m.reply(`🐉 *Ingresa el nombre.*\nEjemplo: *#${command} Music*`)
+        if (!text) return m.reply(`🐉 *Ingresa el nombre o enlace.*`)
 
         try {
+            // 1. BUSCAR EN YOUTUBE
             const search = await yts(text)
             const video = search.videos[0]
             if (!video) return m.reply('❌ No encontrado.')
 
-            const info = `
-*╭─✦ 🐉 LUCOA PLAYER ✦─╮*
-│ ❧ *Título:* ${video.title}
-│ ❧ *Duración:* ${video.timestamp}
-│ ❧ *Canal:* ${video.author.name}
-╰───────────────⬫
+            const { title, thumbnail, timestamp, views, author, url } = video
+            const ago = video.ago || 'Reciente'
+            
+            // 2. MOSTRAR TARJETA DE INFO
+            const infoMessage = `
+*𖹭.╭╭ִ╼ׅ࣪ﮩ٨ـﮩ𝗒𝗈𝗎𝗍𝗎𝗏𝖾-𝗉꯭𝗅꯭𝖺꯭𝗒ﮩ٨ـﮩׅ╾࣪╮╮.𖹭*
+> ♡ *Título:* ${title}
+*°.⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸.°*
+> ♡ *Duración:* ${timestamp}
+*°.⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸.°*
+> ♡ *Vistas:* ${views}
+*°.⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸.°*
+> ♡ *Canal:* ${author.name}
+*°.⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸.°*
+> ♡ *Publicado:* ${ago}
+*⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ۛ۫۫۫۫۫۫ۜ*
+_⏳ Descargando... Espere un momento._`
 
-*Responde con el número:*
-1️⃣ Audio (Normal)
-2️⃣ Video (MP4)
-3️⃣ Documento (Archivo)`
+            const thumbBuffer = await getBuffer(thumbnail)
+            await client.sendMessage(m.chat, { image: thumbBuffer || { url: thumbnail }, caption: infoMessage }, { quoted: m })
 
-            await client.sendMessage(m.chat, { 
-                image: { url: video.thumbnail }, 
-                caption: info 
-            }, { quoted: m })
+            // 3. DETERMINAR TIPO (AUDIO O VIDEO)
+            const isVideo = ['mp4', 'ytmp4', 'playvideo', 'play2'].includes(command)
+            
+            // 4. OBTENER LINK
+            const { dl } = await getDownloadLink(url, !isVideo)
+            const safeTitle = sanitizeFileName(title)
 
-            setPending(m.chat, m.sender, { url: video.url, title: video.title, thumbnail: video.thumbnail })
+            // 5. ENVIAR ARCHIVO
+            if (isVideo) {
+                // Enviar Video
+                await client.sendMessage(m.chat, {
+                    video: { url: dl },
+                    caption: `🎬 *${title}*`,
+                    fileName: safeTitle + '.mp4',
+                    mimetype: 'video/mp4',
+                    jpegThumbnail: thumbBuffer
+                }, { quoted: m })
+            } else {
+                // Enviar Audio (MP3)
+                await client.sendMessage(m.chat, {
+                    audio: { url: dl },
+                    mimetype: 'audio/mpeg',
+                    fileName: safeTitle + '.mp3',
+                    contextInfo: {
+                        externalAdReply: {
+                            title: title,
+                            body: "🐉 Lucoa Player",
+                            thumbnail: thumbBuffer,
+                            sourceUrl: url,
+                            mediaType: 1,
+                            renderLargerThumbnail: true
+                        }
+                    }
+                }, { quoted: m })
+            }
 
         } catch (e) {
             console.error(e)
-            m.reply('❌ Error al buscar en YouTube.')
+            m.reply(`❌ Ocurrió un error: ${e.message}`)
         }
     }
 }
