@@ -27,34 +27,35 @@ if (fs.existsSync(tmpDir)) {
     });
 }
 
-// --- MOTOR INTERNO (MODO iOS / IPHONE) ---
+// --- MOTOR INTERNO (MODO CREADOR / STUDIO) ---
 function downloadWithYtDlp(url, isAudio) {
     return new Promise((resolve, reject) => {
         const tempId = Date.now()
         const outputTemplate = path.join(process.cwd(), 'tmp', `${tempId}.%(ext)s`)
         
-        // 🚨 CAMBIO IMPORTANTE:
-        // Usamos 'ios' en lugar de 'android'.
-        // Agregamos user-agent falso para despistar más.
-        const baseFlags = '--no-check-certificate --force-ipv4 --extractor-args "youtube:player_client=ios" --user-agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"'
+        // 🚨 CAMBIO ESTRATÉGICO:
+        // 1. client=android_creator: Fingimos ser la App "YouTube Studio". (Menos bloqueos)
+        // 2. Quitamos user-agent específico para dejar que yt-dlp use el suyo por defecto para este cliente.
+        const baseFlags = '--no-check-certificate --force-ipv4 --extractor-args "youtube:player_client=android_creator"'
         
         let command = ''
         if (isAudio) {
-            // M4A es nativo de iOS y más rápido de descargar, luego ffmpeg lo pasa a mp3 si quieres, 
-            // pero para asegurar compatibilidad pedimos 'bestaudio' y convertimos.
             command = `yt-dlp ${baseFlags} -x --audio-format mp3 -o "${outputTemplate}" "${url}"`
         } else {
-            // iOS suele entregar MP4 H.264 que es perfecto para WhatsApp
-            command = `yt-dlp ${baseFlags} -f "best[ext=mp4][height<=720]" -o "${outputTemplate}" "${url}"`
+            // ⚠️ CAMBIO DE FORMATO:
+            // En lugar de pedir "mp4" nativo (que puede estar bloqueado), pedimos "lo mejor que tengas"
+            // y usamos --merge-output-format mp4 para que FFmpeg lo convierta al final.
+            command = `yt-dlp ${baseFlags} -f "bestvideo+bestaudio/best" --merge-output-format mp4 -o "${outputTemplate}" "${url}"`
         }
 
         exec(command, (error, stdout, stderr) => {
             if (error) {
                 console.error(`❌ Error yt-dlp: ${stderr}`)
-                // Filtramos errores comunes
+                
+                // Detección de errores específicos
                 if (stderr.includes('No space left')) return reject(new Error('Disco lleno'))
-                if (stderr.includes('403')) return reject(new Error('YouTube bloqueó la IP temporalmente'))
-                if (stderr.includes('Sign in')) return reject(new Error('Video con restricción de edad/privado'))
+                if (stderr.includes('Sign in')) return reject(new Error('YouTube pide Cookies (IP Bloqueada)'))
+                if (stderr.includes('403')) return reject(new Error('YouTube rechazó la conexión (403)'))
                 
                 reject(new Error('Fallo al descargar'))
                 return
@@ -68,7 +69,7 @@ function downloadWithYtDlp(url, isAudio) {
                     if (stats.size > 0) {
                         resolve(expectedFile)
                     } else {
-                        reject(new Error('Archivo vacío (Bloqueo anti-bot).'))
+                        reject(new Error('Archivo vacío (Bloqueo GVS).'))
                     }
                 } else {
                     reject(new Error('El archivo no se generó.'))
@@ -79,7 +80,7 @@ function downloadWithYtDlp(url, isAudio) {
 }
 
 // ==========================================
-// 🚀 COMANDO LUCOA PLAY (ESTABLE)
+// 🚀 COMANDO LUCOA PLAY (MODO CREATOR)
 // ==========================================
 export default {
     command: ['play', 'mp3', 'mp4', 'ytmp3', 'ytmp4', 'playvideo', 'playaudio'],
@@ -213,6 +214,11 @@ async function processDownload(client, m, url, type, title, thumb) {
 
     } catch (e) {
         console.error(e)
-        m.reply(`❌ ${e.message}`)
+        // Mensaje más amigable
+        if (e.message.includes('YouTube pide Cookies')) {
+            m.reply('❌ YouTube bloqueó totalmente la IP del VPS. Necesitamos Cookies o esperar unas horas. 😿')
+        } else {
+            m.reply(`❌ ${e.message}`)
+        }
     }
 }
