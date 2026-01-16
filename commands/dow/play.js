@@ -9,7 +9,6 @@ async function getBuffer(url) {
     try {
         if (!url || typeof url !== 'string') return null
         const res = await axios.get(url, { responseType: 'arraybuffer' })
-        // Verificamos que sea un Buffer real
         if (Buffer.isBuffer(res.data)) return res.data
         return null
     } catch { return null }
@@ -28,30 +27,36 @@ if (fs.existsSync(tmpDir)) {
     });
 }
 
-// --- MOTOR INTERNO (MODO ANDROID) ---
+// --- MOTOR INTERNO (MODO iOS / IPHONE) ---
 function downloadWithYtDlp(url, isAudio) {
     return new Promise((resolve, reject) => {
         const tempId = Date.now()
         const outputTemplate = path.join(process.cwd(), 'tmp', `${tempId}.%(ext)s`)
         
-        // Configuración para saltar bloqueos de YouTube
-        const baseFlags = '--no-check-certificate --force-ipv4 --extractor-args "youtube:player_client=android"'
+        // 🚨 CAMBIO IMPORTANTE:
+        // Usamos 'ios' en lugar de 'android'.
+        // Agregamos user-agent falso para despistar más.
+        const baseFlags = '--no-check-certificate --force-ipv4 --extractor-args "youtube:player_client=ios" --user-agent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"'
         
         let command = ''
         if (isAudio) {
+            // M4A es nativo de iOS y más rápido de descargar, luego ffmpeg lo pasa a mp3 si quieres, 
+            // pero para asegurar compatibilidad pedimos 'bestaudio' y convertimos.
             command = `yt-dlp ${baseFlags} -x --audio-format mp3 -o "${outputTemplate}" "${url}"`
         } else {
+            // iOS suele entregar MP4 H.264 que es perfecto para WhatsApp
             command = `yt-dlp ${baseFlags} -f "best[ext=mp4][height<=720]" -o "${outputTemplate}" "${url}"`
         }
 
         exec(command, (error, stdout, stderr) => {
             if (error) {
                 console.error(`❌ Error yt-dlp: ${stderr}`)
-                if (stderr.includes('No space left')) {
-                    reject(new Error('Disco lleno'))
-                } else {
-                    reject(new Error('Fallo al descargar'))
-                }
+                // Filtramos errores comunes
+                if (stderr.includes('No space left')) return reject(new Error('Disco lleno'))
+                if (stderr.includes('403')) return reject(new Error('YouTube bloqueó la IP temporalmente'))
+                if (stderr.includes('Sign in')) return reject(new Error('Video con restricción de edad/privado'))
+                
+                reject(new Error('Fallo al descargar'))
                 return
             }
             
@@ -63,7 +68,7 @@ function downloadWithYtDlp(url, isAudio) {
                     if (stats.size > 0) {
                         resolve(expectedFile)
                     } else {
-                        reject(new Error('Archivo vacío.'))
+                        reject(new Error('Archivo vacío (Bloqueo anti-bot).'))
                     }
                 } else {
                     reject(new Error('El archivo no se generó.'))
@@ -74,7 +79,7 @@ function downloadWithYtDlp(url, isAudio) {
 }
 
 // ==========================================
-// 🚀 COMANDO LUCOA PLAY (ANTI-CRASH)
+// 🚀 COMANDO LUCOA PLAY (ESTABLE)
 // ==========================================
 export default {
     command: ['play', 'mp3', 'mp4', 'ytmp3', 'ytmp4', 'playvideo', 'playaudio'],
@@ -119,9 +124,8 @@ _Responde con:_
 🎬 *2* (Video)
 📂 *3* (Documento MP3)
 `
-                // Descargamos miniatura con seguridad
                 let thumb = await getBuffer(videoInfo.thumbnail)
-                if (!thumb) thumb = await getBuffer('https://i.imgur.com/4L7dK0O.png') // Imagen por defecto
+                if (!thumb) thumb = await getBuffer('https://i.imgur.com/4L7dK0O.png') 
 
                 global.play_pending = global.play_pending || {}
                 global.play_pending[m.chat] = { url, title, thumb, sender: m.sender }
@@ -165,10 +169,8 @@ async function processDownload(client, m, url, type, title, thumb) {
     try {
         const filePath = await downloadWithYtDlp(url, isAudioDownload)
         
-        // 🛡️ SEGURIDAD DE MINIATURA (Fix del crash)
-        // Nos aseguramos que thumbBuffer sea un Buffer REAL o undefined
         let thumbBuffer = Buffer.isBuffer(thumb) ? thumb : await getBuffer(thumb)
-        if (!Buffer.isBuffer(thumbBuffer)) thumbBuffer = null // Si falla, lo dejamos null para que no rompa el bot
+        if (!Buffer.isBuffer(thumbBuffer)) thumbBuffer = null 
 
         const fileName = `${sanitizeFileName(title)}.${isAudioDownload ? 'mp3' : 'mp4'}`
         const fileBuffer = fs.readFileSync(filePath)
@@ -181,8 +183,7 @@ async function processDownload(client, m, url, type, title, thumb) {
                 contextInfo: {
                     externalAdReply: {
                         title: title,
-                        body: "🐉 Lucoa Player",
-                        // Si thumbBuffer es null, usa una url por defecto o nada
+                        body: "Lucoa Player",
                         thumbnail: thumbBuffer,
                         sourceUrl: url,
                         mediaType: 1,
@@ -196,7 +197,6 @@ async function processDownload(client, m, url, type, title, thumb) {
                 fileName: fileName,
                 mimetype: 'video/mp4',
                 caption: `🎬 *${title}*`,
-                // Solo añadimos jpegThumbnail si existe el buffer
                 ...(thumbBuffer ? { jpegThumbnail: thumbBuffer } : {})
             }, { quoted: m })
         } else if (type === 'document') {
