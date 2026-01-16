@@ -3,16 +3,19 @@ import { resolveLidToRealJid } from '../../lib/utils.js';
 export default {
   command: ['economyboard', 'eboard', 'baltop', 'top', 'lb'],
   category: 'rpg',
-  run: async ({ client, m, args, usedPrefix }) => { // <--- Agregamos usedPrefix aquí
+  run: async ({ client, m, args, usedPrefix }) => { 
     
     // 1. Validaciones
     if (!m.isGroup) return m.reply('❌ Este comando solo funciona en grupos.')
 
     const chatId = m.chat
+    // Aseguramos que chatData exista
     const chatData = global.db.data.chats[chatId] || {}
     
-    // Verificar si RPG está activo
-    if (chatData.adminonly || !chatData.rpg) {
+    // 🔓 CAMBIO REALIZADO: 
+    // Se eliminó "chatData.adminonly" para que cualquiera pueda usarlo.
+    // Solo se verifica si el sistema RPG está activo (opcional, si quieres borrar esto también, avísame).
+    if (chatData.rpg === false) {
       return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
     }
 
@@ -20,7 +23,6 @@ export default {
     const settings = global.db.data.settings[botId] || {}
     const monedas = settings.currency || 'Coins'
     
-    // Definimos el prefijo a mostrar (si falla usedPrefix, usa #)
     const prefix = usedPrefix || '#'
 
     try {
@@ -87,7 +89,6 @@ export default {
         return `${icon} ${user.name}\n   └─ 💰 *${user.total.toLocaleString()} ${monedas}*`
       }).join('\n\n')
 
-      // CORRECCIÓN AQUÍ: Usamos la variable 'prefix' limpia
       text += `\n\n> 💡 Usa *${prefix}top ${page + 1}* para ver más.`
 
       await client.sendMessage(chatId, { 
