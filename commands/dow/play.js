@@ -3,8 +3,14 @@ import fetch from 'node-fetch'
 import sharp from 'sharp'
 import axios from 'axios'
 import crypto from 'crypto'
+import fs from 'fs'
+import path from 'path'
+import { pipeline } from 'stream'
+import { promisify } from 'util'
 
-// --- 1. TU CLASE SAVETUBE (INTACTA) ---
+const streamPipeline = promisify(pipeline)
+
+// --- 1. CLASE SAVETUBE (INTACTA) ---
 class SaveTube {
     constructor() {
         this.ky = 'C5D58EF67A7584E4A29F6C35BBC4EB12'
@@ -53,12 +59,31 @@ class SaveTube {
 }
 
 // --- 2. UTILIDADES ---
-// Reemplazo seguro de client.getFile para evitar tu error "Result is not a buffer"
 async function getBuffer(url) {
     try {
         const res = await axios.get(url, { responseType: 'arraybuffer' })
         return res.data
     } catch { return null }
+}
+
+const sanitizeFileName = (s) => String(s).replace(/[^a-zA-Z0-9]/g, '_')
+
+// Función para descargar el archivo al disco (VPS) antes de enviar
+async function downloadToLocal(url, ext) {
+    const tmpDir = path.join(process.cwd(), 'tmp')
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
+    
+    const filePath = path.join(tmpDir, `${Date.now()}.${ext}`)
+    
+    const response = await axios({
+        url,
+        method: 'GET',
+        responseType: 'stream',
+        headers: { 'User-Agent': 'Mozilla/5.0' } // Importante para que no rechacen la descarga
+    })
+
+    await streamPipeline(response.data, fs.createWriteStream(filePath))
+    return filePath
 }
 
 const fetchParallelFirstValid = async (url, apis, timeout = 15000) => {
@@ -98,7 +123,7 @@ const fetchParallelFirstValid = async (url, apis, timeout = 15000) => {
 }
 
 // ==========================================
-// 🚀 COMANDO LUCOA PLAY (CON MENÚ RESTAURADO)
+// 🚀 COMANDO LUCOA PLAY (OPTIMIZADO PARA MÓVIL)
 // ==========================================
 export default {
     command: ['play', 'mp3', 'playaudio', 'ytmp3', 'play2', 'mp4', 'playvideo', 'ytmp4'],
@@ -106,10 +131,10 @@ export default {
 
     run: async ({ client, m, args, command, text }) => {
         try {
-            if (!text.trim()) return m.reply('Ara ara~ ¿Qué quieres escuchar? Escribe el nombre o link.')
+            if (!text.trim()) return m.reply('Ara ara~ ¿Qué quieres escuchar? Escribe el nombre.')
 
             let url, title, videoInfo
-            const isAutoMode = command !== 'play' // Si usa #play muestra menú, si usa #mp3 descarga directo
+            const isAutoMode = command !== 'play' 
 
             // 1. BÚSQUEDA YOUTUBE
             try {
@@ -119,51 +144,38 @@ export default {
                     videoInfo = await yts({ videoId: vId })
                 } else {
                     const search = await yts(text)
-                    if (!search.all.length) return m.reply('No encontré nada, tesoro.')
+                    if (!search.all.length) return m.reply('No encontré nada.')
                     videoInfo = search.all[0]
                 }
                 url = videoInfo.url
                 title = videoInfo.title
-            } catch { return m.reply('Error buscando en YouTube. 😿') }
+            } catch { return m.reply('Error buscando en YouTube.') }
 
-            // 2. MENÚ ESTILO LUCOA (Si usa solo #play)
+            // 2. MENÚ
             if (!isAutoMode) {
-                const vistas = (videoInfo.views || 0).toLocaleString();
-                const canal = videoInfo.author?.name || 'Desconocido';
-                const timestamp = videoInfo.timestamp || 'Desconocido';
-                const ago = videoInfo.ago || 'Desconocido';
+                const caption = `
+╭━─━─━─≪ 🐉 ≫─━─━─━╮
+│ ❧ 𝐓𝐢́𝐭𝐮𝐥𝐨: ${title}
+│ ❧ 𝐃𝐮𝐫𝐚𝐜𝐢𝐨́𝐧: ${videoInfo.timestamp}
+│ ❧ 𝐂𝐚𝐧𝐚𝐥: ${videoInfo.author.name}
+╰━─━─━─≪ 🥥 ≫─━─━─━╯
 
-                const infoMessage = `
-*𖹭.╭╭ִ╼ׅ࣪ﮩ٨ـﮩ𝗒𝗈𝗎𝗍𝗎𝗏𝖾-𝗉꯭𝗅꯭𝖺꯭𝗒ﮩ٨ـﮩׅ╾࣪╮╮.𖹭*
-> ♡ *Título:* ${title}
-*°.⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸.°*
-> ♡ *Duración:* ${timestamp}
-*°.⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸.°*
-> ♡ *Vistas:* ${vistas}
-*°.⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸.°*
-> ♡ *Canal:* ${canal}
-*°.⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸⎯ܴ⎯̶᳞͇ࠝ⎯⃘̶⎯̸.°*
-> ♡ *Publicado:* ${ago}
-*⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︣︢ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ۛ۫۫۫۫۫۫ۜ⏝ּׅ︢︣ׄۛ۫۫۫۫۫۫ۜ*
-
-*Ara ara~ Responde con:*
-🎵 *1* para Audio
-🎬 *2* para Video
-📂 *3* para Documento
+*Ara ara~ ¿Cómo lo quieres? 💕*
+🎵 *1* Audio
+🎬 *2* Video
+📂 *3* Documento
 `
-                // Descargamos la miniatura con axios (SOLUCIÓN AL ERROR client.getFile)
                 let thumb = await getBuffer(videoInfo.thumbnail)
                 if (!thumb) thumb = await getBuffer('https://i.imgur.com/4L7dK0O.png')
 
-                // Guardamos estado para esperar respuesta
                 global.play_pending = global.play_pending || {}
                 global.play_pending[m.chat] = { url, title, thumb, sender: m.sender }
 
-                await client.sendMessage(m.chat, { image: thumb, caption: infoMessage }, { quoted: m })
+                await client.sendMessage(m.chat, { image: thumb, caption: caption }, { quoted: m })
                 return
             }
 
-            // 3. DESCARGA DIRECTA (Si usó #mp3 o #mp4)
+            // 3. DESCARGA
             const type = ['mp3', 'playaudio', 'ytmp3'].includes(command) ? 'audio' : 'video'
             await processDownload(client, m, url, type, title, videoInfo.thumbnail)
 
@@ -173,7 +185,6 @@ export default {
         }
     },
 
-    // 4. DETECTOR DE RESPUESTA (El Menú interactivo)
     before: async (m, { client }) => {
         const text = m.text?.toLowerCase().trim()
         if (!['1', '2', '3', 'audio', 'video', 'doc'].includes(text)) return false
@@ -193,53 +204,27 @@ export default {
     }
 }
 
-// --- 5. LOGICA DE DESCARGA (TUS APIS) ---
+// --- LOGICA DE DESCARGA LOCAL (FIX MÓVIL) ---
 async function processDownload(client, m, url, type, title, thumb) {
     const isAudio = type === 'audio' || type === 'document'
-    m.reply(isAudio ? '🎧 _Ara ara~ Buscando audio..._' : '🎬 _Ara ara~ Buscando video..._')
+    m.reply(isAudio ? '🎧 _Descargando audio al servidor..._' : '🎬 _Descargando video al servidor..._')
 
     try {
-        // --- DEFINICIÓN DE TUS APIs (Integradas aquí) ---
-        const saveTubeFallback = {
-            custom: true,
-            run: async (u) => { const sv = new SaveTube(); return await sv.download(u, isAudio) }
-        }
+        // --- TUS APIS ---
+        const saveTubeFallback = { custom: true, run: async (u) => { const sv = new SaveTube(); return await sv.download(u, isAudio) } }
+        const nekolabsApi = { url: (u) => `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(u)}&format=${isAudio ? 'mp3' : '720'}`, validate: (r) => r.success && r.result?.downloadUrl, parse: (r) => ({ dl: r.result.downloadUrl, title: r.result.title }) }
+        const aioApi = { url: (u) => `https://anabot.my.id/api/download/aio?url=${encodeURIComponent(u)}&apikey=freeApikey`, validate: (r) => !r.error && r.medias?.length > 0, parse: (r) => { const media = r.medias.find(x => isAudio ? x.type === 'audio' : x.type === 'video' && x.ext === 'mp4'); return { dl: media?.url, title: r.title } } }
+        const anabotApi = { url: (u) => `https://anabot.my.id/api/download/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(u)}${isAudio ? '' : '&quality=720'}&apikey=freeApikey`, validate: (r) => r?.success && r?.data?.result?.urls, parse: (r) => ({ dl: r.data.result.urls, title: r.data.result.metadata?.title }) }
+        const nexevoApi = { url: (u) => `https://nexevo-api.vercel.app/download/${isAudio ? 'y' : 'y2'}?url=${encodeURIComponent(u)}`, validate: (r) => r?.status && r?.result?.url, parse: (r) => ({ dl: r.result.url, title: r.result.info?.title }) }
 
-        const nekolabsApi = {
-            url: (u) => `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(u)}&format=${isAudio ? 'mp3' : '720'}`,
-            validate: (r) => r.success && r.result?.downloadUrl,
-            parse: (r) => ({ dl: r.result.downloadUrl, title: r.result.title })
-        }
-
-        const aioApi = {
-            url: (u) => `https://anabot.my.id/api/download/aio?url=${encodeURIComponent(u)}&apikey=freeApikey`,
-            validate: (r) => !r.error && r.medias?.length > 0,
-            parse: (r) => {
-                const media = r.medias.find(x => isAudio ? x.type === 'audio' : x.type === 'video' && x.ext === 'mp4')
-                return { dl: media?.url, title: r.title }
-            }
-        }
-
-        const anabotApi = {
-            url: (u) => `https://anabot.my.id/api/download/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(u)}${isAudio ? '' : '&quality=720'}&apikey=freeApikey`,
-            validate: (r) => r?.success && r?.data?.result?.urls,
-            parse: (r) => ({ dl: r.data.result.urls, title: r.data.result.metadata?.title })
-        }
-
-        const nexevoApi = {
-            url: (u) => `https://nexevo-api.vercel.app/download/${isAudio ? 'y' : 'y2'}?url=${encodeURIComponent(u)}`,
-            validate: (r) => r?.status && r?.result?.url,
-            parse: (r) => ({ dl: r.result.url, title: r.result.info?.title })
-        }
-
-        // Lista de APIs a probar
         const apis = [nexevoApi, anabotApi, nekolabsApi, aioApi, saveTubeFallback]
         
-        // Ejecutar descarga paralela
+        // 1. OBTENER LINK DE DESCARGA
         const { dl, title: apiTitle } = await fetchParallelFirstValid(url, apis)
         const finalTitle = apiTitle || title || 'Lucoa Media'
+        const cleanTitle = sanitizeFileName(finalTitle)
 
-        // Procesar Miniatura con Sharp (Si falla, usa buffer normal)
+        // 2. PROCESAR MINIATURA
         let thumbBuffer = null
         try {
             if (Buffer.isBuffer(thumb)) {
@@ -248,31 +233,36 @@ async function processDownload(client, m, url, type, title, thumb) {
                 const buf = await getBuffer(thumb)
                 if (buf) thumbBuffer = await sharp(buf).resize(320, 180).jpeg({ quality: 80 }).toBuffer()
             }
-        } catch { 
-            // Si sharp falla, usamos el buffer original si existe
-            thumbBuffer = Buffer.isBuffer(thumb) ? thumb : null 
-        }
+        } catch { thumbBuffer = Buffer.isBuffer(thumb) ? thumb : null }
 
-        // ENVIAR ARCHIVO
+        // 3. DESCARGAR AL VPS (ESTO ARREGLA EL PROBLEMA DEL MÓVIL)
+        // En lugar de pasar el link a WhatsApp, bajamos el archivo localmente y lo enviamos.
+        const localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
+        const fileData = fs.readFileSync(localFilePath)
+
+        // 4. ENVIAR ARCHIVO LOCAL
         if (type === 'audio') {
             await client.sendMessage(m.chat, { 
-                audio: { url: dl }, mimetype: 'audio/mpeg', fileName: `${finalTitle}.mp3`,
+                audio: fileData, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`,
                 contextInfo: { externalAdReply: { title: finalTitle, body: 'Lucoa Bot', thumbnail: thumbBuffer, mediaType: 1, renderLargerThumbnail: true } }
             }, { quoted: m })
         } else if (type === 'video') {
             await client.sendMessage(m.chat, { 
-                video: { url: dl }, mimetype: 'video/mp4', fileName: `${finalTitle}.mp4`, caption: `🎬 ${finalTitle}`,
+                video: fileData, mimetype: 'video/mp4', fileName: `${cleanTitle}.mp4`, caption: `🎬 ${finalTitle}`,
                 jpegThumbnail: thumbBuffer 
             }, { quoted: m })
         } else if (type === 'document') {
             await client.sendMessage(m.chat, { 
-                document: { url: dl }, mimetype: 'audio/mpeg', fileName: `${finalTitle}.mp3`, caption: `📂 ${finalTitle}`,
+                document: fileData, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`, caption: `📂 ${finalTitle}`,
                 jpegThumbnail: thumbBuffer 
             }, { quoted: m })
         }
 
+        // 5. LIMPIEZA
+        fs.unlinkSync(localFilePath)
+
     } catch (e) {
         console.error(e)
-        m.reply(`❌ Fallaron todas las APIs: ${e.message}`)
+        m.reply(`❌ Error: ${e.message}`)
     }
 }
