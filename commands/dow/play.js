@@ -7,11 +7,11 @@ import fs from 'fs'
 import path from 'path'
 import { pipeline } from 'stream'
 import { promisify } from 'util'
-import { exec } from 'child_process' // Necesario para FFmpeg
+import { exec } from 'child_process'
 
 const streamPipeline = promisify(pipeline)
 
-// --- 1. CLASE SAVETUBE (INTACTA) ---
+// --- 1. CLASE SAVETUBE ---
 class SaveTube {
     constructor() {
         this.ky = 'C5D58EF67A7584E4A29F6C35BBC4EB12'
@@ -66,39 +66,49 @@ async function getBuffer(url) {
 
 const sanitizeFileName = (s) => String(s).replace(/[^a-zA-Z0-9]/g, '_')
 
-// Función para descargar el archivo crudo
+// 🔥 FUNCIÓN DE DESCARGA MEJORADA (VALIDA QUE SEA VIDEO REAL)
 async function downloadToLocal(url, ext) {
     const tmpDir = path.join(process.cwd(), 'tmp')
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
     const filePath = path.join(tmpDir, `${Date.now()}.${ext}`)
+    
     const response = await axios({
         url, method: 'GET', responseType: 'stream',
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+        headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://google.com' 
+        }
     })
+
+    // 🕵️ VALIDACIÓN DE CABECERAS
+    const contentType = response.headers['content-type']
+    if (contentType && (contentType.includes('text/html') || contentType.includes('application/json'))) {
+        throw new Error('El link devolvió una página web, no un video.')
+    }
+
     await streamPipeline(response.data, fs.createWriteStream(filePath))
+    
+    // 🕵️ VALIDACIÓN DE TAMAÑO (Si pesa menos de 50KB, está roto)
+    const stats = fs.statSync(filePath)
+    if (stats.size < 50000) { // Menos de 50KB
+        fs.unlinkSync(filePath)
+        throw new Error('El archivo descargado está vacío o corrupto.')
+    }
+
     return filePath
 }
 
-// 🔥 LA SOLUCIÓN: CONVERSOR FFmpeg
-// Convierte cualquier cosa rara a H.264 (Compatible con WhatsApp Móvil)
+// 🔥 FFMPEG FIXER (CON CONTROL DE ERRORES)
 function fixVideoWithFFmpeg(inputPath) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const outputPath = inputPath.replace('.mp4', '_fixed.mp4')
-        
-        // Comandos explicados:
-        // -c:v libx264: Fuerza el codec de video estándar.
-        // -preset ultrafast: Lo hace rápido (sacrifica un poquito de peso por velocidad).
-        // -c:a aac: Fuerza audio AAC (estándar de móviles).
-        // -movflags +faststart: Mueve la info del video al inicio (CRUCIAL para WhatsApp).
         const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -c:a aac -movflags +faststart "${outputPath}"`
         
         exec(cmd, (error) => {
             if (error) {
-                console.error('Error FFmpeg:', error)
-                // Si falla la conversión, devolvemos el original y rezamos
-                resolve(inputPath) 
+                console.log('⚠️ FFmpeg falló (posible archivo corrupto), intentando enviar original...')
+                resolve(inputPath) // Si falla, devolvemos el original
             } else {
-                // Borramos el archivo corrupto original
                 try { fs.unlinkSync(inputPath) } catch {}
                 resolve(outputPath)
             }
@@ -106,7 +116,7 @@ function fixVideoWithFFmpeg(inputPath) {
     })
 }
 
-const fetchParallelFirstValid = async (url, apis, timeout = 25000) => { // Subimos timeout para dar tiempo
+const fetchParallelFirstValid = async (url, apis, timeout = 25000) => {
     return new Promise((resolve, reject) => {
         let settled = false
         let errors = 0
@@ -140,7 +150,7 @@ const fetchParallelFirstValid = async (url, apis, timeout = 25000) => { // Subim
 }
 
 // ==========================================
-// 🚀 COMANDO LUCOA PLAY (FFMPEG FIXED)
+// 🚀 COMANDO LUCOA PLAY (FINAL)
 // ==========================================
 export default {
     command: ['play', 'mp3', 'playaudio', 'ytmp3', 'play2', 'mp4', 'playvideo', 'ytmp4'],
@@ -153,7 +163,6 @@ export default {
             let url, title, videoInfo
             const isAutoMode = command !== 'play' 
 
-            // 1. BÚSQUEDA
             try {
                 if (/http/.test(text)) {
                     url = text
@@ -168,7 +177,6 @@ export default {
                 title = videoInfo.title
             } catch { return m.reply('Error buscando en YouTube.') }
 
-            // 2. MENÚ
             if (!isAutoMode) {
                 const caption = `
 ╭━─━─━─≪ 🐉 ≫─━─━─━╮
@@ -192,7 +200,6 @@ export default {
                 return
             }
 
-            // 3. DESCARGA
             const type = ['mp3', 'playaudio', 'ytmp3'].includes(command) ? 'audio' : 'video'
             await processDownload(client, m, url, type, title, videoInfo.thumbnail)
 
@@ -205,36 +212,31 @@ export default {
     before: async (m, { client }) => {
         const text = m.text?.toLowerCase().trim()
         if (!['1', '2', '3', 'audio', 'video', 'doc'].includes(text)) return false
-
         const pending = global.play_pending?.[m.chat]
         if (!pending || pending.sender !== m.sender) return false
-
         delete global.play_pending[m.chat]
-
         let type = 'audio'
         if (text === '1' || text === 'audio') type = 'audio'
         if (text === '2' || text === 'video') type = 'video'
         if (text === '3' || text === 'doc') type = 'document'
-
         await processDownload(client, m, pending.url, type, pending.title, pending.thumb)
         return true
     }
 }
 
-// --- LOGICA PRINCIPAL ---
 async function processDownload(client, m, url, type, title, thumb) {
     const isAudio = type === 'audio' || type === 'document'
     m.reply(isAudio ? '🎧 _Descargando audio..._' : '🎬 _Procesando video..._')
 
     try {
-        // --- TUS APIS ---
         const saveTubeFallback = { custom: true, run: async (u) => { const sv = new SaveTube(); return await sv.download(u, isAudio) } }
         const nekolabsApi = { url: (u) => `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(u)}&format=${isAudio ? 'mp3' : '720'}`, validate: (r) => r.success && r.result?.downloadUrl, parse: (r) => ({ dl: r.result.downloadUrl, title: r.result.title }) }
         const aioApi = { url: (u) => `https://anabot.my.id/api/download/aio?url=${encodeURIComponent(u)}&apikey=freeApikey`, validate: (r) => !r.error && r.medias?.length > 0, parse: (r) => { const media = r.medias.find(x => isAudio ? x.type === 'audio' : x.type === 'video' && x.ext === 'mp4'); return { dl: media?.url, title: r.title } } }
         const anabotApi = { url: (u) => `https://anabot.my.id/api/download/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(u)}${isAudio ? '' : '&quality=720'}&apikey=freeApikey`, validate: (r) => r?.success && r?.data?.result?.urls, parse: (r) => ({ dl: r.data.result.urls, title: r.data.result.metadata?.title }) }
         const nexevoApi = { url: (u) => `https://nexevo-api.vercel.app/download/${isAudio ? 'y' : 'y2'}?url=${encodeURIComponent(u)}`, validate: (r) => r?.status && r?.result?.url, parse: (r) => ({ dl: r.result.url, title: r.result.info?.title }) }
 
-        const apis = [nexevoApi, anabotApi, nekolabsApi, aioApi, saveTubeFallback]
+        // Orden de prioridad: Nekolabs > Anabot > SaveTube > etc
+        const apis = [nekolabsApi, anabotApi, nexevoApi, aioApi, saveTubeFallback]
         
         // 1. OBTENER LINK
         const { dl, title: apiTitle } = await fetchParallelFirstValid(url, apis)
@@ -252,12 +254,16 @@ async function processDownload(client, m, url, type, title, thumb) {
             }
         } catch { thumbBuffer = Buffer.isBuffer(thumb) ? thumb : null }
 
-        // 3. DESCARGAR AL VPS
-        let localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
+        // 3. DESCARGAR AL VPS (Con validación de archivo roto)
+        let localFilePath
+        try {
+             localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
+        } catch (dlErr) {
+             throw new Error('La API devolvió un enlace roto. Intenta de nuevo.')
+        }
 
-        // 4. 🔥 SI ES VIDEO, LO REPARAMOS CON FFMPEG 🔥
+        // 4. FIX VIDEO (Si es video, intenta repararlo con FFmpeg)
         if (!isAudio) {
-            // Esto convierte el video a H.264 para que el celular lo lea bien
             localFilePath = await fixVideoWithFFmpeg(localFilePath)
         }
 
@@ -281,7 +287,6 @@ async function processDownload(client, m, url, type, title, thumb) {
             }, { quoted: m })
         }
 
-        // 6. LIMPIEZA
         try { fs.unlinkSync(localFilePath) } catch {}
 
     } catch (e) {
