@@ -7,6 +7,7 @@ import fs from 'fs'
 import path from 'path'
 import { pipeline } from 'stream'
 import { promisify } from 'util'
+import { exec } from 'child_process' // Necesario para FFmpeg
 
 const streamPipeline = promisify(pipeline)
 
@@ -23,7 +24,6 @@ class SaveTube {
             }
         })
     }
-
     async decrypt(enc) {
         try {
             const [sr, ky] = [Buffer.from(enc, 'base64'), Buffer.from(this.ky, 'hex')]
@@ -32,14 +32,12 @@ class SaveTube {
             return JSON.parse(Buffer.concat([dc.update(dt), dc.final()]).toString())
         } catch { return null }
     }
-
     async getCdn() {
         try {
             const r = await this.is.get('https://media.savetube.vip/api/random-cdn')
             return r.data.cdn
         } catch { return 'media.savetube.vip' }
     }
-
     async download(url, isAudio) {
         const id = url.match(this.m)?.[3]
         if (!id) throw new Error('ID inválido')
@@ -68,31 +66,51 @@ async function getBuffer(url) {
 
 const sanitizeFileName = (s) => String(s).replace(/[^a-zA-Z0-9]/g, '_')
 
-// Función para descargar el archivo al disco (VPS) antes de enviar
+// Función para descargar el archivo crudo
 async function downloadToLocal(url, ext) {
     const tmpDir = path.join(process.cwd(), 'tmp')
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
-    
     const filePath = path.join(tmpDir, `${Date.now()}.${ext}`)
-    
     const response = await axios({
-        url,
-        method: 'GET',
-        responseType: 'stream',
-        headers: { 'User-Agent': 'Mozilla/5.0' } // Importante para que no rechacen la descarga
+        url, method: 'GET', responseType: 'stream',
+        headers: { 'User-Agent': 'Mozilla/5.0' }
     })
-
     await streamPipeline(response.data, fs.createWriteStream(filePath))
     return filePath
 }
 
-const fetchParallelFirstValid = async (url, apis, timeout = 15000) => {
+// 🔥 LA SOLUCIÓN: CONVERSOR FFmpeg
+// Convierte cualquier cosa rara a H.264 (Compatible con WhatsApp Móvil)
+function fixVideoWithFFmpeg(inputPath) {
+    return new Promise((resolve, reject) => {
+        const outputPath = inputPath.replace('.mp4', '_fixed.mp4')
+        
+        // Comandos explicados:
+        // -c:v libx264: Fuerza el codec de video estándar.
+        // -preset ultrafast: Lo hace rápido (sacrifica un poquito de peso por velocidad).
+        // -c:a aac: Fuerza audio AAC (estándar de móviles).
+        // -movflags +faststart: Mueve la info del video al inicio (CRUCIAL para WhatsApp).
+        const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -c:a aac -movflags +faststart "${outputPath}"`
+        
+        exec(cmd, (error) => {
+            if (error) {
+                console.error('Error FFmpeg:', error)
+                // Si falla la conversión, devolvemos el original y rezamos
+                resolve(inputPath) 
+            } else {
+                // Borramos el archivo corrupto original
+                try { fs.unlinkSync(inputPath) } catch {}
+                resolve(outputPath)
+            }
+        })
+    })
+}
+
+const fetchParallelFirstValid = async (url, apis, timeout = 25000) => { // Subimos timeout para dar tiempo
     return new Promise((resolve, reject) => {
         let settled = false
         let errors = 0
-        const timer = setTimeout(() => {
-            if (!settled) reject(new Error('Timeout'))
-        }, timeout)
+        const timer = setTimeout(() => { if (!settled) reject(new Error('Timeout')) }, timeout)
 
         apis.forEach(api => {
             ;(async () => {
@@ -105,7 +123,6 @@ const fetchParallelFirstValid = async (url, apis, timeout = 15000) => {
                         const json = await res.json()
                         if (api.validate(json)) result = await api.parse(json)
                     }
-                    
                     if (result?.dl && !settled) {
                         settled = true
                         clearTimeout(timer)
@@ -123,7 +140,7 @@ const fetchParallelFirstValid = async (url, apis, timeout = 15000) => {
 }
 
 // ==========================================
-// 🚀 COMANDO LUCOA PLAY (OPTIMIZADO PARA MÓVIL)
+// 🚀 COMANDO LUCOA PLAY (FFMPEG FIXED)
 // ==========================================
 export default {
     command: ['play', 'mp3', 'playaudio', 'ytmp3', 'play2', 'mp4', 'playvideo', 'ytmp4'],
@@ -136,7 +153,7 @@ export default {
             let url, title, videoInfo
             const isAutoMode = command !== 'play' 
 
-            // 1. BÚSQUEDA YOUTUBE
+            // 1. BÚSQUEDA
             try {
                 if (/http/.test(text)) {
                     url = text
@@ -204,10 +221,10 @@ export default {
     }
 }
 
-// --- LOGICA DE DESCARGA LOCAL (FIX MÓVIL) ---
+// --- LOGICA PRINCIPAL ---
 async function processDownload(client, m, url, type, title, thumb) {
     const isAudio = type === 'audio' || type === 'document'
-    m.reply(isAudio ? '🎧 _Descargando audio al servidor..._' : '🎬 _Descargando video al servidor..._')
+    m.reply(isAudio ? '🎧 _Descargando audio..._' : '🎬 _Procesando video..._')
 
     try {
         // --- TUS APIS ---
@@ -219,12 +236,12 @@ async function processDownload(client, m, url, type, title, thumb) {
 
         const apis = [nexevoApi, anabotApi, nekolabsApi, aioApi, saveTubeFallback]
         
-        // 1. OBTENER LINK DE DESCARGA
+        // 1. OBTENER LINK
         const { dl, title: apiTitle } = await fetchParallelFirstValid(url, apis)
         const finalTitle = apiTitle || title || 'Lucoa Media'
         const cleanTitle = sanitizeFileName(finalTitle)
 
-        // 2. PROCESAR MINIATURA
+        // 2. MINIATURA
         let thumbBuffer = null
         try {
             if (Buffer.isBuffer(thumb)) {
@@ -235,12 +252,18 @@ async function processDownload(client, m, url, type, title, thumb) {
             }
         } catch { thumbBuffer = Buffer.isBuffer(thumb) ? thumb : null }
 
-        // 3. DESCARGAR AL VPS (ESTO ARREGLA EL PROBLEMA DEL MÓVIL)
-        // En lugar de pasar el link a WhatsApp, bajamos el archivo localmente y lo enviamos.
-        const localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
+        // 3. DESCARGAR AL VPS
+        let localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
+
+        // 4. 🔥 SI ES VIDEO, LO REPARAMOS CON FFMPEG 🔥
+        if (!isAudio) {
+            // Esto convierte el video a H.264 para que el celular lo lea bien
+            localFilePath = await fixVideoWithFFmpeg(localFilePath)
+        }
+
         const fileData = fs.readFileSync(localFilePath)
 
-        // 4. ENVIAR ARCHIVO LOCAL
+        // 5. ENVIAR
         if (type === 'audio') {
             await client.sendMessage(m.chat, { 
                 audio: fileData, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`,
@@ -258,8 +281,8 @@ async function processDownload(client, m, url, type, title, thumb) {
             }, { quoted: m })
         }
 
-        // 5. LIMPIEZA
-        fs.unlinkSync(localFilePath)
+        // 6. LIMPIEZA
+        try { fs.unlinkSync(localFilePath) } catch {}
 
     } catch (e) {
         console.error(e)
