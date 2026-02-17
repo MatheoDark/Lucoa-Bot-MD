@@ -1,12 +1,9 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * 🐉 LUCOA-BOT-MD v3.0.0 - Handler Principal (Silent Edition)
+ * 🐉 LUCOA-BOT-MD v3.0.0 - Handler Principal
  * ═══════════════════════════════════════════════════════════════════════════
  * Basado en Megumin-Bot-MD v3.0.0
- * Optimizado para no responder a comandos inexistentes.
- *
- * @author MatheoDark & Modificado
- * @version 3.0.1 (Silent)
+ * Modificado por MatheoDark
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -35,7 +32,6 @@ const ERROR_MESSAGES = Object.freeze({
   moderation: (cmd) => `ꕥ El comando *${cmd}* solo puede ser ejecutado por los moderadores.`,
   admin: (cmd) => `ꕥ El comando *${cmd}* solo puede ser ejecutado por los Administradores.`,
   botAdmin: (cmd) => `ꕥ El comando *${cmd}* requiere que yo sea Administradora.`
-  // Eliminamos 'notFound' para que no genere spam
 })
 
 // Cache para prefijos
@@ -44,6 +40,22 @@ const prefixCache = new Map()
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILIDADES
 // ═══════════════════════════════════════════════════════════════════════════
+
+// 🔥 NUEVO: Función para calcular similitud (Levenshtein)
+function similitud(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
+  for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) == a.charAt(j - 1)) { matrix[i][j] = matrix[i - 1][j - 1]; }
+      else { matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)); }
+    }
+  }
+  return matrix[b.length][a.length];
+}
 
 function ensureUserId(client) {
   const raw =
@@ -222,7 +234,6 @@ async function runPluginHooks(hookName, client, m, options = {}, isOwner = false
 // ═══════════════════════════════════════════════════════════════════════════
 
 function buildPrefixRegex(selfId) {
-  // Protección robusta si db.data.settings no existe
   const settings = global.db.data.settings?.[selfId] || {}
   const rawPrefijo = settings.prefijo || ''
   const botname = settings.namebot2 || CONFIG.DEFAULT_BOT_NAME
@@ -370,9 +381,19 @@ export default async (client, m) => {
     const command = args.shift()?.toLowerCase() || ''
     const text = args.join(' ')
 
-    // 🛑 CAMBIO CRÍTICO: SI EL COMANDO NO EXISTE, SILENCIO ABSOLUTO
+    // 🛑 🔥 VERIFICACIÓN DE COMANDO (AGREGADO) 🔥
     if (!global.comandos?.has(command)) {
-      return // No hacer nada, no enviar mensajes, no loguear.
+        // 1. Buscamos comandos parecidos
+        const allCmds = [...global.comandos.keys()]
+        const suggestion = allCmds.find(c => similitud(command, c) <= 2)
+
+        let msg = `❌ El comando *${usedPrefix + command}* no existe.`
+        if (suggestion) {
+            msg += `\n👾 ¿Quizás quisiste decir: *${usedPrefix + suggestion}*?`
+        }
+
+        // 2. Respondemos y terminamos
+        return m.reply(msg)
     }
 
     // Si llegamos aquí, el comando SÍ existe
@@ -439,7 +460,7 @@ export default async (client, m) => {
       })
     } catch (err) {
       console.error(chalk.red(`❌ Error ejecutando comando [${command}]:`), err)
-      // Mantenemos el aviso de error real (crashes de código), pero no el de "comando no encontrado"
+      // Mantenemos el aviso de error real (crashes de código)
       await m.reply('❌ Error interno al ejecutar el comando.')
     }
 
