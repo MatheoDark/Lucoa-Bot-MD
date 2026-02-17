@@ -6,14 +6,13 @@ import crypto from 'crypto'
 import { pipeline } from 'stream'
 import { promisify } from 'util'
 
-// 👇 CORRECCIÓN DE IMPORTACIÓN PARA NODE.JS
-import ruhend from 'ruhend-scraper'
-const { ytmp3, ytmp4 } = ruhend 
+// 🗑️ ELIMINAMOS RUHEND-SCRAPER PORQUE ESTÁ ROTO
+// import ruhend from 'ruhend-scraper' <--- BORRADO
 
 const streamPipeline = promisify(pipeline)
 
 // ==========================================
-// 🛠️ 1. CLASE SAVETUBE (Scraping Manual / Fallback Final)
+// 🛠️ 1. CLASE SAVETUBE (Tu respaldo manual)
 // ==========================================
 class SaveTube {
     constructor() {
@@ -46,15 +45,12 @@ class SaveTube {
         if (!id) throw new Error('ID no válido')
 
         const cdn = await this.getCdn()
-        
-        // Paso 1: Obtener Info Encriptada
         const infoUrl = `https://${cdn}/v2/info`
         const { data: infoData } = await axios.post(infoUrl, { url: `https://www.youtube.com/watch?v=${id}` }, { headers: this.headers })
         
         const decrypted = await this.decrypt(infoData.data)
         if (!decrypted) throw new Error('Fallo al desencriptar SaveTube')
 
-        // Paso 2: Solicitar Link de Descarga
         const dlUrl = `https://${cdn}/download`
         const body = {
             id,
@@ -64,19 +60,18 @@ class SaveTube {
         }
         
         const { data: dlData } = await axios.post(dlUrl, body, { headers: this.headers })
-        
         if (!dlData.data?.downloadUrl) throw new Error('SaveTube no devolvió URL')
         
         return {
             url: dlData.data.downloadUrl,
             title: decrypted.title || 'YouTube Media',
-            source: 'SaveTube (Manual)'
+            source: 'SaveTube'
         }
     }
 }
 
 // ==========================================
-// 🛠️ 2. UTILIDADES DE SISTEMA (VPS)
+// 🛠️ 2. UTILIDADES
 // ==========================================
 
 const cleanYtUrl = (text) => {
@@ -85,7 +80,6 @@ const cleanYtUrl = (text) => {
     return match ? `https://www.youtube.com/watch?v=${match[1]}` : null
 }
 
-// Descargador físico (Evita stream corrupto en WhatsApp)
 async function downloadFile(url, extension) {
     const tmpDir = path.join(process.cwd(), 'tmp')
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
@@ -93,21 +87,14 @@ async function downloadFile(url, extension) {
 
     try {
         const response = await axios({
-            url,
-            method: 'GET',
-            responseType: 'stream',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
+            url, method: 'GET', responseType: 'stream',
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         })
-
         await streamPipeline(response.data, fs.createWriteStream(filePath))
-
-        // Validación anti-corrupción (menor a 10kb es basura)
         const stats = fs.statSync(filePath)
         if (stats.size < 10000) { 
             fs.unlinkSync(filePath)
-            throw new Error('Archivo descargado corrupto (0kb)')
+            throw new Error('Archivo corrupto (0kb)')
         }
         return filePath
     } catch (e) {
@@ -117,65 +104,45 @@ async function downloadFile(url, extension) {
 }
 
 // ==========================================
-// 🔄 3. GESTOR DE APIS (CEREBRO)
+// 🔄 3. GESTOR DE APIS (Solo APIs rápidas)
 // ==========================================
 async function getMediaUrl(url, type) {
     const isAudio = type === 'audio'
 
-    // 🟢 INTENTO 1: Ruhend Scraper (Local Lib)
+    // 🟡 INTENTO 1: Delirius API (Muy estable)
     try {
-        const data = isAudio ? await ytmp3(url) : await ytmp4(url)
-        if (data && (data.audio || data.video)) {
-            return { 
-                url: isAudio ? data.audio : data.video, 
-                title: data.title, 
-                source: 'Ruhend' 
-            }
-        }
-    } catch (e) { console.log('Ruhend falló, pasando a APIs...') }
-
-    // 🟡 INTENTO 2: Delirius API (Externa Estable)
-    try {
+        console.log('Probando Delirius...')
         const apiUrl = `https://delirius-api-oficial.vercel.app/api/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${url}`
         const { data } = await axios.get(apiUrl)
         if (data.status && data.data?.download?.url) {
-            return { 
-                url: data.data.download.url, 
-                title: data.data.title, 
-                source: 'Delirius' 
-            }
+            return { url: data.data.download.url, title: data.data.title, source: 'Delirius' }
         }
-    } catch (e) { console.log('Delirius falló, pasando a Vreden...') }
+    } catch (e) { console.log('Delirius falló.') }
 
-    // 🟠 INTENTO 3: Vreden API (Respaldo)
+    // 🟠 INTENTO 2: Vreden API (Respaldo)
     try {
+        console.log('Probando Vreden...')
         const apiUrl = `https://api.vreden.my.id/api/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${url}&cp=kb`
         const { data } = await axios.get(apiUrl)
         if (data.status && data.result?.download?.url) {
-            return { 
-                url: data.result.download.url, 
-                title: data.result.metadata.title, 
-                source: 'Vreden' 
-            }
+            return { url: data.result.download.url, title: data.result.metadata.title, source: 'Vreden' }
         }
-    } catch (e) { console.log('Vreden falló, activando modo MANUAL...') }
+    } catch (e) { console.log('Vreden falló.') }
 
-    // 🔴 INTENTO 4 (FINAL): SaveTube (Scraping Manual)
-    // Aquí usamos la clase definida arriba como último recurso
+    // 🔴 INTENTO 3 (FINAL): SaveTube (Manual)
     try {
-        console.log('⚠️ Activando Scraping Manual (SaveTube)...')
+        console.log('Probando SaveTube Manual...')
         const manual = new SaveTube()
-        const result = await manual.download(url, type)
-        return result
+        return await manual.download(url, type)
     } catch (e) {
         console.error('Manual falló:', e.message)
     }
 
-    throw new Error('Lo siento, todas las fuentes (APIs y Manual) fallaron.')
+    throw new Error('Todas las APIs fallaron. Intenta de nuevo.')
 }
 
 // ==========================================
-// 🚀 4. COMANDO PRINCIPAL
+// 🚀 4. COMANDO
 // ==========================================
 export default {
     command: ['play', 'mp3', 'mp4', 'ytmp3', 'ytmp4', 'video', 'audio'],
@@ -200,6 +167,8 @@ export default {
 
         if (!text) return m.reply(`🐲 *Uso:* #play Link o Nombre`)
 
+        await m.react('🔍') // Reacción para saber que está buscando
+
         let videoUrl = null
         let videoInfo = null
 
@@ -212,14 +181,13 @@ export default {
                 const id = directLink.split('v=')[1]
                 videoInfo = await yts({ videoId: id })
             } else {
-                m.react('🔎')
                 const search = await yts(text)
                 if (!search.all.length) return m.reply('❌ No encontré nada.')
                 videoInfo = search.all[0]
                 videoUrl = videoInfo.url
             }
         } catch (e) {
-            return m.reply('❌ Error buscando en YouTube.')
+            return m.reply('❌ Error buscando en YouTube (yt-search falló).')
         }
 
         // Ejecución directa (#mp3, #mp4)
@@ -264,14 +232,13 @@ async function executeDownload(client, m, url, type, title, thumb) {
     await m.react(isAudio ? '🎧' : '🎬')
 
     try {
-        // 1. Obtener URL (Scraper Local -> APIs -> Manual SaveTube)
         const media = await getMediaUrl(url, isAudio ? 'audio' : 'video')
         
-        // 2. Descargar al VPS (Evita errores de stream)
+        // Descargar al VPS
         const filePath = await downloadFile(media.url, isAudio ? 'mp3' : 'mp4')
         const fileName = `${title.replace(/[^a-zA-Z0-9 ]/g, '')}.${isAudio ? 'mp3' : 'mp4'}`
 
-        // 3. Enviar
+        // Enviar
         if (type === 'audio') {
             await client.sendMessage(m.chat, { 
                 audio: { url: filePath }, 
@@ -306,12 +273,12 @@ async function executeDownload(client, m, url, type, title, thumb) {
             }, { quoted: m })
         }
 
-        fs.unlinkSync(filePath) // Limpieza
+        fs.unlinkSync(filePath)
         await m.react('✅')
 
     } catch (e) {
         console.error(e)
         await m.react('❌')
-        m.reply(`⚠️ Falló todo (${e.message}). Intenta de nuevo más tarde.`)
+        m.reply(`⚠️ ${e.message}`)
     }
 }
