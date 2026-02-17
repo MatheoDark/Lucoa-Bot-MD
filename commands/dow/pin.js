@@ -1,288 +1,125 @@
 import fetch from 'node-fetch'
+import { pinterest } from 'ruhend-scraper' // Usamos tu librería instalada para descargar links
 
-// 🐲 LUCOA • Pinterest (NEVI API Search + Link DL) — New Core
+// 🐲 LUCOA • Pinterest (Anabot Search + Ruhend DL)
+// Versión optimizada para VPS: Evita bloqueos de IP usando librerías y APIs externas.
 
-// ===== NEVI API (Python) =====
-const NEVI_API_URL = 'http://neviapi.ddns.net:5000'
-const NEVI_API_KEY = 'ellen'
-
-// ===== Headers =====
-const headers = {
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  Accept: 'application/json,text/html;q=0.9,*/*;q=0.8',
-  'Accept-Language': 'es-CL,es;q=0.9,en;q=0.7',
-  Referer: 'https://www.google.com/'
-}
-
-// Cache por chat para selector (#pin 2)
+// Cache global para paginación (#pin 2)
 global.__lucoaPinCache = global.__lucoaPinCache || Object.create(null)
 
-// ===== Utils =====
-const isPinIt = (s = '') => /https?:\/\/(www\.)?pin\.it\//i.test(s)
-const isPinterestUrl = (s = '') =>
-  /(https?:\/\/)?(www\.)?pinterest\.(com|cl|es)\/.+/i.test(s) || /pin\.it\//i.test(s)
-const isMp4 = (u = '') => /\.mp4(\?|$)/i.test(u)
+// Detección de Links
+const isPinterestUrl = (s = '') => /(https?:\/\/)?(www\.)?pinterest\.(com|cl|es)\/.+/i.test(s) || /pin\.it\//i.test(s)
 
-function normalizePinUrl(url) {
-  const m = url.match(/\/pin\/(\d+)/i)
-  if (m?.[1]) return `https://www.pinterest.com/pin/${m[1]}/`
-  return url
+// ===== 1. MOTOR DE BÚSQUEDA (API EXTERNA) =====
+async function searchPinterest(query) {
+  // Usamos Anabot como pediste, que devuelve metadatos ricos
+  const apiUrl = `https://anabot.my.id/api/search/pinterest?query=${encodeURIComponent(query)}&apikey=freeApikey`
+  
+  const res = await fetch(apiUrl)
+  if (!res.ok) throw new Error(`API Error: ${res.status}`)
+  
+  const json = await res.json()
+  if (!json.success || !json.data?.result?.length) {
+    throw new Error('No encontré resultados en Pinterest.')
+  }
+
+  // Limpiamos y estandarizamos la respuesta
+  return json.data.result.map(pin => ({
+    url: pin.images?.['736x']?.url || pin.images?.['orig']?.url || pin.images?.['236x']?.url,
+    desc: pin.description || 'Sin descripción',
+    author: pin.native_creator?.full_name || 'Desconocido',
+    saves: pin.aggregated_pin_data?.aggregated_stats?.saves || 0,
+    created: pin.created_at || '',
+    isVideo: false // La búsqueda de imágenes suele ser estática
+  })).filter(item => item.url)
 }
 
-async function expandUrl(url) {
-  try {
-    const res = await fetch(url, { headers, redirect: 'follow', method: 'GET' })
-    return res.url || url
-  } catch {
-    return url
+// ===== 2. MOTOR DE DESCARGA (LIBRERÍA LOCAL) =====
+async function downloadPinterestLink(url) {
+  // Ruhend Scraper maneja la lógica compleja de extracción (videos/gifs/img)
+  const data = await pinterest(url)
+  
+  // Ruhend a veces devuelve url de video o imagen, detectamos cual es
+  if (!data) throw new Error('El enlace no devolvió datos válidos.')
+  
+  return {
+    url: data.video || data.image || data.url, // Prioridad al video si existe
+    desc: data.title || 'Pinterest Media',
+    isVideo: !!data.video // Si hay campo video, es true
   }
 }
 
-async function safeJsonResponse(res) {
-  const ct = (res.headers.get('content-type') || '').toLowerCase()
-  const txt = await res.text()
-  const looksJson =
-    ct.includes('application/json') || txt.trim().startsWith('{') || txt.trim().startsWith('[')
-  if (!looksJson) return null
-  try {
-    return JSON.parse(txt)
-  } catch {
-    return null
-  }
-}
-
-// Mejorar calidad: convertir 60x60 a 236x o 736x
-function upgradePinimg(url = '') {
-  // Mantener thumbnails de video tal cual (sirven igual)
-  if (url.includes('/videos/thumbnails/')) return url
-
-  // Subir tamaño de miniaturas cuadradas
-  // 60x60 -> 736x (mejor) o 236x (más liviano)
-  return url
-    .replace('/60x60/', '/736x/')
-    .replace('/75x75/', '/736x/')
-    .replace('/136x136/', '/736x/')
-}
-
-// Filtrar basura y priorizar mejores tamaños
-function rankUrls(urls = []) {
-  const cleaned = [...new Set(urls)].filter(Boolean).map(upgradePinimg)
-
-  // Preferir 736x / 564x / 474x / 236x, evitar 60x60
-  const score = (u) => {
-    const s = u.toLowerCase()
-    if (s.includes('/736x/')) return 100
-    if (s.includes('/564x/')) return 90
-    if (s.includes('/474x/')) return 80
-    if (s.includes('/236x/')) return 70
-    if (s.includes('/videos/thumbnails/')) return 60
-    if (s.includes('/60x60/')) return 10
-    return 30
-  }
-
-  return cleaned.sort((a, b) => score(b) - score(a)).slice(0, 10)
-}
-
-// ===== NEVI Search (Texto) =====
-async function searchViaNevi(query) {
-  const res = await fetch(`${NEVI_API_URL}/pinterest`, {
-    method: 'POST',
-    headers: {
-      ...headers,
-      'Content-Type': 'application/json',
-      'X-API-KEY': NEVI_API_KEY
-    },
-    body: JSON.stringify({ query })
-  })
-
-  if (!res.ok) throw new Error(`NEVI API HTTP ${res.status}`)
-
-  const json = await safeJsonResponse(res)
-  if (!json) throw new Error('NEVI API no devolvió JSON')
-
-  // Su respuesta real:
-  // { message, query, status:"success", urls:[...] }
-  if (json.status !== 'success' || !Array.isArray(json.urls)) {
-    throw new Error(json.message || 'NEVI API devolvió error')
-  }
-
-  return rankUrls(json.urls)
-}
-
-// ===== Pinterest Link Download (mp4 -> oEmbed img) =====
-async function fetchHtml(url) {
-  // directo
-  try {
-    const r = await fetch(url, { headers, redirect: 'follow' })
-    if (r.ok) return await r.text()
-  } catch {}
-
-  // fallback server-side
-  const jina = `https://r.jina.ai/http${url.startsWith('https://') ? 's' : ''}://${url.replace(
-    /^https?:\/\//,
-    ''
-  )}`
-  const r2 = await fetch(jina, { headers })
-  if (!r2.ok) throw new Error(`Bloqueo HTML (jina ${r2.status})`)
-  return await r2.text()
-}
-
-function extractMp4FromHtml(html = '') {
-  return (
-    html.match(/https?:\/\/v\.pinimg\.com\/[^"'\\\s]+\.mp4[^"'\\\s]*/i)?.[0] ||
-    html.match(/https?:\/\/i\.pinimg\.com\/[^"'\\\s]+\.mp4[^"'\\\s]*/i)?.[0] ||
-    null
-  )
-}
-
-async function oembed(pinUrl) {
-  const u = encodeURIComponent(pinUrl)
-  const res = await fetch(`https://www.pinterest.com/oembed.json?url=${u}`, { headers })
-  const json = await safeJsonResponse(res)
-  if (!json) throw new Error('oEmbed no disponible')
-  const thumb = json.thumbnail_url || json.thumbnail_url_with_size
-  if (!thumb) throw new Error('oEmbed sin thumbnail_url')
-  return upgradePinimg(thumb)
-}
-
-async function downloadFromPinterestUrl(inputUrl) {
-  const expanded = isPinIt(inputUrl) ? await expandUrl(inputUrl) : inputUrl
-  const pinUrl = normalizePinUrl(expanded)
-
-  // mp4
-  try {
-    const html = await fetchHtml(pinUrl)
-    const mp4 = extractMp4FromHtml(html)
-    if (mp4) return { mediaUrl: mp4, originalUrl: pinUrl, isVideo: true, source: 'MP4' }
-  } catch {
-    // seguimos
-  }
-
-  // imagen
-  const img = await oembed(pinUrl)
-  return { mediaUrl: img, originalUrl: pinUrl, isVideo: false, source: 'oEmbed' }
-}
-
-// ===== Safe send =====
-async function safeSend(client, m, url, caption) {
-  try {
-    if (isMp4(url)) {
-      return await client.sendMessage(m.chat, { video: { url }, caption }, { quoted: m })
-    }
-    return await client.sendMessage(m.chat, { image: { url }, caption }, { quoted: m })
-  } catch {}
-
-  const mimetype = isMp4(url) ? 'video/mp4' : 'image/jpeg'
-  const fileName = isMp4(url) ? 'lucoa_pinterest.mp4' : 'lucoa_pinterest.jpg'
-  return client.sendMessage(
-    m.chat,
-    { document: { url }, mimetype, fileName, caption },
-    { quoted: m }
-  )
-}
-
-// ===== Command =====
+// ===== COMANDO PRINCIPAL =====
 export default {
   command: ['pin', 'pinterest'],
   category: 'downloader',
   run: async ({ client, m, args }) => {
     const input = args.join(' ').trim()
-    const name = m.pushName || 'Proxy'
     const chatId = m.chat
 
     if (!input) {
       return m.reply(
-        `🐲 *Ara ara~* ${name}\n\n` +
-          `🔎 *Buscar:* #pin goku ssj4\n` +
-          `📌 *Link:*   #pin https://pin.it/xxxxx\n` +
-          `🎯 *Elegir:* #pin 2 (después de buscar)`
+        `🐲 *Lucoa Pinterest*\n\n` +
+        `🔎 *Buscar:* #pin goku\n` +
+        `🔗 *Link:* #pin https://pin.it/...\n` +
+        `➡️ *Siguiente:* #pin 2`
       )
     }
 
-    await client.sendMessage(m.chat, { react: { text: '🐲', key: m.key } })
-    await client.sendMessage(m.chat, { react: { text: '🔄', key: m.key } })
+    await m.react('🔍')
 
-    // ===== Selector (#pin 2) =====
-    if (/^\d+$/.test(input)) {
-      const idx = parseInt(input, 10) - 1
-      const cache = global.__lucoaPinCache[chatId]
-
-      if (!cache?.urls?.length) {
-        await m.react('❌')
-        return m.reply(`🐲 *No hay resultados guardados.* Use primero: *#pin goku*`)
-      }
-      if (idx < 0 || idx >= cache.urls.length) {
-        await m.react('❌')
-        return m.reply(`🐲 *Elija entre 1 y ${cache.urls.length}*`)
-      }
-
-      const url = cache.urls[idx]
-      const caption =
-        `╭━━━〔 🐲 𝗟𝗨𝗖𝗢𝗔 • Pinterest 〕━━━⬣\n` +
-        `✨ *Proxy:* ${name}\n` +
-        `🎯 *Selección:* ${idx + 1}/${cache.urls.length}\n` +
-        `╰━━━━━━━━━━━━━━━━━━━━⬣\n` +
-        `🪽 *Lucoa Service*`
-
-      await safeSend(client, m, url, caption)
-      await m.react('✅')
-      return
-    }
-
-    // ===== Link mode =====
-    if (isPinterestUrl(input)) {
-      try {
-        const dl = await downloadFromPinterestUrl(input)
-        const caption =
-          `╭━━━〔 🐲 𝗟𝗨𝗖𝗢𝗔 • Pinterest 〕━━━⬣\n` +
-          `✨ *Proxy:* ${name}\n` +
-          `${dl.isVideo ? '📹' : '🖼️'} *Tipo:* ${dl.isVideo ? 'Video' : 'Imagen'}\n` +
-          `🔗 *Origen:* ${dl.originalUrl}\n` +
-          `📡 *Fuente:* ${dl.source}\n` +
-          `╰━━━━━━━━━━━━━━━━━━━━⬣\n` +
-          `🪽 *Lucoa Service*`
-
-        await safeSend(client, m, dl.mediaUrl, caption)
-        await m.react('✅')
-        return
-      } catch (e) {
-        await m.react('❌')
-        return m.reply(`🐲 *Ara ara…* no pude con ese link.\nDetalles: ${e?.message || e}`)
-      }
-    }
-
-    // ===== Text mode (NEVI API) =====
     try {
-      const urls = await searchViaNevi(input)
+      // CASO A: El usuario pide el siguiente resultado (#pin 2)
+      if (/^\d+$/.test(input)) {
+        const idx = parseInt(input, 10) - 1
+        const cache = global.__lucoaPinCache[chatId]
 
-      if (!urls.length) {
-        await m.react('❌')
-        return m.reply(`🐲 *No encontré nada…* (NEVI API sin resultados)`)
+        if (!cache?.results?.length) return m.reply(`🐲 *Primero haz una búsqueda.* (Ej: #pin autos)`)
+        if (idx < 0 || idx >= cache.results.length) return m.reply(`🐲 *Solo tengo ${cache.results.length} resultados.*`)
+
+        const item = cache.results[idx]
+        const caption = `🐲 *${idx + 1}/${cache.results.length}* • ${item.desc.substring(0, 50)}...`
+        
+        await client.sendMessage(chatId, { image: { url: item.url }, caption }, { quoted: m })
+        return m.react('✅')
       }
 
-      // guardar cache
-      global.__lucoaPinCache[chatId] = { q: input, urls, ts: Date.now() }
+      // CASO B: El usuario envía un LINK (Descarga directa)
+      if (isPinterestUrl(input)) {
+        const result = await downloadPinterestLink(input)
+        const caption = `🐲 *Descarga completada*\n📝 ${result.desc}`
 
-      // enviar el primero
-      const caption =
-        `╭━━━〔 🐲 𝗟𝗨𝗖𝗢𝗔 • Pinterest Search 〕━━━⬣\n` +
+        if (result.isVideo) {
+          await client.sendMessage(chatId, { video: { url: result.url }, caption }, { quoted: m })
+        } else {
+          await client.sendMessage(chatId, { image: { url: result.url }, caption }, { quoted: m })
+        }
+        return m.react('✅')
+      }
+
+      // CASO C: Búsqueda de Texto (Search)
+      const results = await searchPinterest(input)
+      
+      // Guardamos en caché
+      global.__lucoaPinCache[chatId] = { query: input, results, ts: Date.now() }
+      
+      const first = results[0]
+      const caption = 
+        `╭━━━〔 🐲 𝗟𝗨𝗖𝗢𝗔 • Pinterest 〕━━━⬣\n` +
         `🔎 *Búsqueda:* ${input}\n` +
-        `✨ *Proxy:* ${name}\n` +
-        `🖼️ *Resultado:* 1/${urls.length}\n` +
+        `📝 *Desc:* ${first.desc}\n` +
+        `👤 *Autor:* ${first.author}\n` +
+        `💾 *Guardados:* ${first.saves}\n` +
         `╰━━━━━━━━━━━━━━━━━━━━⬣\n` +
-        `🎯 Use: *#pin 2* para otro.\n` +
-        `🪽 *Lucoa Service*`
+        `👉 Responde con *#pin 2* para ver el siguiente.`
 
-      await safeSend(client, m, urls[0], caption)
+      await client.sendMessage(chatId, { image: { url: first.url }, caption }, { quoted: m })
       await m.react('✅')
+
     } catch (e) {
+      console.error(e)
       await m.react('❌')
-      m.reply(
-        `🐲 *Anomalía crítica, ${name}.*\n` +
-          `Falló la búsqueda con NEVI API.\n\n` +
-          `Detalles: ${e?.message || e}`
-      )
+      m.reply(`🐲 *Error:* ${e.message}`)
     }
   }
 }
