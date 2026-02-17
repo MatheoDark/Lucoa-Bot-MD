@@ -60,7 +60,7 @@ class SaveTube {
 }
 
 // ==========================================
-// 🛠️ 2. UTILIDADES DE ALTA VELOCIDAD
+// 🛠️ 2. UTILIDADES (CON ARREGLO PARA MÓVIL)
 // ==========================================
 async function getBuffer(url) {
     try {
@@ -90,26 +90,24 @@ async function downloadToLocal(url, ext) {
     }
 }
 
-// 🔥 OPTIMIZACIÓN: COPIA DE STREAMS (0.5s vs 20s)
+// 🔥 AQUÍ ESTÁ EL ARREGLO PARA MÓVIL
 function fixVideoWithFFmpeg(inputPath) {
     return new Promise((resolve) => {
-        console.log(`[INFO] 🛠️ Procesando video (Smart Remux)...`)
+        console.log(`[INFO] 🛠️ Convirtiendo para WhatsApp Móvil (Ultrafast)...`)
         const outputPath = inputPath.replace('.mp4', '_fixed.mp4')
-        // Usamos "-c copy" para velocidad instantánea
-        const cmd = `ffmpeg -y -i "${inputPath}" -c copy -movflags +faststart "${outputPath}"`
+        
+        // EXPLICACIÓN DEL CAMBIO:
+        // -c:v libx264: Obliga a usar el formato compatible con Android/iOS.
+        // -preset ultrafast: Lo hace a la máxima velocidad posible (casi instantáneo).
+        // -pix_fmt yuv420p: Vital para que WhatsApp reconozca los colores.
+        // -c:a aac: Asegura que el audio se escuche.
+        
+        const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "${outputPath}"`
         
         exec(cmd, (error) => {
             if (error) {
-                console.log('⚠️ Smart Remux falló, intentando re-encode rápido...')
-                // Fallback a re-encode rápido si la copia falla
-                const cmdFallback = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -c:a copy -movflags +faststart "${outputPath}"`
-                exec(cmdFallback, (err2) => {
-                    if (err2) resolve(inputPath) // Si todo falla, devuelve original
-                    else {
-                        try { fs.unlinkSync(inputPath) } catch {}
-                        resolve(outputPath)
-                    }
-                })
+                console.log('⚠️ FFmpeg falló, enviando original (puede fallar en móvil).')
+                resolve(inputPath)
             } else {
                 try { fs.unlinkSync(inputPath) } catch {}
                 resolve(outputPath)
@@ -119,7 +117,7 @@ function fixVideoWithFFmpeg(inputPath) {
 }
 
 // API FETCHER PARALELO
-const fetchParallelFirstValid = async (url, apis, timeout = 15000) => {
+const fetchParallelFirstValid = async (url, apis, timeout = 25000) => {
     return new Promise((resolve, reject) => {
         let settled = false
         const timer = setTimeout(() => { if (!settled) reject(new Error('Tiempo de espera agotado')) }, timeout)
@@ -252,7 +250,7 @@ async function executeDownload(client, m, url, type, title, thumb) {
     }
 
     const anabotApi = {
-        url: (u) => `https://anabot.my.id/api/download/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(u)}&apikey=freeApikey`,
+        url: (u) => `https://anabot.my.id/api/download/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(u)}${isAudio ? '' : '&quality=720'}&apikey=freeApikey`,
         validate: (r) => r?.data?.result?.urls,
         parse: (r) => ({ dl: r.data.result.urls, title: r.data.result.metadata?.title, source: 'Anabot' })
     }
@@ -287,7 +285,7 @@ async function executeDownload(client, m, url, type, title, thumb) {
         // Descarga
         let localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
 
-        // Fix Video
+        // Fix Video (SOLO SI ES VIDEO, REPARAMOS EL CODEC)
         if (!isAudio) {
             localFilePath = await fixVideoWithFFmpeg(localFilePath)
         }
