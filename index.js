@@ -11,6 +11,9 @@ import { fileURLToPath } from 'url'
 import path from "path"
 import fs from "fs"
 import chalk from "chalk"
+// --- ANTI-CRASH SYSTEM (Evita que el bot se apague por errores de red) ---
+process.on('uncaughtException', console.error)
+process.on('unhandledRejection', console.error)
 
 // --- 1. CONFIGURACIÓN INICIAL ---
 const __filename = fileURLToPath(import.meta.url)
