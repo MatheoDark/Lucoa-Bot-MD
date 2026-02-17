@@ -10,10 +10,10 @@ import { promisify } from 'util'
 import { exec } from 'child_process'
 
 const streamPipeline = promisify(pipeline)
-const limit = 200 // Límite en MB
+const limit = 200 // Límite MB
 
 // ==========================================
-// 🛠️ 1. CLASE SAVETUBE (MODO MANUAL)
+// 🛠️ 1. CLASE SAVETUBE (MANUAL)
 // ==========================================
 class SaveTube {
     constructor() {
@@ -23,7 +23,7 @@ class SaveTube {
             headers: {
                 'content-type': 'application/json',
                 origin: 'https://yt.savetube.me',
-                'user-agent': 'Mozilla/5.0 (Android 15; Mobile; SM-F958; rv:130.0) Gecko/130.0 Firefox/130.0'
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
         })
     }
@@ -45,28 +45,22 @@ class SaveTube {
         const id = url.match(this.m)?.[3]
         if (!id) throw new Error('ID inválido')
         const cdn = await this.getCdn()
+        const info = await this.is.post(`https://${cdn}/v2/info`, { url: `https://www.youtube.com/watch?v=${id}` })
+        const dec = await this.decrypt(info.data.data)
+        if (!dec) throw new Error('Fallo decrypt SaveTube')
         
-        try {
-            const info = await this.is.post(`https://${cdn}/v2/info`, { url: `https://www.youtube.com/watch?v=${id}` })
-            const dec = await this.decrypt(info.data.data)
-            if (!dec) throw new Error('Error decrypt')
-            
-            const dl = await this.is.post(`https://${cdn}/download`, {
-                id,
-                downloadType: isAudio ? 'audio' : 'video',
-                quality: isAudio ? '128' : '720',
-                key: dec.key
-            })
-            
-            return { dl: dl.data.data.downloadUrl, title: dec.title }
-        } catch (e) {
-            throw new Error('SaveTube Error: ' + e.message)
-        }
+        const dl = await this.is.post(`https://${cdn}/download`, {
+            id,
+            downloadType: isAudio ? 'audio' : 'video',
+            quality: isAudio ? '128' : '720',
+            key: dec.key
+        })
+        return { dl: dl.data.data.downloadUrl, title: dec.title }
     }
 }
 
 // ==========================================
-// 🛠️ 2. UTILIDADES
+// 🛠️ 2. UTILIDADES DE ALTA VELOCIDAD
 // ==========================================
 async function getBuffer(url) {
     try {
@@ -78,6 +72,7 @@ async function getBuffer(url) {
 const sanitizeFileName = (s) => String(s).replace(/[^a-zA-Z0-9]/g, '_')
 
 async function downloadToLocal(url, ext) {
+    console.log(`[INFO] ⬇️ Descargando archivo: ${ext}`)
     const tmpDir = path.join(process.cwd(), 'tmp')
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
     const filePath = path.join(tmpDir, `${Date.now()}.${ext}`)
@@ -85,18 +80,9 @@ async function downloadToLocal(url, ext) {
     try {
         const response = await axios({
             url, method: 'GET', responseType: 'stream',
-            headers: { 
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': 'https://google.com' 
-            }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         })
         await streamPipeline(response.data, fs.createWriteStream(filePath))
-        
-        const stats = fs.statSync(filePath)
-        if (stats.size < 10000) {
-            fs.unlinkSync(filePath)
-            throw new Error('Archivo vacío (posible error 403/451).')
-        }
         return filePath
     } catch (e) {
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
@@ -104,14 +90,26 @@ async function downloadToLocal(url, ext) {
     }
 }
 
+// 🔥 OPTIMIZACIÓN: COPIA DE STREAMS (0.5s vs 20s)
 function fixVideoWithFFmpeg(inputPath) {
     return new Promise((resolve) => {
+        console.log(`[INFO] 🛠️ Procesando video (Smart Remux)...`)
         const outputPath = inputPath.replace('.mp4', '_fixed.mp4')
-        const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -c:a aac -movflags +faststart "${outputPath}"`
+        // Usamos "-c copy" para velocidad instantánea
+        const cmd = `ffmpeg -y -i "${inputPath}" -c copy -movflags +faststart "${outputPath}"`
+        
         exec(cmd, (error) => {
             if (error) {
-                console.log('⚠️ FFmpeg falló, enviando original.')
-                resolve(inputPath)
+                console.log('⚠️ Smart Remux falló, intentando re-encode rápido...')
+                // Fallback a re-encode rápido si la copia falla
+                const cmdFallback = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -c:a copy -movflags +faststart "${outputPath}"`
+                exec(cmdFallback, (err2) => {
+                    if (err2) resolve(inputPath) // Si todo falla, devuelve original
+                    else {
+                        try { fs.unlinkSync(inputPath) } catch {}
+                        resolve(outputPath)
+                    }
+                })
             } else {
                 try { fs.unlinkSync(inputPath) } catch {}
                 resolve(outputPath)
@@ -120,12 +118,11 @@ function fixVideoWithFFmpeg(inputPath) {
     })
 }
 
-// --- FUNCIÓN PARALELA (CEREBRO) ---
-const fetchParallelFirstValid = async (url, apis, timeout = 20000) => {
+// API FETCHER PARALELO
+const fetchParallelFirstValid = async (url, apis, timeout = 15000) => {
     return new Promise((resolve, reject) => {
         let settled = false
-        let errors = 0
-        const timer = setTimeout(() => { if (!settled) reject(new Error('Timeout General')) }, timeout)
+        const timer = setTimeout(() => { if (!settled) reject(new Error('Tiempo de espera agotado')) }, timeout)
 
         apis.forEach(api => {
             ;(async () => {
@@ -138,18 +135,13 @@ const fetchParallelFirstValid = async (url, apis, timeout = 20000) => {
                         const json = await res.json()
                         if (api.validate(json)) result = await api.parse(json)
                     }
-                    
                     if (result?.dl && !settled) {
                         settled = true
+                        console.log(`[INFO] ✅ API Ganadora: ${result.source || 'Desconocida'}`)
                         clearTimeout(timer)
                         resolve(result)
-                    } else { errors++ }
-                } catch (e) { errors++ }
-
-                if (errors === apis.length && !settled) {
-                    clearTimeout(timer)
-                    reject(new Error('Todas las APIs fallaron (incluido Manual)'))
-                }
+                    }
+                } catch {}
             })()
         })
     })
@@ -165,51 +157,51 @@ export default {
     run: async ({ client, m, args, command, text }) => {
         const chatId = m.chat
         
-        try {
-            // --- MENÚ DE RESPUESTA (1, 2, 3) ---
-            if (global.play_pending?.[chatId] && /^[1-3]$/.test(text.trim())) {
-                const pending = global.play_pending[chatId]
-                if (pending.sender !== m.sender) return 
-                
-                const selection = text.trim()
-                let type = 'audio'
-                if (selection === '2') type = 'video'
-                if (selection === '3') type = 'document'
-                
-                delete global.play_pending[chatId]
-                return await executeDownload(client, m, pending.url, type, pending.title, pending.thumb)
-            }
-
-            if (!text.trim()) return m.reply('🐲 *Uso:* #play Link o Nombre')
-
-            let url, title, videoInfo
+        // --- MENÚ RESPUESTA ---
+        if (global.play_pending?.[chatId] && /^[1-3]$/.test(text.trim())) {
+            const pending = global.play_pending[chatId]
+            if (pending.sender !== m.sender) return 
             
-            // --- BÚSQUEDA ---
-            if (/https?:\/\//.test(text)) {
-                url = text
-                try {
-                    const id = text.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1]
-                    videoInfo = await yts({ videoId: id })
-                } catch { return m.reply('❌ Link inválido.') }
-            } else {
-                const search = await yts(text)
-                if (!search.all.length) return m.reply('✎ No encontré nada.')
-                videoInfo = search.all[0]
-            }
+            const selection = text.trim()
+            let type = 'audio'
+            if (selection === '2') type = 'video'
+            if (selection === '3') type = 'document'
             
-            url = videoInfo.url
-            title = videoInfo.title
+            delete global.play_pending[chatId]
+            return await executeDownload(client, m, pending.url, type, pending.title, pending.thumb)
+        }
 
-            // --- EJECUCIÓN DIRECTA ---
-            if (['mp3', 'ytmp3', 'playaudio'].includes(command)) {
-                return await executeDownload(client, m, url, 'audio', title, videoInfo.thumbnail)
-            }
-            if (['mp4', 'ytmp4', 'playvideo'].includes(command)) {
-                return await executeDownload(client, m, url, 'video', title, videoInfo.thumbnail)
-            }
+        if (!text.trim()) return m.reply('🐲 *Uso:* #play Link o Nombre')
 
-            // --- ENVIAR MENÚ ---
-            const caption = `╭━━━〔 🐲 𝗟𝗨𝗖𝗢𝗔 • Play 〕━━━⬣
+        let url, title, videoInfo
+        
+        // --- BÚSQUEDA ---
+        console.log(`[INFO] 🔎 Buscando: ${text}`)
+        if (/https?:\/\//.test(text)) {
+            url = text
+            try {
+                const id = text.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1]
+                videoInfo = await yts({ videoId: id })
+            } catch { return m.reply('❌ Link inválido.') }
+        } else {
+            const search = await yts(text)
+            if (!search.all.length) return m.reply('✎ No encontré nada.')
+            videoInfo = search.all[0]
+        }
+        
+        url = videoInfo.url
+        title = videoInfo.title
+
+        // --- DIRECTO ---
+        if (['mp3', 'ytmp3', 'playaudio'].includes(command)) {
+            return await executeDownload(client, m, url, 'audio', title, videoInfo.thumbnail)
+        }
+        if (['mp4', 'ytmp4', 'playvideo'].includes(command)) {
+            return await executeDownload(client, m, url, 'video', title, videoInfo.thumbnail)
+        }
+
+        // --- MENÚ ---
+        const caption = `╭━━━〔 🐲 𝗟𝗨𝗖𝗢𝗔 • Play 〕━━━⬣
 ┃ 🥥 *Título:* ${title}
 ┃ ⏱️ *Duración:* ${videoInfo.timestamp}
 ┃ 👤 *Canal:* ${videoInfo.author.name}
@@ -220,31 +212,22 @@ Responde con el número:
 🎬 *2* Video (MP4)
 📂 *3* Documento`
 
-            let thumb = await getBuffer(videoInfo.thumbnail)
-            const msg = await client.sendMessage(chatId, { image: thumb || undefined, caption }, { quoted: m })
+        let thumb = await getBuffer(videoInfo.thumbnail)
+        const msg = await client.sendMessage(chatId, { image: thumb || undefined, caption }, { quoted: m })
 
-            global.play_pending = global.play_pending || {}
-            global.play_pending[chatId] = {
-                url, title, thumb: videoInfo.thumbnail, sender: m.sender, key: msg.key
-            }
-
-        } catch (e) {
-            console.error(e)
-            m.reply(`❌ ${e.message}`)
+        global.play_pending = global.play_pending || {}
+        global.play_pending[chatId] = {
+            url, title, thumb: videoInfo.thumbnail, sender: m.sender, key: msg.key
         }
     },
 
-    // --- CAPTURAR RESPUESTA BEFORE ---
     before: async (m, { client }) => {
         if (!global.play_pending?.[m.chat]) return false
         if (m.key.fromMe) return false
-        
         const text = m.text?.toLowerCase().trim()
         if (!['1', '2', '3'].includes(text)) return false
-        
         const pending = global.play_pending[m.chat]
         if (pending.sender !== m.sender) return false
-
         delete global.play_pending[m.chat]
         
         let type = 'audio'
@@ -256,67 +239,55 @@ Responde con el número:
     }
 }
 
-// ⚙️ FUNCIÓN DE DESCARGA (CON MANUAL INCLUIDO)
+// ⚙️ FUNCIÓN EJECUTORA
 async function executeDownload(client, m, url, type, title, thumb) {
     const isAudio = type === 'audio' || type === 'document'
     await m.react(isAudio ? '🎧' : '🎬')
 
+    // CONFIGURACIÓN DE APIS (Solo las rápidas + Manual)
+    const nekolabsApi = {
+        url: (u) => `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(u)}&format=${isAudio ? 'mp3' : '720'}`,
+        validate: (r) => r.success && r.result?.downloadUrl,
+        parse: (r) => ({ dl: r.result.downloadUrl, title: r.result.title, source: 'Nekolabs' })
+    }
+
+    const anabotApi = {
+        url: (u) => `https://anabot.my.id/api/download/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(u)}&apikey=freeApikey`,
+        validate: (r) => r?.data?.result?.urls,
+        parse: (r) => ({ dl: r.data.result.urls, title: r.data.result.metadata?.title, source: 'Anabot' })
+    }
+
+    const saveTubeFallback = {
+        custom: true,
+        run: async (u) => { 
+            console.log('[INFO] ⚠️ Usando modo Manual (SaveTube)...')
+            const sv = new SaveTube()
+            const res = await sv.download(u, isAudio)
+            return { ...res, source: 'SaveTube Manual' }
+        }
+    }
+
+    // Orden de prioridad
+    const apis = [nekolabsApi, anabotApi, saveTubeFallback]
+
     try {
-        // 1. CONFIGURAR APIS + MANUAL
-        const nekolabsApi = {
-            url: (u) => `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(u)}&format=${isAudio ? 'mp3' : '720'}`,
-            validate: (r) => r.success && r.result?.downloadUrl,
-            parse: (r) => ({ dl: r.result.downloadUrl, title: r.result.title })
-        }
+        const { dl, source } = await fetchParallelFirstValid(url, apis)
+        if (!dl) return m.reply('❌ No se pudo obtener el enlace.')
 
-        const anabotApi = {
-            url: (u) => `https://anabot.my.id/api/download/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(u)}&apikey=freeApikey`,
-            validate: (r) => r?.data?.result?.urls,
-            parse: (r) => ({ dl: r.data.result.urls, title: r.data.result.metadata?.title })
-        }
-
-        const nexevoApi = {
-            url: (u) => `https://nexevo-api.vercel.app/download/${isAudio ? 'y' : 'y2'}?url=${encodeURIComponent(u)}`,
-            validate: (r) => r?.status && r?.result?.url,
-            parse: (r) => ({ dl: r.result.url, title: r.result.info?.title })
-        }
-
-        // 🔥 AQUÍ ESTÁ EL MANUAL (SaveTube)
-        const saveTubeFallback = {
-            custom: true,
-            run: async (u) => { 
-                const sv = new SaveTube()
-                return await sv.download(u, isAudio) 
-            }
-        }
-
-        // LISTA DE PRIORIDAD: APIs Rápidas -> Manual al final
-        const apis = [nexevoApi, anabotApi, nekolabsApi, saveTubeFallback]
-        
-        // 2. OBTENER LINK (Paralelo)
-        const { dl } = await fetchParallelFirstValid(url, apis)
-        if (!dl) throw new Error('Todas las fuentes fallaron.')
-
-        // 3. MINIATURA
+        // Miniatura
         let thumbBuffer = null
         try {
             if (thumb) {
                 const response = await fetch(thumb)
                 const arrayBuffer = await response.arrayBuffer()
-                thumbBuffer = Buffer.from(arrayBuffer)
-                thumbBuffer = await sharp(thumbBuffer).resize(320, 180).jpeg({ quality: 80 }).toBuffer()
+                thumbBuffer = await sharp(Buffer.from(arrayBuffer)).resize(320, 180).jpeg({ quality: 80 }).toBuffer()
             }
         } catch {}
 
-        // 4. DESCARGA FÍSICA (Necesario para VPS y para Fix FFmpeg)
-        let localFilePath
-        try {
-             localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
-        } catch (dlErr) {
-             throw new Error('El enlace obtenido estaba roto.')
-        }
+        // Descarga
+        let localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
 
-        // 5. FIX FFmpeg (Solo para video)
+        // Fix Video
         if (!isAudio) {
             localFilePath = await fixVideoWithFFmpeg(localFilePath)
         }
@@ -324,11 +295,12 @@ async function executeDownload(client, m, url, type, title, thumb) {
         const fileData = fs.readFileSync(localFilePath)
         const cleanTitle = sanitizeFileName(title)
 
-        // 6. ENVIAR
+        console.log(`[INFO] 📤 Enviando archivo...`)
+
         if (type === 'audio') {
             await client.sendMessage(m.chat, { 
                 audio: fileData, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`,
-                contextInfo: { externalAdReply: { title: title, body: 'Lucoa Bot 🐉', thumbnail: thumbBuffer, mediaType: 1, renderLargerThumbnail: true } }
+                contextInfo: { externalAdReply: { title: title, body: `Fuente: ${source}`, thumbnail: thumbBuffer, mediaType: 1, renderLargerThumbnail: true } }
             }, { quoted: m })
 
         } else if (type === 'video') {
@@ -344,7 +316,6 @@ async function executeDownload(client, m, url, type, title, thumb) {
             }, { quoted: m })
         }
 
-        // 7. LIMPIAR
         try { fs.unlinkSync(localFilePath) } catch {}
         await m.react('✅')
 
