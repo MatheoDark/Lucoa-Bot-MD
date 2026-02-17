@@ -168,7 +168,7 @@ async function loadBots() {
 // Anti Rate-Limit
 const queue = []
 let running = false
-const DELAY = 800
+const DELAY = 0 // <--- AQUÍ ESTÁ EL CAMBIO DE VELOCIDAD (Antes era 800)
 
 function enqueue(task) { queue.push(task); run() }
 async function run() {
