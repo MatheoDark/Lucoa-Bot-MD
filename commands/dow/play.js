@@ -5,7 +5,10 @@ import path from 'path'
 import crypto from 'crypto'
 import { pipeline } from 'stream'
 import { promisify } from 'util'
-import { ytmp3, ytmp4 } from 'ruhend-scraper'
+
+// 👇 CORRECCIÓN DE IMPORTACIÓN PARA NODE.JS
+import ruhend from 'ruhend-scraper'
+const { ytmp3, ytmp4 } = ruhend 
 
 const streamPipeline = promisify(pipeline)
 
