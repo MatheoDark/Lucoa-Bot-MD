@@ -3,6 +3,7 @@
    # Nota
    - Base mejorada por David-Chian
    - Reparación de respuestas por MatheoDark
+   - BLINDAJE: Anti-Crash + Protección de Sesión 515
  # ------------- √ × -------------
 */
 
@@ -11,23 +12,26 @@ import { fileURLToPath } from 'url'
 import path from "path"
 import fs from "fs"
 import chalk from "chalk"
-// --- ANTI-CRASH SYSTEM (Evita que el bot se apague por errores de red) ---
-process.on('uncaughtException', console.error)
-process.on('unhandledRejection', console.error)
+
+// 🔥 SISTEMA ANTI-CRASH (VITAL PARA TU VPS)
+// Esto evita que el bot muera si Rule34 o YouTube fallan
+process.on('uncaughtException', (err) => {
+    console.log(chalk.red('⚠️ Error atrapado (Bot sigue vivo):'), err.message)
+})
+process.on('unhandledRejection', (err) => {
+    console.log(chalk.red('⚠️ Promesa rechazada (Bot sigue vivo):'), err.message)
+})
 
 // --- 1. CONFIGURACIÓN INICIAL ---
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Fijamos la ruta de sesión
 global.sessionName = path.join(__dirname, 'Sessions', 'Owner')
 
-// Aseguramos que la carpeta exista
 if (!fs.existsSync(global.sessionName)) {
   fs.mkdirSync(global.sessionName, { recursive: true })
 }
 
-// Inicializar DB inmediatamente
 import db from "./lib/system/database.js"
 global.db = db
 
@@ -53,7 +57,6 @@ import qrcode from "qrcode-terminal"
 import { smsg } from "./lib/message.js"
 import { startSubBot } from './lib/subs.js'
 
-// Logger personalizado
 const log = {
   info: (msg) => console.log(chalk.bgBlue.white.bold(`INFO`), chalk.white(msg)),
   warn: (msg) => console.log(chalk.bgYellowBright.blueBright.bold(`WARNING`), chalk.yellow(msg)),
@@ -78,17 +81,15 @@ function purgeSession() {
   try {
     fs.rmSync(global.sessionName, { recursive: true, force: true })
     fs.mkdirSync(global.sessionName, { recursive: true })
-    console.log(chalk.cyan("Sesión reiniciada."))
+    console.log(chalk.cyan("♻️ Sesión reiniciada manualmente."))
   } catch {}
 }
 
-// --- 2. DETECCIÓN DE SESIÓN ---
 function hasMainSession() {
   const credsPath = path.join(global.sessionName, 'creds.json')
   return fs.existsSync(credsPath)
 }
 
-// --- 3. CARGA DB ---
 async function loadDatabaseSafe() {
   global.db.data ||= {}
   global.db.data.users ||= {}
@@ -113,10 +114,9 @@ async function loadDatabaseSafe() {
   }
 }
 
-// --- 4. MENÚ DE CARGA ---
 export async function uPLoader() {
-  const TOTAL_TIME = 2000
-  const STEPS = 20
+  const TOTAL_TIME = 1500
+  const STEPS = 10
   const BAR_SIZE = 20
 
   console.clear()
@@ -125,7 +125,7 @@ export async function uPLoader() {
     const percent = Math.floor((i / STEPS) * 100)
     const filled = Math.floor((percent / 100) * BAR_SIZE)
     const bar = chalk.green('■'.repeat(filled)) + chalk.gray('□'.repeat(BAR_SIZE - filled))
-    process.stdout.write(`\r${chalk.cyan('Cargando sistema:')} ${bar} ${percent}%`)
+    process.stdout.write(`\r${chalk.cyan('Iniciando sistema:')} ${bar} ${percent}%`)
     await new Promise(r => setTimeout(r, TOTAL_TIME / STEPS))
   }
   console.log('\n')
@@ -168,10 +168,10 @@ async function loadBots() {
   setTimeout(loadBots, 60 * 1000)
 }
 
-// Anti Rate-Limit
+// Anti Rate-Limit (Optimizado para velocidad)
 const queue = []
 let running = false
-const DELAY = 0 // <--- AQUÍ ESTÁ EL CAMBIO DE VELOCIDAD (Antes era 800)
+const DELAY = 0 // Cero delay para velocidad máxima
 
 function enqueue(task) { queue.push(task); run() }
 async function run() {
@@ -199,7 +199,6 @@ export function patchSendMessage(client) {
     new Promise((resolve) => enqueue(async () => resolve(await original(jid, content, options))))
 }
 
-// ✅ NUEVO: patch para enviar interactive RAW por relayMessage (pasa por cola)
 export function patchInteractive(client) {
   if (client._interactivePatched) return
   client._interactivePatched = true
@@ -265,20 +264,22 @@ async function startBot() {
   const { version } = await fetchLatestBaileysVersion()
   const logger = pino({ level: "silent" })
 
-  // Silenciador de logs
   console.info = () => {}
   console.debug = () => {}
 
   const client = makeWASocket({
     version,
     logger,
-    browser: Browsers.macOS('Chrome'),
+    // 🔥 CAMBIO VITAL: Usamos "Ubuntu" para que coincida con tu VPS y evitar error 515
+    browser: ['Ubuntu', 'Chrome', '20.0.04'], 
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: true,
     syncFullHistory: false,
+    // Agregamos retry para ser más tolerantes
+    retryRequestDelayMs: 5000, 
     getMessage: async () => "",
-    keepAliveIntervalMs: 45000
+    keepAliveIntervalMs: 60000
   })
 
   patchSendMessage(client)
@@ -304,7 +305,6 @@ async function startBot() {
     }, 2000)
   }
 
-  // ✅ RESTAURADO: Función original de enviar texto.
   client.sendText = (jid, text, quoted = "", options) =>
     client.sendMessage(jid, { text: text, ...options }, { quoted })
 
@@ -320,17 +320,25 @@ async function startBot() {
 
     if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
-      console.log('⚠️ RAZÓN DE DESCONEXIÓN:', reason, lastDisconnect?.error)
+      console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
+      
+      // 🔥 PROTECCIÓN CONTRA EL BORRADO DE SESIÓN
+      // Si es error 515, NO borramos sesión, solo reconectamos.
       if (
         reason === DisconnectReason.badSession ||
         reason === DisconnectReason.loggedOut ||
         reason === DisconnectReason.multideviceMismatch
       ) {
-        log.warn("Sesión corrupta. Borrando y reiniciando...")
+        log.warn("⚠️ Sesión inválida. Reiniciando vinculación...")
         purgeSession()
         LOGIN_METHOD = await uPLoader()
         startBot()
+      } else if (reason === 515) {
+        // ERROR 515: Stream Errored (Muy común en VPS)
+        console.log(chalk.yellow("⚠️ Error 515 detectado. Reintentando conexión (Sin borrar sesión)..."))
+        startBot()
       } else {
+        // Cualquier otro error (Connection Lost, etc), reconectar normal
         startBot()
       }
     }
@@ -374,11 +382,12 @@ async function startBot() {
 
       m = await smsg(client, m)
       await handler(client, m, { messages, type })
-    } catch (err) { console.error(err) }
+    } catch (err) { 
+        // Silencio errores menores de mensajes para no ensuciar consola
+    }
   })
 }
 
-// INICIO DEL SISTEMA
 ;(async () => {
   loadBots().catch(() => {})
   await loadDatabaseSafe()
