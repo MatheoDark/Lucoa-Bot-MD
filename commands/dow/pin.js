@@ -1,5 +1,6 @@
 import fetch from 'node-fetch'
-import { pinterest } from 'ruhend-scraper' // Usamos tu librería instalada para descargar links
+import ruhend from 'ruhend-scraper' // 👈 CAMBIO AQUÍ: Importamos todo el paquete
+const { pinterest } = ruhend        // 👈 Y aquí extraemos la función
 
 // 🐲 LUCOA • Pinterest (Anabot Search + Ruhend DL)
 // Versión optimizada para VPS: Evita bloqueos de IP usando librerías y APIs externas.
