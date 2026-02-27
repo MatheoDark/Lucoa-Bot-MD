@@ -89,7 +89,6 @@ export default {
                              await client.sendMessage(m.chat, { 
                                 video: { url: fileUrl },
                                 mimetype: 'video/mp4',
-                                gifPlayback: true,
                                 caption: `🔥 *ID:* ${id}`
                              }, { quoted: m })
                         } else {
