@@ -145,15 +145,24 @@ async function gifToMp4(gifBuffer) {
     }
 }
 
-function getBufferType(buffer) {
+function getBufferType(buffer, url = '') {
     try {
         if (!Buffer.isBuffer(buffer)) return 'unknown'
-        const magic = buffer.toString('hex', 0, 8).toUpperCase()
+        // Leer más bytes para detectar ftyp (puede estar en offset 4-8)
+        const magic = buffer.toString('hex', 0, 12).toUpperCase()
         if (magic.startsWith('474946')) return 'gif'
         if (magic.startsWith('89504E47')) return 'png'
         if (magic.startsWith('FFD8FF')) return 'jpg'
-        if (magic.includes('66747970')) return 'mp4'
+        if (magic.includes('66747970')) return 'mp4'  // ftyp box
         if (magic.startsWith('1A45DFA3')) return 'webm'
+        // Fallback: detectar por extensión de URL
+        if (url) {
+            const ext = url.split('?')[0].split('.').pop()?.toLowerCase()
+            if (ext === 'mp4' || ext === 'webm') return 'mp4'
+            if (ext === 'gif') return 'gif'
+            if (ext === 'png') return 'png'
+            if (ext === 'jpg' || ext === 'jpeg') return 'jpg'
+        }
         return 'unknown'
     } catch (e) { return 'unknown' }
 }
@@ -250,7 +259,8 @@ export default {
       const arrayBuf = await response.arrayBuffer()
       let buffer = Buffer.from(arrayBuf)
       
-      const type = getBufferType(buffer)
+      const type = getBufferType(buffer, url)
+      console.log(`[NSFW] Tipo detectado: ${type} | URL: ${url.slice(-30)}`)
       let msgOptions = { caption: caption, mentions: [who, m.sender] }
 
       if (type === 'gif') {
@@ -263,8 +273,19 @@ export default {
           msgOptions.mimetype = 'video/mp4'
           msgOptions.gifPlayback = true 
       } 
-      else {
+      else if (type === 'jpg' || type === 'png') {
           msgOptions.image = buffer
+      }
+      else {
+          // Fallback: si la URL contiene video/mp4/webm, enviar como video
+          const urlLower = (url || '').toLowerCase()
+          if (urlLower.includes('.mp4') || urlLower.includes('.webm') || urlLower.includes('video')) {
+            msgOptions.video = buffer
+            msgOptions.mimetype = 'video/mp4'
+            msgOptions.gifPlayback = true
+          } else {
+            msgOptions.image = buffer
+          }
       }
 
       await client.sendMessage(m.chat, msgOptions, { quoted: m })
