@@ -43,22 +43,28 @@ export default {
     await m.reply('🧠 *Imaginando...*\nEspera unos segundos mientras dibujo tu petición. 🎨')
 
     try {
-      // Usamos un modelo general (no NSFW)
-      const apiUrl =
-        `https://api.nekolabs.web.id/image-generation/illustrious/me-v6` +
-        `?prompt=${encodeURIComponent(prompt)}` +
-        `&ratio=${encodeURIComponent(ratio)}`
+      // Mapeamos ratios a dimensiones
+      const dims = { '1:1': [1024, 1024], '16:9': [1280, 720], '9:16': [720, 1280] }
+      const [w, h] = dims[ratio] || [1024, 1024]
+      const seed = Math.floor(Math.random() * 999999)
 
-      const res = await fetch(apiUrl)
-      const json = await res.json()
+      // Generamos URL directa de Pollinations (imagen como respuesta)
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`
 
-      // Validar respuesta de la API
-      if (!json.success || !json.result) throw new Error('La API no devolvió una imagen válida.')
+      // Intentamos descargar la imagen
+      const res = await fetch(imageUrl, { timeout: 60000 })
+      if (!res.ok) throw new Error(`API respondió ${res.status}`)
+
+      const ct = res.headers.get('content-type') || ''
+      if (!ct.includes('image')) throw new Error('La API no devolvió una imagen válida.')
+
+      const buffer = Buffer.from(await res.arrayBuffer())
+      if (buffer.length < 1000) throw new Error('La imagen generada está vacía o corrupta.')
 
       await client.sendMessage(
         m.chat,
         {
-          image: { url: json.result },
+          image: buffer,
           caption: 
             `✨ *IMAGEN GENERADA* ✨\n\n` +
             `📝 *Pedido:* ${prompt}\n` +

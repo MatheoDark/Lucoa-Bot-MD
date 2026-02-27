@@ -1,123 +1,94 @@
-import axios from 'axios';
-let enviando = false;
+import fetch from 'node-fetch'
+
+let enviando = false
+
+// ===== VxTwitter API (reemplazo de tweeload que murió) =====
+async function TwitterDL(url) {
+  const idMatch = url.match(/\/status(?:es)?\/(\d+)/)
+  if (!idMatch) throw new Error('No se pudo extraer el ID del tweet.')
+
+  const tweetId = idMatch[1]
+  const userMatch = url.match(/(?:twitter\.com|x\.com)\/([^\/]+)\/status/)
+  const user = userMatch?.[1] || 'i'
+
+  const apiUrl = `https://api.vxtwitter.com/${user}/status/${tweetId}`
+  const res = await fetch(apiUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36' },
+    timeout: 15000
+  })
+
+  if (!res.ok) throw new Error(`VxTwitter respondió ${res.status}`)
+  const data = await res.json()
+
+  if (!data.mediaURLs?.length && !data.media_extended?.length) {
+    throw new Error('Este tweet no contiene media descargable.')
+  }
+
+  const caption = data.text || ''
+  const mediaExtended = data.media_extended || []
+  const hasVideo = mediaExtended.some(m => m.type === 'video' || m.type === 'gif')
+
+  let media = []
+  let type = 'photo'
+
+  if (hasVideo) {
+    type = 'video'
+    for (const item of mediaExtended) {
+      if (item.type === 'video' || item.type === 'gif') {
+        media.push({ type: item.type, url: item.url, thumbnail: item.thumbnail_url || '' })
+      }
+    }
+  } else {
+    type = 'photo'
+    const urls = data.mediaURLs || mediaExtended.map(m => m.url)
+    media = urls.map(u => ({ url: u }))
+  }
+
+  return {
+    status: 'success',
+    result: { type, caption, media, likes: data.likes, retweets: data.retweets }
+  }
+}
+
 export default {
-  command: ['x', 'xtt', 'twitter','xtwitter'],
+  command: ['x', 'xtt', 'twitter', 'xtwitter'],
   category: 'downloader',
-  run: async ({client, m, text, usedPrefix, command}) => {
-if (!text) throw `Ejemplo: *${usedPrefix + command}* https://twitter.com/auronplay/status/1586487664274206720?s=20&t=3snvkvwGUIez5iWYQAehpw`;
-if (enviando) return;
-    enviando = true;
-try {
-   const res = await TwitterDL(text);
- if (res?.result.type == 'video') {
-     const caption = res?.result.caption ? res.result.caption : '*Aquí tiene su vídeo*';
-     for (let i = 0; i < res.result.media.length; i++) {
-     // ✅ Usar document en lugar de video para mejor compatibilidad móvil
-     await client.sendMessage(m.chat, {document: {url: res.result.media[i].result[0].url}, mimetype: 'video/mp4', fileName: `video_${i+1}.mp4`, caption: caption}, {quoted: m});
-     };
-     enviando = false;
-     return;
- } else if (res?.result.type == 'photo') {
-     const caption =
-    res?.result.caption ? res.result.caption : '*Aquí tiene su imagen*';
-     for (let i = 0; i < res.result.media.length; i++) {
-     await client.sendMessage(m.chat, {image: {url: res.result.media[i].url}, caption: caption}, {quoted: m});
-     };
-     enviando = false;
-     return;
-  }
-} catch {
-    enviando = false;
-    throw '> Error, intente mas tarde.*';
-    return;
-  }
-}}
+  run: async ({ client, m, text, usedPrefix, command }) => {
+    if (!text) throw `Ejemplo: *${usedPrefix + command}* https://twitter.com/auronplay/status/1586487664274206720`
+    if (enviando) return
+    enviando = true
 
-const _twitterapi = (id) => `https://info.tweeload.site/status/${id}.json`;
-const getAuthorization = async () => {
-    const { data } = await axios.default.get("https://pastebin.com/raw/SnCfd4ru");
-    return data;
-};
-const TwitterDL = async (url) => {
-  return new Promise(async (resolve, reject) => {
-    const id = url.match(/\/([\d]+)/);
-    if (!id)
-      return resolve({
-        status: "error",
-        message:
-          "There was an error getting twitter id. Make sure your twitter url is correct!",
-      });
-      const response = await axios.default(_twitterapi(id[1]), {
-        method: "GET",
-        headers: {
-          Authorization: await getAuthorization(),
-          "user-agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36",
-        },
-      });
+    try {
+      await m.react('⏳')
+      const res = await TwitterDL(text)
 
-      if (response.data.code !== 200) {
-        return resolve({
-          status: "error",
-          message: "An error occurred while sending the request.",
-        });
+      if (res?.result.type === 'video') {
+        const caption = res.result.caption || '*Aquí tiene su vídeo*'
+        for (let i = 0; i < res.result.media.length; i++) {
+          await client.sendMessage(m.chat, {
+            document: { url: res.result.media[i].url },
+            mimetype: 'video/mp4',
+            fileName: `video_${i + 1}.mp4`,
+            caption: i === 0 ? caption : ''
+          }, { quoted: m })
+        }
+      } else if (res?.result.type === 'photo') {
+        const caption = res.result.caption || '*Aquí tiene su imagen*'
+        for (let i = 0; i < res.result.media.length; i++) {
+          await client.sendMessage(m.chat, {
+            image: { url: res.result.media[i].url },
+            caption: i === 0 ? caption : ''
+          }, { quoted: m })
+        }
       }
 
-      const author = {
-        id: response.data.tweet.author.id,
-        name: response.data.tweet.author.name,
-        username: response.data.tweet.author.screen_name,
-        avatar_url: response.data.tweet.author.avatar_url,
-        banner_url: response.data.tweet.author.banner_url,
-      };
-
-      let media = [];
-      let type;
-
-      if (response.data.tweet?.media?.videos) {
-        type = "video";
-        response.data.tweet.media.videos.forEach((v) => {
-          const resultVideo = [];
-          v.video_urls.forEach((z) => {
-            resultVideo.push({
-              bitrate: z.bitrate,
-              content_type: z.content_type,
-              resolution: z.url.match(/([\d ]{2,5}[x][\d ]{2,5})/)[0],
-              url: z.url,
-            });
-          });
-          if (resultVideo.length !== 0) {
-            media.push({
-              type: v.type,
-              duration: v.duration,
-              thumbnail_url: v.thumbnail_url,
-              result: v.type === "video" ? resultVideo : v.url,
-            });
-          }
-        });
-      } else {
-        type = "photo";
-        response.data.tweet.media.photos.forEach((v) => {
-          media.push(v);
-        });
-      }
-
-      resolve({
-        status: "success",
-        result: {
-          id: response.data.tweet.id,
-          caption: response.data.tweet.text,
-          created_at: response.data.tweet.created_at,
-          created_timestamp: response.data.tweet.created_timestamp,
-          replies: response.data.tweet.replies,
-          retweets: response.data.tweet.retweets,
-          likes: response.data.tweet.likes,
-          url: response.data.tweet.url,
-          possibly_sensitive: response.data.tweet.possibly_sensitive,
-          author,
-          type,
-          media: media.length !== 0 ? media : null,
-        },
-      });
-  });
-};
+      await m.react('✅')
+      enviando = false
+    } catch (e) {
+      enviando = false
+      console.error(e)
+      await m.react('❌')
+      throw `❌ Error: ${e.message || 'Intente más tarde.'}`
+    }
+  }
+}

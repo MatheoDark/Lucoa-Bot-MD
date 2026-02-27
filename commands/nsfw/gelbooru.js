@@ -6,7 +6,6 @@ export default {
   run: async ({client, m, args}) => {
     const chatId = m.chat
     
-    // FIX: Usar global.db
     if (global.db.data.chats[chatId] && !global.db.data.chats[chatId].nsfw) {
         return m.reply('🚫 Activa el NSFW con `.enable nsfw`')
     }
@@ -14,32 +13,49 @@ export default {
     if (!args[0]) return m.reply('🔍 Ingresa un tag. Ejemplo: `#gelbooru girl`')
 
     const tag = args.join('_')
-    m.reply(`⌛ Buscando *${tag}* en servidores seguros...`)
+    m.reply(`⌛ Buscando *${tag}*...`)
 
     let url = null
     let source = ''
 
-    // 1. DANBOORU (Más estable)
+    // 1. SafeBooru (SFW pero funcional sin auth)
     try {
-        const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
+        const res = await fetch(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
         const data = await res.json()
-        const valid = data.filter(p => p.file_url || p.large_file_url)
+        const posts = Array.isArray(data) ? data : (data?.post || [])
+        const valid = posts.filter(p => p.file_url || p.image)
         if (valid.length > 0) {
             const post = valid[Math.floor(Math.random() * valid.length)]
-            url = post.file_url || post.large_file_url
-            source = 'Danbooru'
+            url = post.file_url || `https://safebooru.org/images/${post.directory}/${post.image}`
+            if (url && !url.startsWith('http')) url = `https://safebooru.org${url}`
+            source = 'SafeBooru'
         }
     } catch (e) {}
 
-    // 2. YANDERE (Respaldo)
+    // 2. Rule34 (NSFW, API pública)
     if (!url) {
         try {
-            const res = await fetch(`https://yande.re/post.json?tags=${tag}&limit=50`)
+            const res = await fetch(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
             const data = await res.json()
-            const valid = data.filter(p => p.file_url)
+            const posts = Array.isArray(data) ? data : (data?.post || [])
+            const valid = posts.filter(p => p.file_url)
             if (valid.length > 0) {
                 url = valid[Math.floor(Math.random() * valid.length)].file_url
-                source = 'Yandere'
+                source = 'Rule34'
+            }
+        } catch (e) {}
+    }
+
+    // 3. Danbooru fallback
+    if (!url) {
+        try {
+            const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
+            const data = await res.json()
+            const valid = data.filter(p => p.file_url || p.large_file_url)
+            if (valid.length > 0) {
+                const post = valid[Math.floor(Math.random() * valid.length)]
+                url = post.file_url || post.large_file_url
+                source = 'Danbooru'
             }
         } catch (e) {}
     }

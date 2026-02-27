@@ -70,18 +70,7 @@ async function getDownloadUrl(url, isAudio) {
         }
     } catch (e) { errors.push(`SaveTube: ${e.message}`) }
 
-    // 2. Anabot API
-    try {
-        const endpoint = isAudio ? 'ytmp3' : 'ytmp4'
-        const apiUrl = `https://anabot.my.id/api/download/${endpoint}?url=${encodeURIComponent(url)}${isAudio ? '' : '&quality=720'}&apikey=freeApikey`
-        const res = await fetch(apiUrl)
-        const json = await res.json()
-        if (json?.data?.result?.urls) {
-            return { dl: json.data.result.urls, title: json.data.result.metadata?.title, source: 'Anabot' }
-        }
-    } catch (e) { errors.push(`Anabot: ${e.message}`) }
-
-    // 3. Vreden API (fallback)
+    // 2. Vreden API
     try {
         const res = isAudio ? await apimp3(url) : await apimp4(url)
         if (res?.status && res?.download?.url) {
@@ -89,7 +78,7 @@ async function getDownloadUrl(url, isAudio) {
         }
     } catch (e) { errors.push(`Vreden: ${e.message}`) }
 
-    // 4. ogmp3 (último fallback)
+    // 3. ogmp3 (último fallback)
     try {
         const format = isAudio ? '320' : '720'
         const type = isAudio ? 'audio' : 'video'

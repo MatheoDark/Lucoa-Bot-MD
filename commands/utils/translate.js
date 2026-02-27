@@ -14,17 +14,20 @@ export default {
         '《✧》 Ingresa el idioma seguido del texto que quieras traducir.'
       )
 
-    const translateAPI = `https://delirius-apiofc.vercel.app/tools/translate?text=${encodeURIComponent(text)}&language=${language}`
+    const translateAPI = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(language)}&dt=t&q=${encodeURIComponent(text)}`
 
     try {
       const res = await fetch(translateAPI)
       const json = await res.json()
 
-      if (!json?.data) return m.reply('《✧》 No se pudo traducir el texto.')
+      // Google Translate devuelve [[["traducción","original",...],...],...] 
+      const translated = json?.[0]?.map(s => s[0]).join('') || ''
+      if (!translated) return m.reply('《✧》 No se pudo traducir el texto.')
 
-      await client.sendMessage(m.chat, { text: json.data }, { quoted: m })
+      const detectedLang = json?.[2] || 'auto'
+      await client.sendMessage(m.chat, { text: `🌐 *${detectedLang} → ${language}*\n\n${translated}` }, { quoted: m })
     } catch {
-      await m.reply(msgglobal)
+      await m.reply('《✧》 Error al traducir. Intenta de nuevo.')
     }
   },
 };

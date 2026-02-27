@@ -5,7 +5,20 @@ import fetch from 'node-fetch';
 const obtenerImagenGelbooru = async (keyword) => {
   const tag = encodeURIComponent(keyword)
 
-  // 1. Gelbooru directo
+  // 1. SafeBooru (funcional y sin auth)
+  try {
+    const res = await fetch(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+    const data = await res.json()
+    const posts = Array.isArray(data) ? data : (data?.post || [])
+    const valid = posts.filter(p => (p.file_url || p.image) && /\.(jpg|jpeg|png|webp)$/i.test(p.file_url || p.image))
+    if (valid.length) {
+      const post = valid[Math.floor(Math.random() * valid.length)]
+      const url = post.file_url || `https://safebooru.org/images/${post.directory}/${post.image}`
+      return url.startsWith('http') ? url : `https://safebooru.org${url}`
+    }
+  } catch {}
+
+  // 2. Gelbooru fallback
   try {
     const res = await fetch(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
     const data = await res.json()
@@ -14,7 +27,7 @@ const obtenerImagenGelbooru = async (keyword) => {
     if (valid.length) return valid[Math.floor(Math.random() * valid.length)].file_url
   } catch {}
 
-  // 2. Danbooru fallback
+  // 3. Danbooru fallback
   try {
     const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
     const data = await res.json()
@@ -23,14 +36,6 @@ const obtenerImagenGelbooru = async (keyword) => {
       const post = valid[Math.floor(Math.random() * valid.length)]
       return post.file_url || post.large_file_url
     }
-  } catch {}
-
-  // 3. Yandere fallback
-  try {
-    const res = await fetch(`https://yande.re/post.json?tags=${tag}&limit=50`)
-    const data = await res.json()
-    const valid = data.filter(p => p.file_url)
-    if (valid.length) return valid[Math.floor(Math.random() * valid.length)].file_url
   } catch {}
 
   return null

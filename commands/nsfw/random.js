@@ -1,9 +1,19 @@
-import axios from 'axios';
+import fetch from 'node-fetch';
 
-const comandos = [
-  'nsfwloli', 'nsfwfoot', 'yuri', 'panties', 'tetas',
-  'ecchi', 'hentai', 'imagenlesbians', 'pene'
-];
+// Mapeo de comandos a endpoints de waifu.pics
+const waifuPicsMap = {
+  nsfwloli: 'waifu',
+  nsfwfoot: 'waifu',
+  yuri: 'waifu',
+  panties: 'waifu',
+  tetas: 'neko',
+  ecchi: 'waifu',
+  hentai: 'waifu',
+  imagenlesbians: 'waifu',
+  pene: 'waifu'
+};
+
+const comandos = Object.keys(waifuPicsMap);
 
 export default {
   command: comandos,
@@ -16,15 +26,28 @@ export default {
         return m.reply('🚩 *¡Estos comandos están desactivados!*');
       }
 
-      const url = `https://raw.githubusercontent.com/David-Chian/Megumin-Bot-MD/main/lib/json/${command}.json`;
+      const type = waifuPicsMap[command] || 'waifu'
+      let imageUrl = null
 
-      const { data } = await axios.get(url);
+      // 1. waifu.pics NSFW
+      try {
+        const res = await fetch(`https://api.waifu.pics/nsfw/${type}`)
+        const json = await res.json()
+        if (json.url) imageUrl = json.url
+      } catch {}
 
-      if (!Array.isArray(data) || data.length === 0) {
-        return m.reply('❌ No hay imágenes disponibles.');
+      // 2. Fallback: waifu.im
+      if (!imageUrl) {
+        try {
+          const res = await fetch(`https://api.waifu.im/search?is_nsfw=true`)
+          const json = await res.json()
+          if (json.images?.[0]?.url) imageUrl = json.images[0].url
+        } catch {}
       }
 
-      const imageUrl = data[Math.floor(Math.random() * data.length)];
+      if (!imageUrl) {
+        return m.reply('❌ No hay imágenes disponibles.');
+      }
 
       await client.sendMessage(
         m.chat,

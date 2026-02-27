@@ -24,34 +24,31 @@ export default {
         return m.reply('《✧》 No se pudo subir la imagen')
       }
 
-      const apiUrl =
-        `https://api.nekolabs.web.id/tools/upscale/waifu2x` +
-        `?imageUrl=${encodeURIComponent(link)}` +
-        `&style=photo&noice=low&upscaling=2x`
+      // Usar la API principal del bot para upscale
+      const apiUrl = `${global.api?.url || 'https://api.stellarwa.xyz'}/tools/upscale?imageUrl=${encodeURIComponent(link)}&key=${global.api?.key || 'Diamond'}`
 
       const res = await fetch(apiUrl, {
-        headers: {
-          'User-Agent': 'WhatsApp-Bot',
-          'Accept': 'application/json'
-        }
+        headers: { 'User-Agent': 'WhatsApp-Bot', 'Accept': 'application/json' },
+        timeout: 30000
       })
 
-      if (!res.ok) {
-        throw new Error(`Nekolabs API HTTP ${res.status}`)
+      if (!res.ok) throw new Error(`API HTTP ${res.status}`)
+
+      const ct = res.headers.get('content-type') || ''
+      let buffer
+
+      if (ct.includes('image')) {
+        // La API devuelve imagen directa
+        buffer = Buffer.from(await res.arrayBuffer())
+      } else {
+        // La API devuelve JSON con URL
+        const json = await res.json()
+        const resultUrl = json.result || json.data?.url || json.url
+        if (!resultUrl) throw new Error('No se pudo procesar la imagen.')
+        const imgRes = await fetch(resultUrl)
+        if (!imgRes.ok) throw new Error('No se pudo descargar la imagen HD')
+        buffer = Buffer.from(await imgRes.arrayBuffer())
       }
-
-      const json = await res.json()
-
-      if (!json.success || !json.result) {
-        throw new Error('Respuesta inválida de Nekolabs')
-      }
-
-      const imgRes = await fetch(json.result)
-      if (!imgRes.ok) {
-        throw new Error('No se pudo descargar la imagen HD')
-      }
-
-      const buffer = Buffer.from(await imgRes.arrayBuffer())
 
       await client.sendMessage(
         m.chat,

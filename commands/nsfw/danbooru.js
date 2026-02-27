@@ -22,35 +22,68 @@ export default {
     // Ahora dice:
     await m.reply('🔍 *Buscando en Danbooru...*')
 
-    const tag = args.join('_') // Danbooru usa guiones bajos
+    const tag = args.join('_')
     
     try {
-      // Usamos la API OFICIAL de Danbooru (Directa)
-      const url = `https://danbooru.donmai.us/posts.json?tags=${tag}&limit=20`
-      
-      const res = await fetch(url)
-      const data = await res.json()
+      let url = null
+      let source = ''
+      let postId = ''
+      let artist = ''
 
-      // Validar si hay resultados
-      if (!Array.isArray(data) || data.length === 0) {
+      // 1. SafeBooru (funcional sin auth)
+      try {
+        const res = await fetch(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+        const data = await res.json()
+        const posts = Array.isArray(data) ? data : (data?.post || [])
+        const valid = posts.filter(p => p.file_url || p.image)
+        if (valid.length > 0) {
+          const post = valid[Math.floor(Math.random() * valid.length)]
+          url = post.file_url || `https://safebooru.org/images/${post.directory}/${post.image}`
+          if (url && !url.startsWith('http')) url = `https://safebooru.org${url}`
+          source = 'SafeBooru'
+          postId = post.id
+        }
+      } catch {}
+
+      // 2. Rule34 fallback
+      if (!url) {
+        try {
+          const res = await fetch(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+          const data = await res.json()
+          const posts = Array.isArray(data) ? data : (data?.post || [])
+          const valid = posts.filter(p => p.file_url)
+          if (valid.length > 0) {
+            const post = valid[Math.floor(Math.random() * valid.length)]
+            url = post.file_url
+            source = 'Rule34'
+            postId = post.id
+          }
+        } catch {}
+      }
+
+      // 3. Danbooru fallback
+      if (!url) {
+        try {
+          const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=20`)
+          const data = await res.json()
+          const valid = data.filter(p => p.file_url || p.large_file_url)
+          if (valid.length > 0) {
+            const post = valid[Math.floor(Math.random() * valid.length)]
+            url = post.file_url || post.large_file_url
+            source = 'Danbooru'
+            postId = post.id
+            artist = post.tag_string_artist || ''
+          }
+        } catch {}
+      }
+
+      if (!url) {
         return m.reply(`❌ No encontré nada sobre *${args.join(' ')}*.\nIntenta usar el nombre en inglés (ej: cat_girl).`)
       }
 
-      // Filtrar posts que tengan imagen url válida
-      const validPosts = data.filter(post => post.file_url || post.large_file_url)
-
-      if (validPosts.length === 0) {
-        return m.reply('❌ Encontré posts, pero no tienen imagen accesible (posiblemente contenido Premium).')
-      }
-
-      // 3. Seleccionar al azar
-      const randomPost = validPosts[Math.floor(Math.random() * validPosts.length)]
-      const imageUrl = randomPost.file_url || randomPost.large_file_url
-
-      // 4. Enviar
       await client.sendMessage(chatId, { 
-          image: { url: imageUrl }, 
-          caption: `🔥 *Danbooru ID:* ${randomPost.id}\n👤 *Autor:* ${randomPost.tag_string_artist || 'Desconocido'}`
+          image: { url }, 
+          caption: `🔥 *${source} ID:* ${postId}${artist ? `\n👤 *Autor:* ${artist}` : ''}`
       }, { quoted: m })
 
     } catch (err) {

@@ -25,11 +25,15 @@ export default {
       const tagsProhibidos = "nsfw, nude, naked, uncensored, explicit, hentai style, r18, sexual, 4k, detailed"
       const promptFinal = `${text}, ${tagsProhibidos}`
       
-      // Usamos Pollinations pero forzamos el contenido
+      // Usamos Pollinations (imagen directa)
       const apiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptFinal)}?width=1080&height=1920&seed=${seed}&nologo=true&model=flux`
 
-      const res = await fetch(apiUrl)
-      const buffer = await res.buffer()
+      const res = await fetch(apiUrl, { timeout: 60000 })
+      if (!res.ok) throw new Error(`API respondió ${res.status}`)
+      const ct = res.headers.get('content-type') || ''
+      if (!ct.includes('image')) throw new Error('La API no devolvió una imagen.')
+      const buffer = Buffer.from(await res.arrayBuffer())
+      if (buffer.length < 1000) throw new Error('Imagen vacía o corrupta.')
 
       await client.sendMessage(
         m.chat,
