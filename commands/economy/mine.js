@@ -27,16 +27,16 @@ export default {
     let reward, narration, bonusMsg = ''
 
     if (isLegendary) {
-      reward = Math.floor(Math.random() * 50000) + 50000
+      reward = Math.floor(Math.random() * 150000) + 100000
       narration = '¡DESCUBRISTE UN TESORO LEGENDARIO!\n\n'
       bonusMsg = '\nꕥ Recompensa ÉPICA obtenida!'
     } else {
-      reward = Math.floor(Math.random() * 5000) + 500
+      reward = Math.floor(Math.random() * 13000) + 2000
       const scenario = pickRandom(escenarios)
       narration = `En ${scenario}, ${pickRandom(mineria)}`
 
       if (Math.random() < 0.1) {
-        const bonus = Math.floor(Math.random() * 3000) + 500
+        const bonus = Math.floor(Math.random() * 8000) + 2000
         reward += bonus
         bonusMsg = `\n「✿」 ¡Bonus! Ganaste *${bonus.toLocaleString()}* extra`
       }

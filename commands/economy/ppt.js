@@ -39,11 +39,11 @@ export default {
     const result = determineWinner(userChoice, botChoice);
     
     // Usamos 'coins' en lugar de 'chocolates' para unificar
-    const randomReward = Math.floor(Math.random() * 3000);
-    const randomExp = Math.floor(Math.random() * 1000);
-    const randomLoss = Math.floor(Math.random() * 1000);
-    const randomTieReward = Math.floor(Math.random() * 100);
-    const randomTieExp = Math.floor(Math.random() * 100);
+    const randomReward = Math.floor(Math.random() * 8000) + 2000;
+    const randomExp = Math.floor(Math.random() * 2000) + 500;
+    const randomLoss = Math.floor(Math.random() * 3000) + 500;
+    const randomTieReward = Math.floor(Math.random() * 1000) + 200;
+    const randomTieExp = Math.floor(Math.random() * 500) + 100;
 
     user.coins = user.coins || 0
     user.bank = user.bank || 0

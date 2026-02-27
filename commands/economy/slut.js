@@ -65,8 +65,8 @@ export default {
 
     if (exito) {
       // --- GANAR ---
-      let xpGanado = Math.floor(Math.random() * (5000 - 500 + 1)) + 500
-      let coinsGanados = Math.floor(Math.random() * (5000 - 5 + 1)) + 5
+      let xpGanado = Math.floor(Math.random() * (8000 - 1000 + 1)) + 1000
+      let coinsGanados = Math.floor(Math.random() * (12000 - 2000 + 1)) + 2000
       
       let texto = pickRandom(aventurasExito)
           .replace('{cliente}', clienteTag)

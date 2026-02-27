@@ -38,10 +38,10 @@ export default {
     }
 
     // 5. Recompensa (Mejorada para valer la pena)
-    // Entre 50k y 100k monedas
-    const coins = Math.floor(Math.random() * (100000 - 50000 + 1)) + 50000
-    // Entre 10k y 20k de experiencia
-    const exp = Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000
+    // Entre 100k y 250k monedas
+    const coins = Math.floor(Math.random() * (250000 - 100000 + 1)) + 100000
+    // Entre 15k y 35k de experiencia
+    const exp = Math.floor(Math.random() * (35000 - 15000 + 1)) + 15000
 
     // 6. Guardar Datos
     user.lastMonthly = Date.now()

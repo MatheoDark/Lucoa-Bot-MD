@@ -33,24 +33,24 @@ export default {
     user.coins = user.coins || 0
 
     if (roll < 0.05) {
-      reward = Math.floor(Math.random() * 100000) + 50000
+      reward = Math.floor(Math.random() * 250000) + 100000
       narration = '「✿」 ¡Has invocado un espíritu ancestral que te entrega un tesoro cósmico!'
       bonusMsg = '\nꕥ Recompensa MÍTICA obtenida!'
     } else if (roll < 0.25) {
-      reward = Math.floor(Math.random() * 10000) + 2000
+      reward = Math.floor(Math.random() * 22000) + 8000
       narration = '「✿」 Tu ritual abre un portal y caen riquezas ardientes del vacío'
     } else if (roll < 0.75) {
-      reward = Math.floor(Math.random() * 5000) + 500
+      reward = Math.floor(Math.random() * 10000) + 2000
       narration = `「✿」 Bajo la luna, tu ritual te concede *${reward.toLocaleString()} ${monedas}*`
     } else {
-      const loss = Math.floor(Math.random() * 2000) + 500
+      const loss = Math.floor(Math.random() * 5000) + 1000
       // Evitamos números negativos
       user.coins = Math.max(0, user.coins - loss)
       return m.reply(`「✿」 El ritual salió mal... una maldición te arrebató *${loss.toLocaleString()} ${monedas}*`)
     }
 
     if (Math.random() < 0.15) {
-      const bonus = Math.floor(Math.random() * 4000) + 1000
+      const bonus = Math.floor(Math.random() * 10000) + 3000
       reward += bonus
       bonusMsg += `\n「✿」 ¡Energía extra! Ganaste *${bonus.toLocaleString()}* ${monedas} adicionales`
     }

@@ -82,6 +82,7 @@ import readline from "readline"
 import qrcode from "qrcode-terminal"
 import { smsg } from "./lib/message.js"
 import { startSubBot } from './lib/subs.js'
+import { startDropScheduler } from './lib/drops.js'
 
 const log = {
   info: (msg) => console.log(chalk.bgBlue.white.bold(`INFO`), chalk.white(msg)),
@@ -395,6 +396,34 @@ async function delayedReconnect(delayMs, reason = '') {
   setTimeout(() => startBot(), delayMs)
 }
 
+// 🧹 Limpieza automática de carpeta tmp
+function cleanTmpFolder() {
+  const tmpDir = path.join(__dirname, 'tmp')
+  if (!fs.existsSync(tmpDir)) return
+  try {
+    const files = fs.readdirSync(tmpDir)
+    const now = Date.now()
+    let deleted = 0
+    for (const file of files) {
+      const filePath = path.join(tmpDir, file)
+      try {
+        const stat = fs.statSync(filePath)
+        // Eliminar archivos con más de 5 minutos de antigüedad
+        if (now - stat.mtimeMs > 5 * 60 * 1000) {
+          fs.unlinkSync(filePath)
+          deleted++
+        }
+      } catch {}
+    }
+    if (deleted > 0) console.log(chalk.gray(`🧹 tmp limpiado: ${deleted} archivo(s) eliminado(s)`))
+  } catch {}
+}
+
+// Limpiar tmp cada 10 minutos
+setInterval(cleanTmpFolder, 10 * 60 * 1000)
+// Limpiar al iniciar
+cleanTmpFolder()
+
 async function startBot() {
   // 🔥 CRÍTICO: Cerrar conexión anterior antes de crear una nueva
   // Sin esto, quedan sockets zombie y WhatsApp devuelve 428
@@ -561,6 +590,9 @@ async function startBot() {
           float: 'center'
         })
       )
+
+      // 🎁 Iniciar scheduler de drops aleatorios
+      startDropScheduler(client)
     }
   })
 

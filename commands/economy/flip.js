@@ -61,7 +61,7 @@ export default {
 
     // 6. Validaciones de Dinero
     if (isNaN(cantidad) || cantidad < 200) return m.reply(`ꕥ Mínimo *200 ${monedas}*.`)
-    if (cantidad > 10000) return m.reply(`ꕥ Máximo *10,000 ${monedas}*.`) // Subí un poco el límite
+    if (cantidad > 50000) return m.reply(`ꕥ Máximo *50,000 ${monedas}*.`) // Subí un poco el límite
     if (user.coins < cantidad) return m.reply(`ꕥ No tienes suficientes *${monedas}*.`)
 
     // 7. Lógica del Juego

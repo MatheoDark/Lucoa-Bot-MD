@@ -3,10 +3,10 @@ import { resolveLidToRealJid } from "../../lib/utils.js"
 // --- CONFIGURACIÓN ---
 const TIME_LIMIT = 5 * 60 * 1000; // 5 minutos por juego
 const COOLDOWN = 10 * 60 * 1000;  // 10 minutos de espera
-const PENALTY_EXP = 100;
-const PENALTY_COINS = 200;
-const REWARD_EXP = 500;
-const REWARD_COINS = 1000;
+const PENALTY_EXP = 200;
+const PENALTY_COINS = 500;
+const REWARD_EXP = 1500;
+const REWARD_COINS = 5000;
 
 // Asegurar objeto de juegos
 global.games = global.games || {};

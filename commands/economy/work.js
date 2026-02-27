@@ -39,9 +39,9 @@ export default {
     }
 
     // 5. Recompensa
-    // Gana entre 500 y 5500 monedas
-    const reward = Math.floor(Math.random() * 5000) + 500 
-    const exp = Math.floor(Math.random() * 300) + 50 // También gana algo de experiencia
+    // Gana entre 2000 y 15000 monedas
+    const reward = Math.floor(Math.random() * 13000) + 2000 
+    const exp = Math.floor(Math.random() * 800) + 100 // También gana algo de experiencia
 
     // 6. Guardar Datos
     user.coins = (user.coins || 0) + reward

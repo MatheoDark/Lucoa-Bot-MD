@@ -29,6 +29,8 @@ export default {
       slut: Math.max(0, (user.lastProsti || 0) + (10 * 60 * 1000) - now),
       steal: Math.max(0, (user.roboCooldown || 0) - now),
       ppt: Math.max(0, (user.pptCooldown || 0) - now),
+      fish: Math.max(0, (user.fishCooldown || 0) - now),
+      explore: Math.max(0, (user.exploreCooldown || 0) - now),
       daily: Math.max(0, (user.lastDaily || 0) + oneDay - now),
       weekly: Math.max(0, (user.lastWeekly || 0) + 7 * oneDay - now),
       monthly: Math.max(0, (user.lastMonthly || 0) + 30 * oneDay - now)
@@ -64,6 +66,8 @@ export default {
 ⴵ Slut » *${formatTime(cooldowns.slut)}*
 ⴵ Steal » *${formatTime(cooldowns.steal)}*
 ⴵ Ppt » *${formatTime(cooldowns.ppt)}*
+ⴵ Fish » *${formatTime(cooldowns.fish)}*
+ⴵ Explorar » *${formatTime(cooldowns.explore)}*
 ⴵ Weekly » *${formatTime(cooldowns.weekly)}*
 ⴵ Monthly » *${formatTime(cooldowns.monthly)}*
 

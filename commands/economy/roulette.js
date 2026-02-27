@@ -56,8 +56,8 @@ export default {
 
     // 6. Validaciones de Dinero
     if (isNaN(amount) || amount < 1) return m.reply(`⚠️ Ingresa una cantidad válida.`)
-    if (amount < 50) return m.reply(`💰 La apuesta mínima es de *50 ${currency}*.`) // Bajé el mínimo a 50
-    if (amount > 100000) return m.reply(`🚫 No puedes apostar más de *100,000 ${currency}* por ronda.`)
+    if (amount < 50) return m.reply(`💰 La apuesta mínima es de *50 ${currency}*.`)
+    if (amount > 500000) return m.reply(`🚫 No puedes apostar más de *500,000 ${currency}* por ronda.`)
     
     if (user.coins < amount) {
         return m.reply(`🚫 No tienes suficientes *${currency}* para esta apuesta.\n👛 Tienes: *${user.coins.toLocaleString()}*`)

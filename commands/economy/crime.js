@@ -21,7 +21,7 @@ export default {
     }
 
     const éxito = Math.random() < 0.5
-    const cantidad = Math.floor(Math.random() * 5000)
+    const cantidad = Math.floor(Math.random() * 13000) + 2000
     user.crimeCooldown = Date.now() + 10 * 60 * 1000
 
     const successMessages = [
