@@ -146,7 +146,13 @@ function hasMainSession() {
   return fs.existsSync(credsPath)
 }
 
+// 🔧 FIX: Evitar que se llame más de una vez (crea intervalos duplicados y sobreescribe datos)
+let _dbSafeLoaded = false
+
 async function loadDatabaseSafe() {
+  if (_dbSafeLoaded) return
+  _dbSafeLoaded = true
+
   global.db.data ||= {}
   global.db.data.users ||= {}
   global.db.data.chats ||= {}
@@ -155,19 +161,13 @@ async function loadDatabaseSafe() {
 
   try {
     if (typeof global.loadDatabase === "function") {
-      await global.loadDatabase()
-    } else if (db.read) {
-      await db.read()
+      global.loadDatabase()
     }
   } catch (e) {
     console.error("Error cargando DB:", e)
   }
-
-  if (db.write) {
-    setInterval(async () => {
-      if (global.db.data) await db.write()
-    }, 30 * 1000)
-  }
+  // 🔧 FIX: Eliminado el setInterval de db.write() duplicado.
+  // database.js ya tiene su propio auto-save con setInterval.
 }
 
 export async function uPLoader() {

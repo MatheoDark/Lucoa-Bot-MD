@@ -119,7 +119,11 @@ function updateUserStats(sender, pushname, command) {
   user.usedcommands = (user.usedcommands || 0) + 1
   user.exp = (user.exp || 0) + Math.floor(Math.random() * 100)
   user.lastCommand = command
-  user.lastSeen = new Date()
+  // 🔧 FIX: Usar timestamp numérico en vez de objeto Date
+  // Date objects no sobreviven JSON serialization y causan saves innecesarios
+  user.lastSeen = Date.now()
+  // Marcar DB como modificada
+  if (typeof global.markDBDirty === 'function') global.markDBDirty()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -458,6 +462,10 @@ export default async (client, m) => {
         ownerNumbers,
         selfId
       })
+
+      // 🔧 FIX: Marcar DB como modificada después de cada comando
+      // Esto asegura que cualquier cambio hecho por el comando se guarde
+      if (typeof global.markDBDirty === 'function') global.markDBDirty()
     } catch (err) {
       console.error(chalk.red(`❌ Error ejecutando comando [${command}]:`), err)
       // Mantenemos el aviso de error real (crashes de código)

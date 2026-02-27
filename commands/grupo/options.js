@@ -11,6 +11,7 @@ export default {
     'antilink', 'antienlaces', 'antilinks',
     'rpg', 'economy', 'economia',
     'gacha',
+    'drops',
     'adminonly', 'onlyadmin'
   ],
   category: 'grupo',
@@ -43,6 +44,9 @@ export default {
       // Gacha
       gacha: 'gacha',
 
+      // Drops
+      drops: 'drops',
+
       // OnlyAdmin
       onlyadmin: 'onlyadmin', 
       adminonly: 'onlyadmin',
@@ -58,6 +62,7 @@ export default {
       alerts: 'las *Alertas*',
       rpg: 'los comandos de *Economía*',
       gacha: 'los comandos de *Gacha*',
+      drops: 'los *Drops Aleatorios*',
       onlyadmin: 'el modo *Solo Admin*',
       nsfw: 'los comandos *NSFW*'
     }
@@ -68,6 +73,7 @@ export default {
       alerts: 'Alertas',
       rpg: 'Economía',
       gacha: 'Gacha',
+      drops: 'Drops',
       onlyadmin: 'Solo Admin',
       nsfw: 'NSFW'
     }

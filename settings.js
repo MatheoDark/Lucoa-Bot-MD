@@ -35,7 +35,4 @@ global.mods = [
 
 global.msgglobal = 'Hubo un error. Usa el comando /reporte <problema> para avisar a mi creador.'
 
-// --- FIRMA ESTILIZADA (Aquí está la magia) ---
-// Antes: © ⍴᥆ᥕᥱrᥱძ ᑲᥡ Ɗі᥈ოᥝᥰძ ❨◣_◢❩凸︎
-// Ahora:
 globalThis.dev = '© ⍴᥆ᥕᥱrᥱძ ᑲᥡ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ ❨🐉❩'
