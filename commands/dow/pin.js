@@ -1,9 +1,9 @@
 import fetch from 'node-fetch'
-import ruhend from 'ruhend-scraper' // 👈 CAMBIO AQUÍ: Importamos todo el paquete
-const { pinterest } = ruhend        // 👈 Y aquí extraemos la función
 
-// 🐲 LUCOA • Pinterest (Anabot Search + Ruhend DL)
-// Versión optimizada para VPS: Evita bloqueos de IP usando librerías y APIs externas.
+// 🐲 LUCOA • Pinterest (DuckDuckGo Image Search)
+// Busca imágenes de Pinterest via DuckDuckGo para evitar APIs muertas.
+
+const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
 // Cache global para paginación (#pin 2)
 global.__lucoaPinCache = global.__lucoaPinCache || Object.create(null)
@@ -11,70 +11,79 @@ global.__lucoaPinCache = global.__lucoaPinCache || Object.create(null)
 // Detección de Links
 const isPinterestUrl = (s = '') => /(https?:\/\/)?(www\.)?pinterest\.(com|cl|es)\/.+/i.test(s) || /pin\.it\//i.test(s)
 
-// ===== 1. MOTOR DE BÚSQUEDA (API EXTERNA) =====
+// ===== 1. MOTOR DE BÚSQUEDA (DUCKDUCKGO) =====
 async function searchPinterest(query) {
-  // Intentamos múltiples APIs por si una falla o cambia el formato
-  const apis = [
-    `https://anabot.my.id/api/search/pinterest?query=${encodeURIComponent(query)}&apikey=freeApikey`,
-    `https://api.lolhuman.xyz/api/pinterest?apikey=GataDios&query=${encodeURIComponent(query)}`,
-  ]
+  const searchQuery = `site:pinterest.com ${query}`
+  const headers = { 'User-Agent': UA }
 
-  let lastError = null
+  // Paso 1: Obtener token VQD desde la página de DuckDuckGo
+  const tokenUrl = `https://duckduckgo.com/?q=${encodeURIComponent(searchQuery)}&iax=images&ia=images`
+  const tokenRes = await fetch(tokenUrl, { headers, timeout: 15000 })
+  if (!tokenRes.ok) throw new Error('No se pudo conectar a DuckDuckGo.')
 
-  for (const apiUrl of apis) {
-    try {
-      const res = await fetch(apiUrl, { timeout: 10000 })
-      if (!res.ok) continue
+  const tokenHtml = await tokenRes.text()
+  const vqdMatch = tokenHtml.match(/vqd=['"]([^'"]+)['"]/)
+  if (!vqdMatch) throw new Error('No se pudo obtener token de búsqueda.')
+  const vqd = vqdMatch[1]
 
-      const json = await res.json()
+  // Paso 2: Buscar imágenes con el token
+  const imgUrl = `https://duckduckgo.com/i.js?q=${encodeURIComponent(searchQuery)}&o=json&p=1&s=0&u=bing&f=,,,,,&l=wt-wt&vqd=${vqd}`
+  const imgRes = await fetch(imgUrl, {
+    headers: { 'User-Agent': UA, 'Referer': 'https://duckduckgo.com/' },
+    timeout: 15000
+  })
+  if (!imgRes.ok) throw new Error('Error al buscar imágenes.')
 
-      // Extraer array de resultados (la estructura varía según la API)
-      let rawResults = null
-      if (Array.isArray(json?.data?.result)) rawResults = json.data.result
-      else if (Array.isArray(json?.data)) rawResults = json.data
-      else if (Array.isArray(json?.result)) rawResults = json.result
-      else if (Array.isArray(json)) rawResults = json
+  const data = await imgRes.json()
+  if (!data.results?.length) throw new Error('No encontré resultados en Pinterest.')
 
-      // Si la respuesta es un array de strings (URLs directas)
-      if (rawResults?.length && typeof rawResults[0] === 'string') {
-        return rawResults.filter(u => u.startsWith('http')).map(url => ({
-          url, desc: 'Pinterest', author: 'Desconocido', saves: 0, created: '', isVideo: false
-        }))
-      }
+  // Filtrar solo URLs de pinimg.com (imágenes reales de Pinterest)
+  const pinResults = data.results
+    .filter(r => r.image && /pinimg\.com/i.test(r.image))
+    .map(r => ({
+      url: r.image,
+      thumbnail: r.thumbnail,
+      desc: r.title || 'Pinterest',
+      author: 'Pinterest',
+      saves: 0,
+      isVideo: false
+    }))
 
-      // Si la respuesta es un array de objetos
-      if (rawResults?.length && typeof rawResults[0] === 'object') {
-        const mapped = rawResults.map(pin => ({
-          url: pin.images?.['736x']?.url || pin.images?.['orig']?.url || pin.images?.['236x']?.url || pin.image || pin.url || pin.media || pin.link || '',
-          desc: pin.description || pin.title || pin.desc || 'Sin descripción',
-          author: pin.native_creator?.full_name || pin.author || pin.creator || 'Desconocido',
-          saves: pin.aggregated_pin_data?.aggregated_stats?.saves || pin.saves || 0,
-          created: pin.created_at || '',
-          isVideo: false
-        })).filter(item => item.url && item.url.startsWith('http'))
+  // Si no hay pinimg, usar todos los resultados igualmente
+  const finalResults = pinResults.length ? pinResults : data.results.filter(r => r.image).map(r => ({
+    url: r.image,
+    thumbnail: r.thumbnail,
+    desc: r.title || 'Pinterest',
+    author: 'Pinterest',
+    saves: 0,
+    isVideo: false
+  }))
 
-        if (mapped.length) return mapped
-      }
-    } catch (e) {
-      lastError = e
-    }
-  }
-
-  throw new Error(lastError?.message || 'No encontré resultados en Pinterest.')
+  if (!finalResults.length) throw new Error('No encontré imágenes válidas.')
+  return finalResults
 }
 
-// ===== 2. MOTOR DE DESCARGA (LIBRERÍA LOCAL) =====
+// ===== 2. DESCARGA DIRECTA POR LINK =====
 async function downloadPinterestLink(url) {
-  // Ruhend Scraper maneja la lógica compleja de extracción (videos/gifs/img)
-  const data = await pinterest(url)
-  
-  // Ruhend a veces devuelve url de video o imagen, detectamos cual es
-  if (!data) throw new Error('El enlace no devolvió datos válidos.')
-  
+  // Intentar resolver el link de Pinterest y extraer la imagen OG
+  const headers = { 'User-Agent': UA }
+  const res = await fetch(url, { headers, timeout: 15000, redirect: 'follow' })
+  if (!res.ok) throw new Error('No se pudo acceder al enlace de Pinterest.')
+
+  const html = await res.text()
+
+  // Buscar og:image o og:video en el HTML
+  const ogVideo = html.match(/<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i)
+  const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+  const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+
+  const mediaUrl = ogVideo?.[1] || ogImage?.[1]
+  if (!mediaUrl) throw new Error('No se pudo extraer la imagen/video del enlace.')
+
   return {
-    url: data.video || data.image || data.url, // Prioridad al video si existe
-    desc: data.title || 'Pinterest Media',
-    isVideo: !!data.video // Si hay campo video, es true
+    url: mediaUrl,
+    desc: ogTitle?.[1] || 'Pinterest Media',
+    isVideo: !!ogVideo
   }
 }
 
