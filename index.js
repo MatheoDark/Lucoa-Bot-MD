@@ -22,6 +22,32 @@ process.on('unhandledRejection', (err) => {
     console.log(chalk.red('⚠️ Promesa rechazada (Bot sigue vivo):'), err.message)
 })
 
+// 🔥 MANEJO DE SEÑALES PM2 - Cierre limpio sin perder sesión
+process.on('SIGTERM', () => {
+    console.log(chalk.yellow('📴 PM2 SIGTERM recibido. Cerrando limpiamente...'))
+    try {
+        if (global.client) {
+            global.client.ev.removeAllListeners()
+            global.client.ws?.close()
+            global.client.end?.()
+        }
+    } catch {}
+    console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
+    process.exit(0)
+})
+process.on('SIGINT', () => {
+    console.log(chalk.yellow('📴 SIGINT recibido. Cerrando limpiamente...'))
+    try {
+        if (global.client) {
+            global.client.ev.removeAllListeners()
+            global.client.ws?.close()
+            global.client.end?.()
+        }
+    } catch {}
+    console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
+    process.exit(0)
+})
+
 // --- 1. CONFIGURACIÓN INICIAL ---
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -77,11 +103,40 @@ function normalizePhoneForPairing(input) {
   return s
 }
 
+function backupSession() {
+  try {
+    const credsPath = path.join(global.sessionName, 'creds.json')
+    if (fs.existsSync(credsPath)) {
+      const backupPath = path.join(global.sessionName, 'creds.backup.json')
+      fs.copyFileSync(credsPath, backupPath)
+      console.log(chalk.cyan('💾 Backup de sesión guardado.'))
+    }
+  } catch (e) {
+    console.error('Error guardando backup:', e.message)
+  }
+}
+
+function restoreSession() {
+  try {
+    const credsPath = path.join(global.sessionName, 'creds.json')
+    const backupPath = path.join(global.sessionName, 'creds.backup.json')
+    if (!fs.existsSync(credsPath) && fs.existsSync(backupPath)) {
+      fs.copyFileSync(backupPath, credsPath)
+      console.log(chalk.green('♻️ Sesión restaurada desde backup.'))
+      return true
+    }
+  } catch (e) {
+    console.error('Error restaurando backup:', e.message)
+  }
+  return false
+}
+
 function purgeSession() {
   try {
+    backupSession()
     fs.rmSync(global.sessionName, { recursive: true, force: true })
     fs.mkdirSync(global.sessionName, { recursive: true })
-    console.log(chalk.cyan("♻️ Sesión reiniciada manualmente."))
+    console.log(chalk.cyan("♻️ Sesión reiniciada."))
   } catch {}
 }
 
@@ -299,7 +354,8 @@ const disconnectTracker = {
   count: 0,
   maxDisconnectsPerMinute: 3,
   cooldownMs: 30000, // 30 segundos entre desconexiones
-  consecutive428: 0   // Contador de 428 consecutivos para backoff
+  consecutive428: 0,  // Contador de 428 consecutivos para backoff
+  consecutiveBadSession: 0  // Contador de badSession para no borrar sesión de inmediato
 }
 
 function shouldReconnect() {
@@ -425,16 +481,32 @@ async function startBot() {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
       console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
       
-      // 🔥 PROTECCIÓN CONTRA EL BORRADO DE SESIÓN
-      if (
-        reason === DisconnectReason.badSession ||
-        reason === DisconnectReason.loggedOut ||
-        reason === DisconnectReason.multideviceMismatch
-      ) {
-        log.warn("⚠️ Sesión inválida. Reiniciando vinculación...")
+      // 🔥 PROTECCIÓN DE SESIÓN - Solo purgar en logout confirmado (401)
+      if (reason === DisconnectReason.loggedOut) {
+        log.warn("⚠️ Sesión cerrada desde el teléfono. Se requiere nueva vinculación.")
         purgeSession()
+        disconnectTracker.consecutiveBadSession = 0
         LOGIN_METHOD = await uPLoader()
         startBot()
+      }
+      // badSession (500) - Intentar reconectar antes de borrar
+      else if (reason === DisconnectReason.badSession) {
+        disconnectTracker.consecutiveBadSession++
+        if (disconnectTracker.consecutiveBadSession >= 3) {
+          log.warn(`⚠️ badSession ${disconnectTracker.consecutiveBadSession} veces seguidas. Purgando sesión...`)
+          purgeSession()
+          disconnectTracker.consecutiveBadSession = 0
+          LOGIN_METHOD = await uPLoader()
+          startBot()
+        } else {
+          log.warn(`⚠️ badSession (intento ${disconnectTracker.consecutiveBadSession}/3). Reintentando sin borrar sesión...`)
+          delayedReconnect(5000, `badSession intento ${disconnectTracker.consecutiveBadSession}`)
+        }
+      }
+      // multideviceMismatch (411) - Intentar reconectar, NO borrar sesión
+      else if (reason === DisconnectReason.multideviceMismatch) {
+        log.warn("⚠️ multideviceMismatch - Reintentando conexión...")
+        delayedReconnect(10000, 'multideviceMismatch')
       } 
       // ERROR 428: Connection Terminated (Rate limit de WhatsApp)
       else if (reason === 428) {
@@ -468,6 +540,9 @@ async function startBot() {
     }
 
     if (connection === "open") {
+      // Resetear counters de errores al conectar exitosamente
+      disconnectTracker.consecutiveBadSession = 0
+      
       // Solo resetear 428 counter después de estar estable 5 minutos
       if (disconnectTracker._stable428Timer) clearTimeout(disconnectTracker._stable428Timer)
       disconnectTracker._stable428Timer = setTimeout(() => {
@@ -528,6 +603,9 @@ async function startBot() {
 
   if (hasMainSession()) {
     console.log(chalk.green("✅ Sesión encontrada. Iniciando bot..."))
+    LOGIN_METHOD = null
+  } else if (restoreSession()) {
+    console.log(chalk.green("✅ Sesión restaurada desde backup. Iniciando bot..."))
     LOGIN_METHOD = null
   } else {
     LOGIN_METHOD = await uPLoader()

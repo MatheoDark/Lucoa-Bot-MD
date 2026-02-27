@@ -62,7 +62,7 @@ function fixVideoWithFFmpeg(inputPath) {
 async function getDownloadUrl(url, isAudio) {
     const errors = []
 
-    // 1. SaveTube (via ytscraper)
+    // 1. SaveTube (via ytscraper - dominio .vip)
     try {
         const res = isAudio ? await ytmp3(url) : await ytmp4(url)
         if (res.status && res.download?.status && res.download?.url) {
@@ -70,35 +70,7 @@ async function getDownloadUrl(url, isAudio) {
         }
     } catch (e) { errors.push(`SaveTube: ${e.message}`) }
 
-    // 2. ogmp3 (apiapi.lat)
-    try {
-        const format = isAudio ? '320' : '720'
-        const type = isAudio ? 'audio' : 'video'
-        const res = await ogmp3.download(url, format, type)
-        if (res.status && res.result?.download) {
-            return { dl: res.result.download, title: res.result.title, source: 'ogmp3' }
-        }
-    } catch (e) { errors.push(`ogmp3: ${e.message}`) }
-
-    // 3. Vreden API
-    try {
-        const res = isAudio ? await apimp3(url) : await apimp4(url)
-        if (res?.status && res?.download?.url) {
-            return { dl: res.download.url, title: res.metadata?.title, source: 'Vreden' }
-        }
-    } catch (e) { errors.push(`Vreden: ${e.message}`) }
-
-    // 4. Nekolabs API
-    try {
-        const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(url)}&format=${isAudio ? 'mp3' : '720'}`
-        const res = await fetch(apiUrl)
-        const json = await res.json()
-        if (json.success && json.result?.downloadUrl) {
-            return { dl: json.result.downloadUrl, title: json.result.title, source: 'Nekolabs' }
-        }
-    } catch (e) { errors.push(`Nekolabs: ${e.message}`) }
-
-    // 5. Anabot API
+    // 2. Anabot API
     try {
         const endpoint = isAudio ? 'ytmp3' : 'ytmp4'
         const apiUrl = `https://anabot.my.id/api/download/${endpoint}?url=${encodeURIComponent(url)}${isAudio ? '' : '&quality=720'}&apikey=freeApikey`
@@ -108,6 +80,24 @@ async function getDownloadUrl(url, isAudio) {
             return { dl: json.data.result.urls, title: json.data.result.metadata?.title, source: 'Anabot' }
         }
     } catch (e) { errors.push(`Anabot: ${e.message}`) }
+
+    // 3. Vreden API (fallback)
+    try {
+        const res = isAudio ? await apimp3(url) : await apimp4(url)
+        if (res?.status && res?.download?.url) {
+            return { dl: res.download.url, title: res.metadata?.title, source: 'Vreden' }
+        }
+    } catch (e) { errors.push(`Vreden: ${e.message}`) }
+
+    // 4. ogmp3 (último fallback)
+    try {
+        const format = isAudio ? '320' : '720'
+        const type = isAudio ? 'audio' : 'video'
+        const res = await ogmp3.download(url, format, type)
+        if (res.status && res.result?.download) {
+            return { dl: res.result.download, title: res.result.title, source: 'ogmp3' }
+        }
+    } catch (e) { errors.push(`ogmp3: ${e.message}`) }
 
     throw new Error('Todas las APIs fallaron. Intenta de nuevo más tarde.')
 }
