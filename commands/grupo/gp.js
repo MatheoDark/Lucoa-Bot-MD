@@ -6,7 +6,10 @@ export default {
   category: 'grupo',
   run: async ({client, m, args}) => {
     const from = m.chat
-    const groupMetadata = m.isGroup ? await client.groupMetadata(from).catch((e) => {}) : ''
+    const groupMetadata = m.isGroup ? await client.groupMetadata(from).catch((e) => {
+        console.warn(`⚠️ Error obteniendo metadata del grupo ${from}: ${e?.message}`)
+        return null
+    }) : null
     const groupName = groupMetadata.subject;
     const groupCreator = groupMetadata.owner ? '@' + groupMetadata.owner.split('@')[0] : 'Desconocido';
 

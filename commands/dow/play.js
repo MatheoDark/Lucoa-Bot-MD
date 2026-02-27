@@ -120,9 +120,18 @@ function fixVideoWithFFmpeg(inputPath) {
 const fetchParallelFirstValid = async (url, apis, timeout = 25000) => {
     return new Promise((resolve, reject) => {
         let settled = false
-        const timer = setTimeout(() => { if (!settled) reject(new Error('Tiempo de espera agotado')) }, timeout)
+        const timer = setTimeout(() => {
+            if (!settled) {
+                settled = true
+                reject(new Error('Timeout: Ninguna API respondió a tiempo. Intenta de nuevo.'))
+            }
+        }, timeout)
 
-        apis.forEach(api => {
+        let apiErrors = []
+        let apiCount = apis.length
+        let completedCount = 0
+
+        apis.forEach((api, index) => {
             ;(async () => {
                 try {
                     let result
@@ -138,8 +147,25 @@ const fetchParallelFirstValid = async (url, apis, timeout = 25000) => {
                         console.log(`[INFO] ✅ API Ganadora: ${result.source || 'Desconocida'}`)
                         clearTimeout(timer)
                         resolve(result)
+                    } else {
+                        completedCount++
+                        if (completedCount === apiCount && !settled) {
+                            settled = true
+                            clearTimeout(timer)
+                            reject(new Error('Todas las APIs fallaron. Intenta con otro enlace.'))
+                        }
                     }
-                } catch {}
+                } catch (err) {
+                    apiErrors[index] = err.message
+                    completedCount++
+                    console.warn(`⚠️ API ${index + 1} falló: ${err.message}`)
+                    
+                    if (completedCount === apiCount && !settled) {
+                        settled = true
+                        clearTimeout(timer)
+                        reject(new Error(`Todas las APIs fallaron: ${apiErrors.filter(Boolean).join(', ')}`))
+                    }
+                }
             })()
         })
     })

@@ -4,8 +4,20 @@ import https from 'https'
 const agent = new https.Agent({
     rejectUnauthorized: false,
     keepAlive: true,
-    family: 4 
+    family: 4,
+    timeout: 30000
 })
+
+// ✅ NUEVO: Helper para obtener tamaño de archivo sin descargarlo
+const getFileSizeKB = async (url) => {
+    try {
+        const res = await fetch(url, { method: 'HEAD', agent, timeout: 10000 })
+        const size = parseInt(res.headers.get('content-length') || '0')
+        return Math.round(size / 1024) // Convertir a KB
+    } catch {
+        return 0
+    }
+}
 
 export default {
     command: ['r34', 'rule34'],
@@ -57,11 +69,36 @@ export default {
 
             console.log(`Enviando pack de ${selectedIds.length} archivos...`)
 
+            const MAX_VIDEO_SIZE_MB = 15 // Máximo 15MB por video
+            const MAX_IMAGE_SIZE_MB = 5  // Máximo 5MB por imagen
+            let enviados = 0
+
             for (let id of selectedIds) {
                 try {
                     let postUrl = `https://rule34.xxx/index.php?page=post&s=view&id=${id}`
-                    let resPost = await fetch(postUrl, { agent, headers })
-                    let htmlPost = await resPost.text()
+                    
+                    // ✅ Reintentos con backoff
+                    let resPost, htmlPost
+                    let intentos = 3
+                    while (intentos > 0) {
+                        try {
+                            resPost = await fetch(postUrl, { agent, headers, timeout: 20000 })
+                            htmlPost = await resPost.text()
+                            break
+                        } catch (err) {
+                            intentos--
+                            if (intentos > 0) {
+                                console.warn(`⚠️ Reintentando ID ${id} (${intentos} intentos restantes)...`)
+                                await new Promise(r => setTimeout(r, 2000 * (4 - intentos))) // 2s, 4s
+                            }
+                        }
+                    }
+                    
+                    if (!htmlPost) {
+                        console.log(`❌ No se pudo obtener ID ${id} después de reintentos`)
+                        continue
+                    }
+
                     let fileUrl = null
 
                     let originalMatch = htmlPost.match(/href="([^"]+)">Original image/i)
@@ -83,7 +120,16 @@ export default {
                         let cleanUrl = fileUrl.split('?')[0].toLowerCase()
                         let isVideo = cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mov')
 
-                        console.log(`ID ${id}: ${isVideo ? 'VIDEO' : 'IMAGEN'} -> ${fileUrl}`)
+                        // ✅ NUEVO: Validar tamaño ANTES de enviar
+                        const sizeKB = await getFileSizeKB(fileUrl)
+                        const maxSize = isVideo ? MAX_VIDEO_SIZE_MB * 1024 : MAX_IMAGE_SIZE_MB * 1024
+
+                        if (sizeKB > maxSize) {
+                            console.log(`⚠️ ID ${id}: ${isVideo ? 'VIDEO' : 'IMAGEN'} demasiado grande (${Math.round(sizeKB / 1024)}MB > límite) - SALTANDO`)
+                            continue
+                        }
+
+                        console.log(`ID ${id}: ${isVideo ? 'VIDEO' : 'IMAGEN'} -> ${Math.round(sizeKB / 1024)}MB`)
 
                         if (isVideo) {
                              await client.sendMessage(m.chat, { 
@@ -91,20 +137,31 @@ export default {
                                 caption: `🔥 *ID:* ${id}`,
                                 gifPlayback: false 
                              }, { quoted: m })
+                             enviados++
                         } else {
                             await client.sendMessage(m.chat, { 
                                 image: { url: fileUrl }, 
                                 caption: `🔥 *ID:* ${id}` 
                             }, { quoted: m })
+                            enviados++
                         }
                     }
                     
-                    await new Promise(r => setTimeout(r, 1500)) 
+                    // ✅ AUMENTADO: Delay entre envíos para evitar desconexión
+                    // WhatsApp requiere ~3-4s entre mensajes para no saturar
+                    await new Promise(r => setTimeout(r, 4000))
 
                 } catch (err) {
-                    console.log(`Error al enviar ID ${id}:`, err.message)
+                    console.log(`❌ Error al enviar ID ${id}:`, err.message)
                     continue 
                 }
+            }
+
+            // ✅ NUEVO: Confirmación de cuántos se enviaron
+            if (enviados === 0) {
+                m.reply('❌ No se pudo enviar ningún archivo (todos fueron rechazados por tamaño)')
+            } else if (enviados < count) {
+                m.reply(`✅ Enviados ${enviados}/${count} archivos (${count - enviados} rechazados por tamaño)`)
             }
 
         } catch (e) {

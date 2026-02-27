@@ -45,6 +45,15 @@ const generarProblema = (dificultad) => {
 
 async function run({ client, m, args, command, usedPrefix }) {
   const chatId = m.chat;
+
+  // ✅ NUEVO: Helper para limpiar juego correctamente
+  const cleanupGame = (cId) => {
+    const game = global.math[cId]
+    if (game?.tiempoLimite) {
+      clearTimeout(game.tiempoLimite)
+    }
+    delete global.math[cId]
+  }
   const chatData = global.db.data.chats[chatId] || {};
   
   // Validaciones de grupo
@@ -94,8 +103,7 @@ async function run({ client, m, args, command, usedPrefix }) {
         const expGanada = Math.floor(Math.random() * 50) + 20; // 20 a 70 EXP
         user.exp = (user.exp || 0) + expGanada;
 
-        clearTimeout(juego.tiempoLimite);
-        delete global.math[chatId];
+        cleanupGame(chatId)
 
         return client.sendMessage(chatId, { 
             text: `✅ *¡CORRECTO!*\n\n🧠 Respuesta: *${juego.respuesta}*\n✨ Ganaste: *${expGanada} EXP*`,
@@ -108,8 +116,7 @@ async function run({ client, m, args, command, usedPrefix }) {
         const intentosMax = 3;
         
         if (juego.intentos >= intentosMax) {
-            clearTimeout(juego.tiempoLimite);
-            delete global.math[chatId];
+            cleanupGame(chatId)
             return m.reply(`❌ *Incorrecto.* Te quedaste sin intentos.\nLa respuesta era: *${juego.respuesta}*`);
         } else {
             return m.reply(`❌ *Incorrecto.* Intenta de nuevo.\nIntentos: ${juego.intentos}/${intentosMax}`);
@@ -145,8 +152,8 @@ async function run({ client, m, args, command, usedPrefix }) {
       problemMessageId: problemMessage.key.id, // Guardamos ID para detectar respuestas
       tiempoLimite: setTimeout(() => {
         if (global.math[chatId]?.juegoActivo) {
-          client.sendMessage(chatId, { text: `「✿」Tiempo agotado. La respuesta era: *${resultado}*` });
-          delete global.math[chatId];
+          client.sendMessage(chatId, { text: `「✿」Tiempo agotado. La respuesta era: *${resultado}*` })
+          cleanupGame(chatId)
         }
       }, 60000)
     };

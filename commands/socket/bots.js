@@ -16,7 +16,10 @@ export default {
     const botname2 = bot.namebot2
     const banner = bot.icon
     const from = m.key.remoteJid
-    const groupMetadata = m.isGroup ? await client.groupMetadata(from).catch(() => {}) : ''
+    const groupMetadata = m.isGroup ? await client.groupMetadata(from).catch((e) => {
+      console.warn(`⚠️ Error obteniendo metadata del grupo ${from}: ${e?.message}`)
+      return null
+    }) : null
     const groupParticipants = groupMetadata?.participants?.map((p) => p.phoneNumber || p.jid || p.lid || p.id) || []
 
     const mainBotJid = global.client.user.id.split(':')[0] + '@s.whatsapp.net'

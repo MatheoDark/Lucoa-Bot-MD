@@ -149,23 +149,53 @@ const BOT_TYPES = [{ name: 'SubBot', folder: './Sessions/Subs', starter: startSu
 const reconnecting = new Set()
 global.conns = global.conns || []
 
+// Control de reconexión mejorado
+const botLoadState = {
+  retryCount: 0,
+  maxRetries: 5,
+  maxBackoff: 300000 // 5 minutos máximo
+}
+
 async function loadBots() {
-  for (const { folder, starter } of BOT_TYPES) {
-    if (!fs.existsSync(folder)) continue
-    const botIds = fs.readdirSync(folder)
-    for (const userId of botIds) {
-      const sessionPath = path.join(folder, userId)
-      if (!fs.existsSync(path.join(sessionPath, 'creds.json'))) continue
-      if (global.conns.some((conn) => conn.userId === userId)) continue
-      if (reconnecting.has(userId)) continue
-      try {
-        reconnecting.add(userId)
-        await starter(null, null, 'Auto reconexión', false, userId, sessionPath)
-      } catch (e) { reconnecting.delete(userId) }
-      await new Promise((res) => setTimeout(res, 2000))
+  try {
+    for (const { folder, starter } of BOT_TYPES) {
+      if (!fs.existsSync(folder)) continue
+      const botIds = fs.readdirSync(folder)
+      for (const userId of botIds) {
+        const sessionPath = path.join(folder, userId)
+        if (!fs.existsSync(path.join(sessionPath, 'creds.json'))) continue
+        if (global.conns.some((conn) => conn.userId === userId)) continue
+        if (reconnecting.has(userId)) continue
+        try {
+          reconnecting.add(userId)
+          await starter(null, null, 'Auto reconexión', false, userId, sessionPath)
+          reconnecting.delete(userId)
+        } catch (e) {
+          console.error(`❌ Error cargando SubBot ${userId}:`, e.message)
+          reconnecting.delete(userId)
+        }
+        await new Promise((res) => setTimeout(res, 2000))
+      }
     }
+    
+    // Reset counter si fue exitoso
+    botLoadState.retryCount = 0
+    setTimeout(loadBots, 60 * 1000)
+    
+  } catch (err) {
+    console.error(`⚠️ Error en loadBots:`, err.message)
+    botLoadState.retryCount++
+    
+    if (botLoadState.retryCount >= botLoadState.maxRetries) {
+      console.error('❌ loadBots falló demasiadas veces. Parando reconexión de SubBots.')
+      return
+    }
+    
+    // Backoff exponencial: 10s, 20s, 40s, 80s, 160s, capped at 5 min
+    const delay = Math.min(10000 * Math.pow(2, botLoadState.retryCount - 1), botLoadState.maxBackoff)
+    console.log(`🔄 Reintentando en ${Math.round(delay / 1000)}s (intento ${botLoadState.retryCount}/${botLoadState.maxRetries})...`)
+    setTimeout(loadBots, delay)
   }
-  setTimeout(loadBots, 60 * 1000)
 }
 
 // Anti Rate-Limit (Optimizado para velocidad)
@@ -276,10 +306,14 @@ async function startBot() {
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: true,
     syncFullHistory: false,
-    // Agregamos retry para ser más tolerantes
-    retryRequestDelayMs: 5000, 
+    // Configuración mejorada para evitar desconexiones
+    retryRequestDelayMs: 10000, // Aumentado de 5000 a 10000ms
     getMessage: async () => "",
-    keepAliveIntervalMs: 60000
+    keepAliveIntervalMs: 120000, // Aumentado de 60000 a 120000ms (2 minutos)
+    maxRetries: 5, // Reintentos máximos
+    fetchMessagesOnWS: false,
+    downloadHistory: false,
+    tcpConnectTimeoutMs: 30000
   })
 
   patchSendMessage(client)
@@ -335,11 +369,16 @@ async function startBot() {
         startBot()
       } else if (reason === 515) {
         // ERROR 515: Stream Errored (Muy común en VPS)
-        console.log(chalk.yellow("⚠️ Error 515 detectado. Reintentando conexión (Sin borrar sesión)..."))
-        startBot()
+        console.log(chalk.yellow("⚠️ Error 515 detectado. Esperando 15 segundos antes de reconectar..."))
+        // Esperar 15 segundos antes de reintentar para dar tiempo al servidor
+        setTimeout(() => {
+          console.log(chalk.cyan("🔄 Reintentando conexión..."))
+          startBot()
+        }, 15000)
       } else {
         // Cualquier otro error (Connection Lost, etc), reconectar normal
-        startBot()
+        console.log(chalk.yellow("⚠️ Reintentando conexión en 5 segundos..."))
+        setTimeout(() => startBot(), 5000)
       }
     }
 

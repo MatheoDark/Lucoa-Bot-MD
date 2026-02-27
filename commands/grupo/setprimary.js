@@ -36,7 +36,10 @@ export default {
       if (!who2) {
         return client.reply(m.chat, `《✧》 Por favor menciona un bot para convertirlo en primario.`, m)
       }
-      const groupMetadata = m.isGroup ? await client.groupMetadata(m.chat).catch(() => {}) : ''
+      const groupMetadata = m.isGroup ? await client.groupMetadata(m.chat).catch((e) => {
+        console.warn(`⚠️ Error obteniendo metadata del grupo ${m.chat}: ${e?.message}`)
+        return null
+      }) : null
       const groupParticipants = groupMetadata?.participants?.map((p) => p.phoneNumber || p.jid || p.id || p.lid) || []
 
       const mainBotJid = global.client.user.id.split(':')[0] + '@s.whatsapp.net'

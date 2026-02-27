@@ -25,9 +25,9 @@ try {
      enviando = false;
      return;
   }
-} catch {
+} catch (err) {
     enviando = false;
-    throw '> Error, intente mas tarde.*';
+    throw new Error('No se pudo obtener el video de X/Twitter. Intenta más tarde.')
     return;
   }
 }}
