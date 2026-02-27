@@ -201,7 +201,7 @@ async function loadBots() {
 // Anti Rate-Limit Mejorado
 const queue = []
 let running = false
-const DELAY = 500 // ✅ Aumentado: 0ms → 500ms para evitar rate-limit de WhatsApp
+const DELAY = 1500 // ✅ 1.5s entre mensajes para evitar rate-limit de WhatsApp
 
 function enqueue(task) { queue.push(task); run() }
 async function run() {
@@ -356,16 +356,18 @@ async function startBot() {
     browser: ['Ubuntu', 'Chrome', '20.0.04'], 
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
     markOnlineOnConnect: false,
-    generateHighQualityLinkPreview: true,
+    generateHighQualityLinkPreview: false,
     syncFullHistory: false,
-    // Configuración mejorada para evitar desconexiones
-    retryRequestDelayMs: 10000, // Aumentado de 5000 a 10000ms
+    // Configuración optimizada contra rate-limit 428
+    retryRequestDelayMs: 15000,
     getMessage: async () => "",
-    keepAliveIntervalMs: 120000, // Aumentado de 60000 a 120000ms (2 minutos)
-    maxRetries: 5, // Reintentos máximos
+    keepAliveIntervalMs: 300000, // 5 minutos - reduce pings a WhatsApp
+    maxRetries: 3,
     fetchMessagesOnWS: false,
     downloadHistory: false,
-    tcpConnectTimeoutMs: 30000
+    tcpConnectTimeoutMs: 30000,
+    emitOwnEvents: false,
+    fireInitQueries: false
   })
 
   patchSendMessage(client)
@@ -440,8 +442,15 @@ async function startBot() {
     }
 
     if (connection === "open") {
-      // Reset 428 counter al conectar exitosamente
-      disconnectTracker.consecutive428 = 0
+      // Solo resetear 428 counter después de estar estable 5 minutos
+      if (disconnectTracker._stable428Timer) clearTimeout(disconnectTracker._stable428Timer)
+      disconnectTracker._stable428Timer = setTimeout(() => {
+        if (disconnectTracker.consecutive428 > 0) {
+          console.log(chalk.green('✅ Conexión estable por 5min. Reseteando contador 428.'))
+        }
+        disconnectTracker.consecutive428 = 0
+      }, 300000) // 5 minutos
+      
       console.log(
         boxen(chalk.bold(' ¡CONECTADO! '), {
           borderStyle: 'round',
