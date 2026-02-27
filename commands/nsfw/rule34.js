@@ -86,10 +86,12 @@ export default {
                         console.log(`ID ${id}: ${isVideo ? 'VIDEO' : 'IMAGEN'} -> ${fileUrl}`)
 
                         if (isVideo) {
+                             // ✅ MEJORADO: Usar document en lugar de video para mejor compatibilidad móvil
                              await client.sendMessage(m.chat, { 
-                                video: { url: fileUrl }, 
-                                caption: `🔥 *ID:* ${id}`,
-                                gifPlayback: false 
+                                document: { url: fileUrl },
+                                mimetype: 'video/mp4',
+                                fileName: `rule34_${id}.mp4`,
+                                caption: `🔥 *ID:* ${id}`
                              }, { quoted: m })
                         } else {
                             await client.sendMessage(m.chat, { 

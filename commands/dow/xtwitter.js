@@ -10,9 +10,15 @@ if (enviando) return;
 try {
    const res = await TwitterDL(text);
  if (res?.result.type == 'video') {
-     const caption = res?.result.caption ? res.result.caption : '*Aquí tiene su imagen*';
+     const caption = res?.result.caption ? res.result.caption : '*Aquí tiene su vídeo*';
      for (let i = 0; i < res.result.media.length; i++) {
-     await client.sendMessage(m.chat, {video: {url: res.result.media[i].result[0].url}, caption: caption}, {quoted: m});
+     // ✅ MEJORADO: Usar document en lugar de video para mejor compatibilidad móvil
+     await client.sendMessage(m.chat, {
+       document: {url: res.result.media[i].result[0].url}, 
+       mimetype: 'video/mp4',
+       fileName: `twitter_video_${i+1}.mp4`,
+       caption: caption
+     }, {quoted: m});
      };
      enviando = false;
      return;
