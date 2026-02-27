@@ -1,4 +1,9 @@
 import fetch from 'node-fetch'
+import fs from 'fs'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execPromise = promisify(exec)
 
 /**
  * ✅ Estilo Lucoa Mejorado:
@@ -72,6 +77,39 @@ const symbols = [
 
 function getRandomSymbol() {
   return symbols[Math.floor(Math.random() * symbols.length)]
+}
+
+// Conversión GIF → MP4 (WhatsApp no reproduce GIFs inline, necesita MP4)
+async function gifToMp4(gifBuffer) {
+  try {
+    if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp')
+    const filename = `anime_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+    const gifPath = `./tmp/${filename}.gif`
+    const mp4Path = `./tmp/${filename}.mp4`
+    await fs.promises.writeFile(gifPath, gifBuffer)
+    await execPromise(`ffmpeg -y -i "${gifPath}" -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" "${mp4Path}"`)
+    const mp4Buffer = await fs.promises.readFile(mp4Path)
+    await fs.promises.unlink(gifPath).catch(() => {})
+    await fs.promises.unlink(mp4Path).catch(() => {})
+    return mp4Buffer
+  } catch (e) {
+    console.error('[Anime] Error convirtiendo GIF a MP4:', e.message)
+    return gifBuffer
+  }
+}
+
+// Detectar tipo de archivo por magic bytes
+function getBufferType(buffer) {
+  try {
+    if (!Buffer.isBuffer(buffer)) return 'unknown'
+    const magic = buffer.toString('hex', 0, 8).toUpperCase()
+    if (magic.startsWith('474946')) return 'gif'
+    if (magic.startsWith('89504E47')) return 'png'
+    if (magic.startsWith('FFD8FF')) return 'jpg'
+    if (magic.includes('66747970')) return 'mp4'
+    if (magic.startsWith('1A45DFA3')) return 'webm'
+    return 'unknown'
+  } catch { return 'unknown' }
 }
 
 // Alias ES -> Command EN
@@ -164,20 +202,32 @@ export default {
 
       if (!mediaUrl) throw new Error('No media url')
 
-      // 6. Enviar
+      // 6. Descargar y detectar tipo
       const mediaRes = await fetch(mediaUrl)
       const arrayBuf = await mediaRes.arrayBuffer()
-      const buffer = Buffer.from(arrayBuf)
+      let buffer = Buffer.from(arrayBuf)
       
       const mentions = [...new Set([who, m.sender])].filter(Boolean)
+      const type = getBufferType(buffer)
+      let msgOptions = { caption: caption, mentions: mentions }
 
-      // ✅ Enviar como video con gifPlayback para reproducción inline
-      await client.sendMessage(m.chat, {
-          video: buffer,
-          gifPlayback: true,
-          caption: caption,
-          mentions: mentions
-      }, { quoted: m })
+      if (type === 'gif') {
+        // GIF → MP4 para que WhatsApp lo reproduzca inline
+        buffer = await gifToMp4(buffer)
+        msgOptions.video = buffer
+        msgOptions.gifPlayback = true
+      } else if (type === 'mp4' || type === 'webm') {
+        msgOptions.video = buffer
+        msgOptions.gifPlayback = true
+      } else if (type === 'jpg' || type === 'png') {
+        msgOptions.image = buffer
+      } else {
+        // Fallback: intentar como video
+        msgOptions.video = buffer
+        msgOptions.gifPlayback = true
+      }
+
+      await client.sendMessage(m.chat, msgOptions, { quoted: m })
 
     } catch (e) {
       console.error(e)
