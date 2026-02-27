@@ -356,7 +356,8 @@ const disconnectTracker = {
   maxDisconnectsPerMinute: 3,
   cooldownMs: 30000, // 30 segundos entre desconexiones
   consecutive428: 0,  // Contador de 428 consecutivos para backoff
-  consecutiveBadSession: 0  // Contador de badSession para no borrar sesión de inmediato
+  consecutiveBadSession: 0,  // Contador de badSession para no borrar sesión de inmediato
+  consecutive401: 0  // 🔧 FIX: Contador de 401 para no borrar sesión al primer intento
 }
 
 function shouldReconnect() {
@@ -510,13 +511,25 @@ async function startBot() {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
       console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
       
-      // 🔥 PROTECCIÓN DE SESIÓN - Solo purgar en logout confirmado (401)
+      // � FIX: Error 401 NO siempre significa logout real.
+      // "Connection Failure" con 401 puede ser temporal.
+      // Solo purgar sesión después de 3 intentos consecutivos fallidos.
       if (reason === DisconnectReason.loggedOut) {
-        log.warn("⚠️ Sesión cerrada desde el teléfono. Se requiere nueva vinculación.")
-        purgeSession()
-        disconnectTracker.consecutiveBadSession = 0
-        LOGIN_METHOD = await uPLoader()
-        startBot()
+        disconnectTracker.consecutive401++
+        const errorMsg = String(lastDisconnect?.error?.message || lastDisconnect?.error || '')
+        const isRealLogout = errorMsg.toLowerCase().includes('logged out')
+        
+        if (isRealLogout || disconnectTracker.consecutive401 >= 3) {
+          log.warn(`⚠️ Sesión cerrada confirmada (intento ${disconnectTracker.consecutive401}). Se requiere nueva vinculación.`)
+          purgeSession()
+          disconnectTracker.consecutive401 = 0
+          disconnectTracker.consecutiveBadSession = 0
+          LOGIN_METHOD = await uPLoader()
+          startBot()
+        } else {
+          log.warn(`⚠️ Error 401 (intento ${disconnectTracker.consecutive401}/3). Puede ser temporal. Reintentando en 10s...`)
+          delayedReconnect(10000, `Error 401 - intento ${disconnectTracker.consecutive401}/3`)
+        }
       }
       // badSession (500) - Intentar reconectar antes de borrar
       else if (reason === DisconnectReason.badSession) {
@@ -571,6 +584,7 @@ async function startBot() {
     if (connection === "open") {
       // Resetear counters de errores al conectar exitosamente
       disconnectTracker.consecutiveBadSession = 0
+      disconnectTracker.consecutive401 = 0
       
       // Solo resetear 428 counter después de estar estable 5 minutos
       if (disconnectTracker._stable428Timer) clearTimeout(disconnectTracker._stable428Timer)
