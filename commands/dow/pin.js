@@ -13,26 +13,54 @@ const isPinterestUrl = (s = '') => /(https?:\/\/)?(www\.)?pinterest\.(com|cl|es)
 
 // ===== 1. MOTOR DE BÚSQUEDA (API EXTERNA) =====
 async function searchPinterest(query) {
-  // Usamos Anabot como pediste, que devuelve metadatos ricos
-  const apiUrl = `https://anabot.my.id/api/search/pinterest?query=${encodeURIComponent(query)}&apikey=freeApikey`
-  
-  const res = await fetch(apiUrl)
-  if (!res.ok) throw new Error(`API Error: ${res.status}`)
-  
-  const json = await res.json()
-  if (!json.success || !json.data?.result?.length) {
-    throw new Error('No encontré resultados en Pinterest.')
+  // Intentamos múltiples APIs por si una falla o cambia el formato
+  const apis = [
+    `https://anabot.my.id/api/search/pinterest?query=${encodeURIComponent(query)}&apikey=freeApikey`,
+    `https://api.lolhuman.xyz/api/pinterest?apikey=GataDios&query=${encodeURIComponent(query)}`,
+  ]
+
+  let lastError = null
+
+  for (const apiUrl of apis) {
+    try {
+      const res = await fetch(apiUrl, { timeout: 10000 })
+      if (!res.ok) continue
+
+      const json = await res.json()
+
+      // Extraer array de resultados (la estructura varía según la API)
+      let rawResults = null
+      if (Array.isArray(json?.data?.result)) rawResults = json.data.result
+      else if (Array.isArray(json?.data)) rawResults = json.data
+      else if (Array.isArray(json?.result)) rawResults = json.result
+      else if (Array.isArray(json)) rawResults = json
+
+      // Si la respuesta es un array de strings (URLs directas)
+      if (rawResults?.length && typeof rawResults[0] === 'string') {
+        return rawResults.filter(u => u.startsWith('http')).map(url => ({
+          url, desc: 'Pinterest', author: 'Desconocido', saves: 0, created: '', isVideo: false
+        }))
+      }
+
+      // Si la respuesta es un array de objetos
+      if (rawResults?.length && typeof rawResults[0] === 'object') {
+        const mapped = rawResults.map(pin => ({
+          url: pin.images?.['736x']?.url || pin.images?.['orig']?.url || pin.images?.['236x']?.url || pin.image || pin.url || pin.media || pin.link || '',
+          desc: pin.description || pin.title || pin.desc || 'Sin descripción',
+          author: pin.native_creator?.full_name || pin.author || pin.creator || 'Desconocido',
+          saves: pin.aggregated_pin_data?.aggregated_stats?.saves || pin.saves || 0,
+          created: pin.created_at || '',
+          isVideo: false
+        })).filter(item => item.url && item.url.startsWith('http'))
+
+        if (mapped.length) return mapped
+      }
+    } catch (e) {
+      lastError = e
+    }
   }
 
-  // Limpiamos y estandarizamos la respuesta
-  return json.data.result.map(pin => ({
-    url: pin.images?.['736x']?.url || pin.images?.['orig']?.url || pin.images?.['236x']?.url,
-    desc: pin.description || 'Sin descripción',
-    author: pin.native_creator?.full_name || 'Desconocido',
-    saves: pin.aggregated_pin_data?.aggregated_stats?.saves || 0,
-    created: pin.created_at || '',
-    isVideo: false // La búsqueda de imágenes suele ser estática
-  })).filter(item => item.url)
+  throw new Error(lastError?.message || 'No encontré resultados en Pinterest.')
 }
 
 // ===== 2. MOTOR DE DESCARGA (LIBRERÍA LOCAL) =====
