@@ -340,6 +340,21 @@ async function delayedReconnect(delayMs, reason = '') {
 }
 
 async function startBot() {
+  // 🔥 CRÍTICO: Cerrar conexión anterior antes de crear una nueva
+  // Sin esto, quedan sockets zombie y WhatsApp devuelve 428
+  if (global.client) {
+    try {
+      global.client.ev.removeAllListeners()
+      global.client.ws?.close()
+      global.client.end?.()
+    } catch (e) {
+      // Ignorar errores al cerrar cliente viejo
+    }
+    global.client = null
+    // Esperar a que el socket anterior se libere completamente
+    await new Promise(r => setTimeout(r, 3000))
+  }
+
   await loadDatabaseSafe()
 
   const { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
