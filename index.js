@@ -180,7 +180,7 @@ async function loadBots() {
     
     // Reset counter si fue exitoso
     botLoadState.retryCount = 0
-    setTimeout(loadBots, 60 * 1000)
+    setTimeout(loadBots, 5 * 60 * 1000) // Cada 5 minutos en vez de 60s
     
   } catch (err) {
     console.error(`⚠️ Error en loadBots:`, err.message)
@@ -373,16 +373,16 @@ async function startBot() {
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
-    // Configuración optimizada contra rate-limit 428
-    retryRequestDelayMs: 15000,
-    getMessage: async () => "",
-    keepAliveIntervalMs: 300000, // 5 minutos - reduce pings a WhatsApp
-    maxRetries: 3,
+    // Configuración optimizada contra desconexiones
+    retryRequestDelayMs: 250,
+    getMessage: async () => undefined,
+    keepAliveIntervalMs: 25000, // 25s - WhatsApp espera ping cada ~30s, NO subir
+    maxMsgRetryCount: 5,
     fetchMessagesOnWS: false,
     downloadHistory: false,
-    tcpConnectTimeoutMs: 30000,
-    emitOwnEvents: false,
-    fireInitQueries: false
+    connectTimeoutMs: 20000,
+    emitOwnEvents: true,
+    fireInitQueries: true
   })
 
   patchSendMessage(client)
@@ -439,9 +439,20 @@ async function startBot() {
       // ERROR 428: Connection Terminated (Rate limit de WhatsApp)
       else if (reason === 428) {
         disconnectTracker.consecutive428++
-        // Backoff exponencial: 2min, 4min, 8min... max 10min
-        const backoff428 = Math.min(120000 * Math.pow(2, disconnectTracker.consecutive428 - 1), 600000)
-        console.log(chalk.yellow(`⚠️ Error 428: Límite de conexión alcanzado. Esperando ${Math.round(backoff428 / 1000)}s (intento ${disconnectTracker.consecutive428})`))
+        // Backoff agresivo: 5min, 10min, 15min... max 30min
+        const backoff428 = Math.min(300000 * disconnectTracker.consecutive428, 1800000)
+        console.log(chalk.yellow(`⚠️ Error 428: Rate limit. Esperando ${Math.round(backoff428 / 1000 / 60)}min (intento ${disconnectTracker.consecutive428})`))
+        
+        // Después de 5 intentos, esperar 1 hora
+        if (disconnectTracker.consecutive428 >= 5) {
+          console.log(chalk.red('🛑 Demasiados 428 consecutivos. Esperando 1 hora antes de reintentar.'))
+          setTimeout(() => {
+            disconnectTracker.consecutive428 = 0
+            startBot()
+          }, 3600000)
+          return
+        }
+        
         delayedReconnect(backoff428, 'Error 428 - Rate Limit')
       }
       // ERROR 515: Stream Errored (Muy común en VPS)
