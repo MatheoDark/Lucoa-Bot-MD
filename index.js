@@ -198,10 +198,10 @@ async function loadBots() {
   }
 }
 
-// Anti Rate-Limit (Optimizado para velocidad)
+// Anti Rate-Limit Mejorado
 const queue = []
 let running = false
-const DELAY = 0 // Cero delay para velocidad máxima
+const DELAY = 500 // ✅ Aumentado: 0ms → 500ms para evitar rate-limit de WhatsApp
 
 function enqueue(task) { queue.push(task); run() }
 async function run() {
@@ -209,12 +209,18 @@ async function run() {
   running = true
   while (queue.length) {
     const job = queue.shift()
-    try { await job() }
+    try { 
+      await job() 
+    }
     catch (e) {
-      if (String(e).includes('rate-overlimit')) {
-        await new Promise(r => setTimeout(r, 2000))
+      const errorStr = String(e)
+      if (errorStr.includes('rate-overlimit') || errorStr.includes('too many requests')) {
+        console.warn('⚠️ Rate limit detectado, esperando 3s...')
+        await new Promise(r => setTimeout(r, 3000))
         queue.unshift(job)
-      } else { console.error('Send error:', e) }
+      } else { 
+        console.error('Send error:', e.message || e) 
+      }
     }
     await new Promise(r => setTimeout(r, DELAY))
   }
@@ -287,6 +293,51 @@ export function patchInteractive(client) {
 
 let LOGIN_METHOD = null
 
+// ✅ NUEVO: Control de desconexiones frecuentes (anti-spam)
+const disconnectTracker = {
+  lastDisconnect: 0,
+  count: 0,
+  maxDisconnectsPerMinute: 3,
+  cooldownMs: 30000 // 30 segundos entre desconexiones
+}
+
+function shouldReconnect() {
+  const now = Date.now()
+  const timeSinceLastDisconnect = now - disconnectTracker.lastDisconnect
+  
+  // Si pasó más de 1 minuto, resetear counter
+  if (timeSinceLastDisconnect > 60000) {
+    disconnectTracker.count = 0
+  }
+  
+  // Si tuvo 3+ desconexiones en menos de 1 minuto, esperar más
+  if (disconnectTracker.count >= disconnectTracker.maxDisconnectsPerMinute) {
+    console.error(`🛑 Demasiadas desconexiones (${disconnectTracker.count}). Esperando 60s antes de reintentar...`)
+    return false
+  }
+  
+  // Si se desconectó hace muy poco, esperar 30s
+  if (timeSinceLastDisconnect < disconnectTracker.cooldownMs) {
+    const waitTime = Math.round((disconnectTracker.cooldownMs - timeSinceLastDisconnect) / 1000)
+    console.log(`⏳ Esperando ${waitTime}s antes de reintentar (cooldown de desconexión)...`)
+    return false
+  }
+  
+  disconnectTracker.lastDisconnect = now
+  disconnectTracker.count++
+  return true
+}
+
+async function delayedReconnect(delayMs, reason = '') {
+  if (!shouldReconnect()) {
+    setTimeout(() => delayedReconnect(60000, reason), disconnectTracker.cooldownMs)
+    return
+  }
+  
+  console.log(`🔄 Reconectando en ${delayMs}ms... (${reason})`)
+  setTimeout(() => startBot(), delayMs)
+}
+
 async function startBot() {
   await loadDatabaseSafe()
 
@@ -357,7 +408,6 @@ async function startBot() {
       console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
       
       // 🔥 PROTECCIÓN CONTRA EL BORRADO DE SESIÓN
-      // Si es error 515, NO borramos sesión, solo reconectamos.
       if (
         reason === DisconnectReason.badSession ||
         reason === DisconnectReason.loggedOut ||
@@ -367,18 +417,21 @@ async function startBot() {
         purgeSession()
         LOGIN_METHOD = await uPLoader()
         startBot()
-      } else if (reason === 515) {
-        // ERROR 515: Stream Errored (Muy común en VPS)
-        console.log(chalk.yellow("⚠️ Error 515 detectado. Esperando 15 segundos antes de reconectar..."))
-        // Esperar 15 segundos antes de reintentar para dar tiempo al servidor
-        setTimeout(() => {
-          console.log(chalk.cyan("🔄 Reintentando conexión..."))
-          startBot()
-        }, 15000)
-      } else {
-        // Cualquier otro error (Connection Lost, etc), reconectar normal
-        console.log(chalk.yellow("⚠️ Reintentando conexión en 5 segundos..."))
-        setTimeout(() => startBot(), 5000)
+      } 
+      // ERROR 428: Connection Terminated (Rate limit de WhatsApp)
+      else if (reason === 428) {
+        console.log(chalk.yellow("⚠️ Error 428: Límite de conexión alcanzado. WhatsApp requiere esperar."))
+        delayedReconnect(45000, 'Error 428 - Rate Limit')
+      }
+      // ERROR 515: Stream Errored (Muy común en VPS)
+      else if (reason === 515) {
+        console.log(chalk.yellow("⚠️ Error 515: Stream Errored. Esperando para reconectar..."))
+        delayedReconnect(15000, 'Error 515 - Stream Errored')
+      } 
+      // OTROS ERRORES
+      else {
+        console.log(chalk.yellow("⚠️ Desconexión detectada. Reconectando..."))
+        delayedReconnect(10000, `Error ${reason}`)
       }
     }
 
