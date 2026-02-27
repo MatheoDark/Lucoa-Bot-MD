@@ -89,7 +89,7 @@ async function downloadPinterestLink(url) {
 
 // ===== COMANDO PRINCIPAL =====
 export default {
-  command: ['pin', 'pinterest'],
+  command: ['pin', 'pinterest', 'pinvideo', 'pindl', 'pinterestdl'],
   category: 'downloader',
   run: async ({ client, m, args }) => {
     const input = args.join(' ').trim()

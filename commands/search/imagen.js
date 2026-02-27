@@ -53,35 +53,68 @@ export default {
     await m.reply('🔍 *Buscando imagen...*')
 
     try {
-      // Usamos global.api.url y global.api.key definidos en settings.js
       const apiUrl = `${global.api.url}/search/googleimagen?query=${encodeURIComponent(text)}&key=${global.api.key}`
 
       const res = await fetch(apiUrl)
-      
-      // Intentamos obtener JSON primero (comportamiento estándar de APIs de búsqueda)
+      const contentType = res.headers.get('content-type') || ''
+
+      // CASO 1: La API devolvió una imagen directa (PNG/JPG/WEBP)
+      if (contentType.includes('image/')) {
+        const buffer = Buffer.from(await res.arrayBuffer())
+        if (buffer.length > 1000) {
+          await client.sendMessage(m.chat, {
+            image: buffer,
+            caption: `🔎 Resultado de: *${text}*`
+          }, { quoted: m })
+          return
+        }
+      }
+
+      // CASO 2: La API devolvió JSON con array de URLs
       let images = []
       try {
-          const data = await res.json()
-          // La API puede devolver { result: [...] } o { data: [...] }
+          const data = contentType.includes('json') ? await res.json() : JSON.parse(await res.text())
           if (data && Array.isArray(data)) images = data
           else if (data?.result && Array.isArray(data.result)) images = data.result
           else if (data?.data && Array.isArray(data.data)) images = data.data
-      } catch (jsonError) {
-          // Si falla el JSON, quizás la API devolvió texto o error
-          console.error("Error parseando JSON de imagen:", jsonError)
+      } catch {}
+
+      if (images.length) {
+        const randomImage = images[Math.floor(Math.random() * images.length)]
+        await client.sendMessage(m.chat, {
+          image: { url: typeof randomImage === 'string' ? randomImage : randomImage.url || randomImage.image },
+          caption: `🔎 Resultado de: *${text}*`
+        }, { quoted: m })
+        return
       }
 
-      if (!images.length) {
-        return m.reply(`ꕥ No se encontraron resultados para *${text}*.`)
+      // CASO 3: Fallback con DuckDuckGo
+      const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+      const tokenUrl = `https://duckduckgo.com/?q=${encodeURIComponent(text)}&iax=images&ia=images`
+      const tokenRes = await fetch(tokenUrl, { headers: { 'User-Agent': UA }, timeout: 15000 })
+      const tokenHtml = await tokenRes.text()
+      const vqdMatch = tokenHtml.match(/vqd=['"]([^'"]+)['"]/)
+      
+      if (vqdMatch) {
+        const imgUrl = `https://duckduckgo.com/i.js?q=${encodeURIComponent(text)}&o=json&p=1&s=0&u=bing&f=,,,,,&l=wt-wt&vqd=${vqdMatch[1]}`
+        const imgRes = await fetch(imgUrl, {
+          headers: { 'User-Agent': UA, 'Referer': 'https://duckduckgo.com/' },
+          timeout: 15000
+        })
+        const imgData = await imgRes.json()
+        const results = imgData.results?.filter(r => r.image) || []
+        
+        if (results.length) {
+          const pick = results[Math.floor(Math.random() * results.length)]
+          await client.sendMessage(m.chat, {
+            image: { url: pick.image },
+            caption: `🔎 Resultado de: *${text}*`
+          }, { quoted: m })
+          return
+        }
       }
 
-      // Elegimos una imagen al azar de los resultados
-      const randomImage = images[Math.floor(Math.random() * images.length)]
-
-      await client.sendMessage(m.chat, { 
-          image: { url: randomImage }, 
-          caption: `🔎 Resultado de: *${text}*` 
-      }, { quoted: m })
+      return m.reply(`ꕥ No se encontraron resultados para *${text}*.`)
 
     } catch (e) {
       console.error(e)
