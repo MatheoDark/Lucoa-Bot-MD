@@ -2,65 +2,19 @@ import yts from 'yt-search'
 import fetch from 'node-fetch'
 import sharp from 'sharp'
 import axios from 'axios'
-import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { pipeline } from 'stream'
 import { promisify } from 'util'
 import { exec } from 'child_process'
+import { ytmp3, ytmp4, apimp3, apimp4, get_id } from '../../lib/ytscraper.js'
+import { ogmp3 } from '../../lib/youtubedl.js'
 
 const streamPipeline = promisify(pipeline)
 const limit = 200 // Límite MB
 
 // ==========================================
-// 🛠️ 1. CLASE SAVETUBE (MANUAL)
-// ==========================================
-class SaveTube {
-    constructor() {
-        this.ky = 'C5D58EF67A7584E4A29F6C35BBC4EB12'
-        this.m = /^((?:https?:)?\/\/)?((?:www|m|music)\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?([a-zA-Z0-9_-]{11})/
-        this.is = axios.create({
-            headers: {
-                'content-type': 'application/json',
-                origin: 'https://yt.savetube.me',
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        })
-    }
-    async decrypt(enc) {
-        try {
-            const [sr, ky] = [Buffer.from(enc, 'base64'), Buffer.from(this.ky, 'hex')]
-            const [iv, dt] = [sr.slice(0, 16), sr.slice(16)]
-            const dc = crypto.createDecipheriv('aes-128-cbc', ky, iv)
-            return JSON.parse(Buffer.concat([dc.update(dt), dc.final()]).toString())
-        } catch { return null }
-    }
-    async getCdn() {
-        try {
-            const r = await this.is.get('https://media.savetube.vip/api/random-cdn')
-            return r.data.cdn
-        } catch { return 'media.savetube.vip' }
-    }
-    async download(url, isAudio) {
-        const id = url.match(this.m)?.[3]
-        if (!id) throw new Error('ID inválido')
-        const cdn = await this.getCdn()
-        const info = await this.is.post(`https://${cdn}/v2/info`, { url: `https://www.youtube.com/watch?v=${id}` })
-        const dec = await this.decrypt(info.data.data)
-        if (!dec) throw new Error('Fallo decrypt SaveTube')
-        
-        const dl = await this.is.post(`https://${cdn}/download`, {
-            id,
-            downloadType: isAudio ? 'audio' : 'video',
-            quality: isAudio ? '128' : '720',
-            key: dec.key
-        })
-        return { dl: dl.data.data.downloadUrl, title: dec.title }
-    }
-}
-
-// ==========================================
-// 🛠️ 2. UTILIDADES (CON ARREGLO PARA MÓVIL)
+// 🛠️ UTILIDADES
 // ==========================================
 async function getBuffer(url) {
     try {
@@ -90,23 +44,15 @@ async function downloadToLocal(url, ext) {
     }
 }
 
-// 🔥 AQUÍ ESTÁ EL ARREGLO PARA MÓVIL
 function fixVideoWithFFmpeg(inputPath) {
     return new Promise((resolve) => {
         console.log(`[INFO] 🛠️ Convirtiendo para WhatsApp Móvil (Ultrafast)...`)
         const outputPath = inputPath.replace('.mp4', '_fixed.mp4')
-        
-        // EXPLICACIÓN DEL CAMBIO:
-        // -c:v libx264: Obliga a usar el formato compatible con Android/iOS.
-        // -preset ultrafast: Lo hace a la máxima velocidad posible (casi instantáneo).
-        // -pix_fmt yuv420p: Vital para que WhatsApp reconozca los colores.
-        // -c:a aac: Asegura que el audio se escuche.
-        
         const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "${outputPath}"`
         
         exec(cmd, (error) => {
             if (error) {
-                console.log('⚠️ FFmpeg falló, enviando original (puede fallar en móvil).')
+                console.log('⚠️ FFmpeg falló, enviando original.')
                 resolve(inputPath)
             } else {
                 try { fs.unlinkSync(inputPath) } catch {}
@@ -116,63 +62,75 @@ function fixVideoWithFFmpeg(inputPath) {
     })
 }
 
-// API FETCHER PARALELO
-const fetchParallelFirstValid = async (url, apis, timeout = 25000) => {
-    return new Promise((resolve, reject) => {
-        let settled = false
-        const timer = setTimeout(() => {
-            if (!settled) {
-                settled = true
-                reject(new Error('Timeout: Ninguna API respondió a tiempo. Intenta de nuevo.'))
-            }
-        }, timeout)
+// ==========================================
+// 🔄 DESCARGA CON MÚLTIPLES FALLBACKS
+// ==========================================
+async function getDownloadUrl(url, isAudio) {
+    const errors = []
 
-        let apiErrors = []
-        let apiCount = apis.length
-        let completedCount = 0
+    // 1. SaveTube (via ytscraper)
+    try {
+        console.log('[INFO] 🔄 Intentando SaveTube...')
+        const res = isAudio ? await ytmp3(url) : await ytmp4(url)
+        if (res.status && res.download?.status && res.download?.url) {
+            console.log('[INFO] ✅ SaveTube OK')
+            return { dl: res.download.url, title: res.metadata?.title, source: 'SaveTube' }
+        }
+    } catch (e) { errors.push(`SaveTube: ${e.message}`) }
 
-        apis.forEach((api, index) => {
-            ;(async () => {
-                try {
-                    let result
-                    if (api.custom) {
-                        result = await api.run(url)
-                    } else {
-                        const res = await fetch(api.url(url))
-                        const json = await res.json()
-                        if (api.validate(json)) result = await api.parse(json)
-                    }
-                    if (result?.dl && !settled) {
-                        settled = true
-                        console.log(`[INFO] ✅ API Ganadora: ${result.source || 'Desconocida'}`)
-                        clearTimeout(timer)
-                        resolve(result)
-                    } else {
-                        completedCount++
-                        if (completedCount === apiCount && !settled) {
-                            settled = true
-                            clearTimeout(timer)
-                            reject(new Error('Todas las APIs fallaron. Intenta con otro enlace.'))
-                        }
-                    }
-                } catch (err) {
-                    apiErrors[index] = err.message
-                    completedCount++
-                    console.warn(`⚠️ API ${index + 1} falló: ${err.message}`)
-                    
-                    if (completedCount === apiCount && !settled) {
-                        settled = true
-                        clearTimeout(timer)
-                        reject(new Error(`Todas las APIs fallaron: ${apiErrors.filter(Boolean).join(', ')}`))
-                    }
-                }
-            })()
-        })
-    })
+    // 2. ogmp3 (apiapi.lat)
+    try {
+        console.log('[INFO] 🔄 Intentando ogmp3...')
+        const format = isAudio ? '320' : '720'
+        const type = isAudio ? 'audio' : 'video'
+        const res = await ogmp3.download(url, format, type)
+        if (res.status && res.result?.download) {
+            console.log('[INFO] ✅ ogmp3 OK')
+            return { dl: res.result.download, title: res.result.title, source: 'ogmp3' }
+        }
+    } catch (e) { errors.push(`ogmp3: ${e.message}`) }
+
+    // 3. Vreden API
+    try {
+        console.log('[INFO] 🔄 Intentando Vreden API...')
+        const res = isAudio ? await apimp3(url) : await apimp4(url)
+        if (res?.status && res?.download?.url) {
+            console.log('[INFO] ✅ Vreden API OK')
+            return { dl: res.download.url, title: res.metadata?.title, source: 'Vreden' }
+        }
+    } catch (e) { errors.push(`Vreden: ${e.message}`) }
+
+    // 4. Nekolabs API (fallback externo)
+    try {
+        console.log('[INFO] 🔄 Intentando Nekolabs...')
+        const apiUrl = `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(url)}&format=${isAudio ? 'mp3' : '720'}`
+        const res = await fetch(apiUrl)
+        const json = await res.json()
+        if (json.success && json.result?.downloadUrl) {
+            console.log('[INFO] ✅ Nekolabs OK')
+            return { dl: json.result.downloadUrl, title: json.result.title, source: 'Nekolabs' }
+        }
+    } catch (e) { errors.push(`Nekolabs: ${e.message}`) }
+
+    // 5. Anabot API (último fallback)
+    try {
+        console.log('[INFO] 🔄 Intentando Anabot...')
+        const endpoint = isAudio ? 'ytmp3' : 'ytmp4'
+        const apiUrl = `https://anabot.my.id/api/download/${endpoint}?url=${encodeURIComponent(url)}${isAudio ? '' : '&quality=720'}&apikey=freeApikey`
+        const res = await fetch(apiUrl)
+        const json = await res.json()
+        if (json?.data?.result?.urls) {
+            console.log('[INFO] ✅ Anabot OK')
+            return { dl: json.data.result.urls, title: json.data.result.metadata?.title, source: 'Anabot' }
+        }
+    } catch (e) { errors.push(`Anabot: ${e.message}`) }
+
+    console.error('[ERROR] Todas las APIs fallaron:', errors)
+    throw new Error('Todas las APIs fallaron. Intenta de nuevo más tarde.')
 }
 
 // ==========================================
-// 🚀 3. COMANDO PRINCIPAL
+// 🚀 COMANDO PRINCIPAL
 // ==========================================
 export default {
     command: ['play', 'mp3', 'playaudio', 'ytmp3', 'play2', 'mp4', 'playvideo', 'ytmp4'],
@@ -204,8 +162,12 @@ export default {
         if (/https?:\/\//.test(text)) {
             url = text
             try {
-                const id = text.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1]
-                videoInfo = await yts({ videoId: id })
+                const id = get_id(text)
+                if (id) {
+                    videoInfo = await yts({ videoId: id })
+                } else {
+                    return m.reply('❌ Link inválido.')
+                }
             } catch { return m.reply('❌ Link inválido.') }
         } else {
             const search = await yts(text)
@@ -268,35 +230,9 @@ async function executeDownload(client, m, url, type, title, thumb) {
     const isAudio = type === 'audio' || type === 'document'
     await m.react(isAudio ? '🎧' : '🎬')
 
-    // CONFIGURACIÓN DE APIS (Solo las rápidas + Manual)
-    const nekolabsApi = {
-        url: (u) => `https://api.nekolabs.web.id/downloader/youtube/v1?url=${encodeURIComponent(u)}&format=${isAudio ? 'mp3' : '720'}`,
-        validate: (r) => r.success && r.result?.downloadUrl,
-        parse: (r) => ({ dl: r.result.downloadUrl, title: r.result.title, source: 'Nekolabs' })
-    }
-
-    const anabotApi = {
-        url: (u) => `https://anabot.my.id/api/download/${isAudio ? 'ytmp3' : 'ytmp4'}?url=${encodeURIComponent(u)}${isAudio ? '' : '&quality=720'}&apikey=freeApikey`,
-        validate: (r) => r?.data?.result?.urls,
-        parse: (r) => ({ dl: r.data.result.urls, title: r.data.result.metadata?.title, source: 'Anabot' })
-    }
-
-    const saveTubeFallback = {
-        custom: true,
-        run: async (u) => { 
-            console.log('[INFO] ⚠️ Usando modo Manual (SaveTube)...')
-            const sv = new SaveTube()
-            const res = await sv.download(u, isAudio)
-            return { ...res, source: 'SaveTube Manual' }
-        }
-    }
-
-    // Orden de prioridad
-    const apis = [nekolabsApi, anabotApi, saveTubeFallback]
-
     try {
-        const { dl, source } = await fetchParallelFirstValid(url, apis)
-        if (!dl) return m.reply('❌ No se pudo obtener el enlace.')
+        const { dl, source } = await getDownloadUrl(url, isAudio)
+        if (!dl) return m.reply('❌ No se pudo obtener el enlace de descarga.')
 
         // Miniatura
         let thumbBuffer = null
@@ -308,10 +244,10 @@ async function executeDownload(client, m, url, type, title, thumb) {
             }
         } catch {}
 
-        // Descarga
+        // Descarga a archivo local
         let localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
 
-        // Fix Video (SOLO SI ES VIDEO, REPARAMOS EL CODEC)
+        // Fix Video (codec compatible con WhatsApp móvil)
         if (!isAudio) {
             localFilePath = await fixVideoWithFFmpeg(localFilePath)
         }
@@ -319,7 +255,7 @@ async function executeDownload(client, m, url, type, title, thumb) {
         const fileData = fs.readFileSync(localFilePath)
         const cleanTitle = sanitizeFileName(title)
 
-        console.log(`[INFO] 📤 Enviando archivo...`)
+        console.log(`[INFO] 📤 Enviando archivo... (${source})`)
 
         if (type === 'audio') {
             await client.sendMessage(m.chat, { 

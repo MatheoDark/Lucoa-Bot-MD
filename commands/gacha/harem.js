@@ -16,20 +16,37 @@ if (!fs.existsSync(tmpDir)) {
 // --- 1. FUNCIÓN PARA BUSCAR IMÁGENES ---
 const obtenerImagenGelbooru = async (keyword) => {
   if (!keyword) return null
-  const url = `https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(keyword)}`
+  const tag = encodeURIComponent(keyword)
+
+  // 1. Gelbooru directo
   try {
-    const res = await fetch(url)
+    const res = await fetch(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
     const data = await res.json()
-    const extensionesImagen = /\.(jpg|jpeg|png)$/i
-    const imagenesValidas = data?.data?.filter(
-      (item) => typeof item?.image === 'string' && extensionesImagen.test(item.image),
-    )
-    if (!imagenesValidas?.length) return null
-    const imagen = imagenesValidas[Math.floor(Math.random() * imagenesValidas.length)]
-    return imagen.image
-  } catch (e) {
-    return null
-  }
+    const posts = data?.post || []
+    const valid = posts.filter(p => p.file_url && /\.(jpg|jpeg|png|webp)$/i.test(p.file_url))
+    if (valid.length) return valid[Math.floor(Math.random() * valid.length)].file_url
+  } catch {}
+
+  // 2. Danbooru fallback
+  try {
+    const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
+    const data = await res.json()
+    const valid = data.filter(p => (p.file_url || p.large_file_url))
+    if (valid.length) {
+      const post = valid[Math.floor(Math.random() * valid.length)]
+      return post.file_url || post.large_file_url
+    }
+  } catch {}
+
+  // 3. Yandere fallback
+  try {
+    const res = await fetch(`https://yande.re/post.json?tags=${tag}&limit=50`)
+    const data = await res.json()
+    const valid = data.filter(p => p.file_url)
+    if (valid.length) return valid[Math.floor(Math.random() * valid.length)].file_url
+  } catch {}
+
+  return null
 }
 
 async function loadCharacters() {
