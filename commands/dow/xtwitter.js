@@ -12,13 +12,8 @@ try {
  if (res?.result.type == 'video') {
      const caption = res?.result.caption ? res.result.caption : '*Aquí tiene su vídeo*';
      for (let i = 0; i < res.result.media.length; i++) {
-     // ✅ MEJORADO: Usar document en lugar de video para mejor compatibilidad móvil
-     await client.sendMessage(m.chat, {
-       document: {url: res.result.media[i].result[0].url}, 
-       mimetype: 'video/mp4',
-       fileName: `twitter_video_${i+1}.mp4`,
-       caption: caption
-     }, {quoted: m});
+     // ✅ Usar document en lugar de video para mejor compatibilidad móvil
+     await client.sendMessage(m.chat, {document: {url: res.result.media[i].result[0].url}, mimetype: 'video/mp4', fileName: `video_${i+1}.mp4`, caption: caption}, {quoted: m});
      };
      enviando = false;
      return;
@@ -31,9 +26,9 @@ try {
      enviando = false;
      return;
   }
-} catch (err) {
+} catch {
     enviando = false;
-    throw new Error('No se pudo obtener el video de X/Twitter. Intenta más tarde.')
+    throw '> Error, intente mas tarde.*';
     return;
   }
 }}

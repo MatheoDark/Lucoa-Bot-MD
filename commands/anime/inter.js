@@ -170,9 +170,11 @@ export default {
       
       const mentions = [...new Set([who, m.sender])].filter(Boolean)
 
+      // ✅ OPTIMIZADO: Usar document en lugar de video para mejor compatibilidad móvil
       await client.sendMessage(m.chat, {
-          video: buffer,
-          gifPlayback: true, // Esto lo convierte en "GIF" en WhatsApp
+          document: buffer,
+          mimetype: 'video/mp4',
+          fileName: `${currentCommand}_reaction.mp4`,
           caption: caption,
           mentions: mentions
       }, { quoted: m })

@@ -91,7 +91,8 @@ export default {
         const caption = `🐲 *Descarga completada*\n📝 ${result.desc}`
 
         if (result.isVideo) {
-          await client.sendMessage(chatId, { video: { url: result.url }, caption }, { quoted: m })
+          // ✅ Usar document en lugar de video para mejor compatibilidad móvil
+          await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: 'pinterest_video.mp4', caption }, { quoted: m })
         } else {
           await client.sendMessage(chatId, { image: { url: result.url }, caption }, { quoted: m })
         }

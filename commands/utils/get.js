@@ -59,7 +59,8 @@ export default {
       }
 
       if (/video\/(mp4|webm|ogg)/.test(contentType) || ['mp4', 'webm', 'ogg'].includes(ext)) {
-        return await client.sendMessage(m.chat, { video: buffer, caption: `《✧》 Video desde: ${text}` }, { quoted: m })
+        // ✅ Usar document en lugar de video para mejor compatibilidad móvil
+        return await client.sendMessage(m.chat, { document: buffer, mimetype: 'video/mp4', fileName: `video.${ext || 'mp4'}`, caption: `《✧》 Video desde: ${text}` }, { quoted: m })
       }
 
       if (/audio\/(mpeg|ogg|mp3|wav)/.test(contentType) || ['mp3', 'wav', 'ogg'].includes(ext) || contentType === 'application/octet-stream') {

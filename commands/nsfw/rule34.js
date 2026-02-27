@@ -86,7 +86,7 @@ export default {
                         console.log(`ID ${id}: ${isVideo ? 'VIDEO' : 'IMAGEN'} -> ${fileUrl}`)
 
                         if (isVideo) {
-                             // ✅ MEJORADO: Usar document en lugar de video para mejor compatibilidad móvil
+                             // ✅ Usar document en lugar de video para mejor compatibilidad móvil
                              await client.sendMessage(m.chat, { 
                                 document: { url: fileUrl },
                                 mimetype: 'video/mp4',
