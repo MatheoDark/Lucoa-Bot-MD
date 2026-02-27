@@ -298,7 +298,8 @@ const disconnectTracker = {
   lastDisconnect: 0,
   count: 0,
   maxDisconnectsPerMinute: 3,
-  cooldownMs: 30000 // 30 segundos entre desconexiones
+  cooldownMs: 30000, // 30 segundos entre desconexiones
+  consecutive428: 0   // Contador de 428 consecutivos para backoff
 }
 
 function shouldReconnect() {
@@ -420,8 +421,11 @@ async function startBot() {
       } 
       // ERROR 428: Connection Terminated (Rate limit de WhatsApp)
       else if (reason === 428) {
-        console.log(chalk.yellow("⚠️ Error 428: Límite de conexión alcanzado. WhatsApp requiere esperar."))
-        delayedReconnect(45000, 'Error 428 - Rate Limit')
+        disconnectTracker.consecutive428++
+        // Backoff exponencial: 2min, 4min, 8min... max 10min
+        const backoff428 = Math.min(120000 * Math.pow(2, disconnectTracker.consecutive428 - 1), 600000)
+        console.log(chalk.yellow(`⚠️ Error 428: Límite de conexión alcanzado. Esperando ${Math.round(backoff428 / 1000)}s (intento ${disconnectTracker.consecutive428})`))
+        delayedReconnect(backoff428, 'Error 428 - Rate Limit')
       }
       // ERROR 515: Stream Errored (Muy común en VPS)
       else if (reason === 515) {
@@ -436,6 +440,8 @@ async function startBot() {
     }
 
     if (connection === "open") {
+      // Reset 428 counter al conectar exitosamente
+      disconnectTracker.consecutive428 = 0
       console.log(
         boxen(chalk.bold(' ¡CONECTADO! '), {
           borderStyle: 'round',

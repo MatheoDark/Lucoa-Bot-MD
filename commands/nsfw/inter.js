@@ -247,7 +247,8 @@ export default {
       // DESCARGA Y ENVÍO
       console.log(`[NSFW] Enviando: ${url}`)
       const response = await fetch(url, { agent, headers })
-      let buffer = await response.buffer()
+      const arrayBuf = await response.arrayBuffer()
+      let buffer = Buffer.from(arrayBuf)
       
       const type = getBufferType(buffer)
       let msgOptions = { caption: caption, mentions: [who, m.sender] }

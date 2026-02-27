@@ -166,15 +166,15 @@ export default {
 
       // 6. Enviar
       const mediaRes = await fetch(mediaUrl)
-      const buffer = await mediaRes.buffer()
+      const arrayBuf = await mediaRes.arrayBuffer()
+      const buffer = Buffer.from(arrayBuf)
       
       const mentions = [...new Set([who, m.sender])].filter(Boolean)
 
-      // ✅ OPTIMIZADO: Usar document en lugar de video para mejor compatibilidad móvil
+      // ✅ Enviar como video con gifPlayback para reproducción inline
       await client.sendMessage(m.chat, {
-          document: buffer,
-          mimetype: 'video/mp4',
-          fileName: `${currentCommand}_reaction.mp4`,
+          video: buffer,
+          gifPlayback: true,
           caption: caption,
           mentions: mentions
       }, { quoted: m })
