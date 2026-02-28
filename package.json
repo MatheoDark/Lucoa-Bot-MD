@@ -54,7 +54,7 @@
     "node-webpmux": "^3.2.0",
     "pino": "^9.5.0",
     "qrcode-terminal": "^0.12.0",
-    "ruhend-scraper": "^7.0.4",
+    "ruhend-scraper": "^9.0.8",
     "sharp": "^0.33.5",
     "syntax-error": "^1.4.0",
     "util": "^0.12.5",
@@ -63,5 +63,13 @@
     "yargs": "^17.7.2",
     "yargs-parser": "^21.1.1",
     "yt-search": "^2.12.1"
+  },
+  "overrides": {
+    "tar": "^7.5.9",
+    "minimatch": "^5.1.6",
+    "wa-sticker-formatter": {
+      "axios": "^1.7.9",
+      "sharp": "^0.33.5"
+    }
   }
 }
