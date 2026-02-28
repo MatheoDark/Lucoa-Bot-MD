@@ -26,10 +26,11 @@ export default {
 
         if (!text) return m.reply(`*⚠️ Falta el nombre.*\nEjemplo: ${usedPrefix + command} lucoa`)
 
+        const tags = text.trim().replace(/\s+/g, '_')
         m.reply('🔍 *Buscando Pack (5) en Rule34...*')
 
         try {
-            const searchUrl = `https://rule34.xxx/index.php?page=post&s=list&tags=${text}`
+            const searchUrl = `https://rule34.xxx/index.php?page=post&s=list&tags=${encodeURIComponent(tags)}`
             
             const headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
