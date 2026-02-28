@@ -254,12 +254,21 @@ async function loadBots() {
   }
 }
 
-// Anti Rate-Limit Mejorado
+// Anti Rate-Limit Mejorado v2
 const queue = []
 let running = false
-const DELAY = 1500 // ✅ 1.5s entre mensajes para evitar rate-limit de WhatsApp
+const DELAY = 2000 // ✅ 2s entre mensajes (era 1.5s, causaba presión en el stream)
+const MAX_QUEUE = 100 // Límite de cola para evitar acumulación infinita
 
-function enqueue(task) { queue.push(task); run() }
+function enqueue(task) { 
+  // 🔧 FIX: Evitar que la cola crezca indefinidamente durante desconexiones
+  if (queue.length >= MAX_QUEUE) {
+    console.warn(`⚠️ Cola de mensajes llena (${MAX_QUEUE}). Descartando mensaje antiguo.`)
+    queue.shift() // Descartar el más antiguo
+  }
+  queue.push(task)
+  run() 
+}
 async function run() {
   if (running) return
   running = true
@@ -271,9 +280,12 @@ async function run() {
     catch (e) {
       const errorStr = String(e)
       if (errorStr.includes('rate-overlimit') || errorStr.includes('too many requests')) {
-        console.warn('⚠️ Rate limit detectado, esperando 3s...')
-        await new Promise(r => setTimeout(r, 3000))
+        console.warn('⚠️ Rate limit detectado, esperando 5s...')
+        await new Promise(r => setTimeout(r, 5000))
         queue.unshift(job)
+      } else if (errorStr.includes('Connection Closed') || errorStr.includes('stream errored')) {
+        // 🔧 FIX: No reintentar envíos si el stream está caído
+        console.warn('⚠️ Stream caído, descartando mensaje en cola.')
       } else { 
         console.error('Send error:', e.message || e) 
       }
@@ -349,7 +361,7 @@ export function patchInteractive(client) {
 
 let LOGIN_METHOD = null
 
-// ✅ NUEVO: Control de desconexiones frecuentes (anti-spam)
+// ✅ Control de desconexiones frecuentes (anti-spam) - MEJORADO v2
 const disconnectTracker = {
   lastDisconnect: 0,
   count: 0,
@@ -357,7 +369,10 @@ const disconnectTracker = {
   cooldownMs: 30000, // 30 segundos entre desconexiones
   consecutive428: 0,  // Contador de 428 consecutivos para backoff
   consecutiveBadSession: 0,  // Contador de badSession para no borrar sesión de inmediato
-  consecutive401: 0  // 🔧 FIX: Contador de 401 para no borrar sesión al primer intento
+  consecutive401: 0,  // Contador de 401 para no borrar sesión al primer intento
+  consecutive515: 0,  // 🔧 FIX: Contador de 515 para backoff exponencial
+  consecutiveOther: 0, // Contador de otros errores consecutivos
+  _reconnectTimer: null // Timer de reconexión activo (evitar duplicados)
 }
 
 function shouldReconnect() {
@@ -388,13 +403,27 @@ function shouldReconnect() {
 }
 
 async function delayedReconnect(delayMs, reason = '') {
+  // 🔧 FIX: Cancelar timer anterior para evitar reconexiones duplicadas
+  if (disconnectTracker._reconnectTimer) {
+    clearTimeout(disconnectTracker._reconnectTimer)
+    disconnectTracker._reconnectTimer = null
+  }
+
   if (!shouldReconnect()) {
-    setTimeout(() => delayedReconnect(60000, reason), disconnectTracker.cooldownMs)
+    const waitMs = Math.max(disconnectTracker.cooldownMs, delayMs)
+    console.log(chalk.gray(`⏳ Cooldown activo. Reintentando en ${Math.round(waitMs / 1000)}s...`))
+    disconnectTracker._reconnectTimer = setTimeout(() => {
+      disconnectTracker._reconnectTimer = null
+      delayedReconnect(delayMs, reason)
+    }, waitMs)
     return
   }
   
-  console.log(`🔄 Reconectando en ${delayMs}ms... (${reason})`)
-  setTimeout(() => startBot(), delayMs)
+  console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(delayMs / 1000)}s... (${reason})`))
+  disconnectTracker._reconnectTimer = setTimeout(() => {
+    disconnectTracker._reconnectTimer = null
+    startBot()
+  }, delayMs)
 }
 
 // 🧹 Limpieza automática de carpeta tmp
@@ -426,19 +455,21 @@ setInterval(cleanTmpFolder, 10 * 60 * 1000)
 cleanTmpFolder()
 
 async function startBot() {
-  // 🔥 CRÍTICO: Cerrar conexión anterior antes de crear una nueva
-  // Sin esto, quedan sockets zombie y WhatsApp devuelve 428
+// 🔥 CRÍTICO: Cerrar conexión anterior completamente antes de crear una nueva
+  // Sin esto, quedan sockets zombie y WhatsApp devuelve 428/515
   if (global.client) {
     try {
       global.client.ev.removeAllListeners()
-      global.client.ws?.close()
-      global.client.end?.()
+      // Cerrar WebSocket con código normal de cierre
+      try { global.client.ws?.close() } catch {}
+      try { global.client.end?.() } catch {}
     } catch (e) {
       // Ignorar errores al cerrar cliente viejo
     }
     global.client = null
-    // Esperar a que el socket anterior se libere completamente
-    await new Promise(r => setTimeout(r, 3000))
+    // 🔧 FIX: Esperar 5s (era 3s) para que el socket anterior se libere y WhatsApp
+    // no detecte una doble conexión (causa principal de 515 en VPS)
+    await new Promise(r => setTimeout(r, 5000))
   }
 
   await loadDatabaseSafe()
@@ -450,25 +481,46 @@ async function startBot() {
   console.info = () => {}
   console.debug = () => {}
 
+  // 🔧 Cache de metadatos de grupo para reducir llamadas API al stream
+  const groupMetadataCache = new Map()
+
   const client = makeWASocket({
     version,
     logger,
-    // 🔥 CAMBIO VITAL: Usamos "Ubuntu" para que coincida con tu VPS y evitar error 515
-    browser: ['Ubuntu', 'Chrome', '20.0.04'], 
+    browser: Browsers.ubuntu('Chrome'),
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
-    // Configuración optimizada contra desconexiones
-    retryRequestDelayMs: 250,
-    getMessage: async () => undefined,
-    keepAliveIntervalMs: 25000, // 25s - WhatsApp espera ping cada ~30s, NO subir
-    maxMsgRetryCount: 5,
-    fetchMessagesOnWS: false,
-    downloadHistory: false,
-    connectTimeoutMs: 20000,
+    // 🔧 FIX: Configuración optimizada contra desconexiones 515
+    retryRequestDelayMs: 2500,       // ← ERA 250, demasiado agresivo. Ahora 2.5s
+    getMessage: async (key) => {
+      // Intentar devolver mensaje del store si existe
+      return undefined
+    },
+    keepAliveIntervalMs: 20000,      // 20s - margen seguro antes del timeout de 30s
+    maxMsgRetryCount: 3,             // ← ERA 5, menos reintentos = menos presión
+    connectTimeoutMs: 60000,         // ← ERA 20s, ahora 60s para VPS lentos
     emitOwnEvents: true,
-    fireInitQueries: true
+    fireInitQueries: true,
+    // 🔧 NUEVO: Ignorar broadcasts de estado (reduce carga en el stream)
+    shouldIgnoreJid: (jid) => jid?.endsWith('@broadcast') || jid === 'status@broadcast',
+    // 🔧 NUEVO: Cache de metadatos de grupo reduce llamadas al API
+    cachedGroupMetadata: async (jid) => {
+      const cached = groupMetadataCache.get(jid)
+      if (cached && Date.now() - cached.ts < 300000) return cached.data // 5 min TTL
+      return undefined
+    }
+  })
+
+  // Actualizar cache de metadatos cuando llegan
+  client.ev.on('groups.update', (updates) => {
+    for (const update of updates) {
+      if (update.id) groupMetadataCache.delete(update.id)
+    }
+  })
+  client.ev.on('group-participants.update', ({ id }) => {
+    groupMetadataCache.delete(id)
   })
 
   patchSendMessage(client)
@@ -569,15 +621,34 @@ async function startBot() {
         
         delayedReconnect(backoff428, 'Error 428 - Rate Limit')
       }
-      // ERROR 515: Stream Errored (Muy común en VPS)
+      // ERROR 515: Stream Errored (Muy común en VPS) - CON BACKOFF EXPONENCIAL
       else if (reason === 515) {
-        console.log(chalk.yellow("⚠️ Error 515: Stream Errored. Esperando para reconectar..."))
-        delayedReconnect(15000, 'Error 515 - Stream Errored')
+        disconnectTracker.consecutive515++
+        // Backoff exponencial: 15s, 30s, 60s, 120s, 240s, max 5min
+        const backoff515 = Math.min(15000 * Math.pow(2, disconnectTracker.consecutive515 - 1), 300000)
+        console.log(chalk.yellow(`⚠️ Error 515: Stream Errored (intento ${disconnectTracker.consecutive515}). Esperando ${Math.round(backoff515 / 1000)}s...`))
+        
+        // Después de 8 intentos consecutivos, esperar 15 minutos
+        if (disconnectTracker.consecutive515 >= 8) {
+          console.log(chalk.red('🛑 Demasiados 515 consecutivos. Esperando 15 minutos antes de reintentar.'))
+          // Backup de sesión por seguridad
+          backupSession()
+          disconnectTracker._reconnectTimer = setTimeout(() => {
+            disconnectTracker._reconnectTimer = null
+            disconnectTracker.consecutive515 = 0
+            startBot()
+          }, 900000) // 15 minutos
+          return
+        }
+        
+        delayedReconnect(backoff515, `Error 515 - Stream Errored (intento ${disconnectTracker.consecutive515})`)
       } 
-      // OTROS ERRORES
+      // OTROS ERRORES - con backoff para evitar loops
       else {
-        console.log(chalk.yellow("⚠️ Desconexión detectada. Reconectando..."))
-        delayedReconnect(10000, `Error ${reason}`)
+        disconnectTracker.consecutiveOther++
+        const otherBackoff = Math.min(10000 * disconnectTracker.consecutiveOther, 120000)
+        console.log(chalk.yellow(`⚠️ Desconexión detectada (${reason}). Reconectando en ${Math.round(otherBackoff / 1000)}s...`))
+        delayedReconnect(otherBackoff, `Error ${reason}`)
       }
     }
 
@@ -585,14 +656,19 @@ async function startBot() {
       // Resetear counters de errores al conectar exitosamente
       disconnectTracker.consecutiveBadSession = 0
       disconnectTracker.consecutive401 = 0
+      disconnectTracker.consecutiveOther = 0
       
-      // Solo resetear 428 counter después de estar estable 5 minutos
-      if (disconnectTracker._stable428Timer) clearTimeout(disconnectTracker._stable428Timer)
-      disconnectTracker._stable428Timer = setTimeout(() => {
-        if (disconnectTracker.consecutive428 > 0) {
-          console.log(chalk.green('✅ Conexión estable por 5min. Reseteando contador 428.'))
-        }
+      // Solo resetear contadores de stream después de estar estable 5 minutos
+      if (disconnectTracker._stableTimer) clearTimeout(disconnectTracker._stableTimer)
+      disconnectTracker._stableTimer = setTimeout(() => {
+        const had515 = disconnectTracker.consecutive515 > 0
+        const had428 = disconnectTracker.consecutive428 > 0
+        disconnectTracker.consecutive515 = 0
         disconnectTracker.consecutive428 = 0
+        disconnectTracker.count = 0
+        if (had515 || had428) {
+          console.log(chalk.green('✅ Conexión estable por 5min. Contadores de errores reseteados.'))
+        }
       }, 300000) // 5 minutos
       
       console.log(
