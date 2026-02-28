@@ -1,16 +1,7 @@
-import fetch from 'node-fetch'
 import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-
-// Verificar si ffmpeg está disponible
-let _ffmpeg = null
-function hasFfmpeg() {
-  if (_ffmpeg !== null) return _ffmpeg
-  try { execSync('which ffmpeg', { stdio: 'ignore' }); _ffmpeg = true } catch { _ffmpeg = false }
-  return _ffmpeg
-}
 
 // Voces con nombre, idioma base y ajuste de pitch
 const voices = [
@@ -80,7 +71,7 @@ export default {
     const tmpDir = os.tmpdir()
     const uid = Date.now() + '_' + Math.random().toString(36).slice(2)
     const rawFile = path.join(tmpDir, `tts_raw_${uid}.mp3`)
-    const outFile = path.join(tmpDir, `tts_out_${uid}.mp3`)
+    const outFile = path.join(tmpDir, `tts_out_${uid}.ogg`)
 
     try {
       // Descargar audio con curl (más confiable que node-fetch para binarios)
@@ -92,25 +83,24 @@ export default {
         throw 'Audio vacío de Google TTS'
       }
 
-      let finalFile = rawFile
+      // Convertir a OGG Opus (formato real de notas de voz de WhatsApp)
+      // Si la voz tiene pitch diferente, aplicarlo en el mismo paso
+      const needsPitch = selectedVoice.pitch !== 1.0
+      const sampleRate = Math.round(44100 * selectedVoice.pitch)
+      const pitchFilter = needsPitch
+        ? `-af "asetrate=${sampleRate},aresample=48000,atempo=${selectedVoice.speed}"`
+        : ''
 
-      // Modificar pitch con ffmpeg si disponible y la voz lo requiere
-      if (selectedVoice.pitch !== 1.0 && hasFfmpeg()) {
-        try {
-          const sampleRate = Math.round(44100 * selectedVoice.pitch)
-          execSync(
-            `ffmpeg -y -i "${rawFile}" -af "asetrate=${sampleRate},aresample=44100,atempo=${selectedVoice.speed}" "${outFile}"`,
-            { timeout: 15000, stdio: 'ignore' }
-          )
-          if (fs.existsSync(outFile) && fs.statSync(outFile).size > 100) {
-            finalFile = outFile
-          }
-        } catch (ffErr) {
-          console.error('TTS: ffmpeg falló, usando audio original')
-        }
+      execSync(
+        `ffmpeg -y -i "${rawFile}" ${pitchFilter} -c:a libopus -b:a 64k -ac 1 -ar 48000 "${outFile}"`,
+        { timeout: 15000, stdio: 'ignore' }
+      )
+
+      if (!fs.existsSync(outFile) || fs.statSync(outFile).size < 100) {
+        throw 'Error al convertir audio a OGG Opus'
       }
 
-      const audioBuffer = fs.readFileSync(finalFile)
+      const audioBuffer = fs.readFileSync(outFile)
 
       await client.sendMessage(m.chat, {
         audio: audioBuffer,
