@@ -1,25 +1,30 @@
 import fetch from 'node-fetch'
-import { exec } from 'child_process'
-import { promisify } from 'util'
+import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
 
-const execAsync = promisify(exec)
+// Verificar si ffmpeg está disponible
+let _ffmpeg = null
+function hasFfmpeg() {
+  if (_ffmpeg !== null) return _ffmpeg
+  try { execSync('which ffmpeg', { stdio: 'ignore' }); _ffmpeg = true } catch { _ffmpeg = false }
+  return _ffmpeg
+}
 
 // Voces con nombre, idioma base y ajuste de pitch
 const voices = [
   { name: 'Lucoa',    lang: 'es',    pitch: 1.0,  speed: 1.0  },
-  { name: 'María',    lang: 'es',    pitch: 1.25, speed: 1.0  },
-  { name: 'Carlos',   lang: 'es',    pitch: 0.8,  speed: 0.95 },
-  { name: 'Sofía',    lang: 'es',    pitch: 1.35, speed: 1.05 },
-  { name: 'Diego',    lang: 'es',    pitch: 0.7,  speed: 0.9  },
+  { name: 'María',    lang: 'es',    pitch: 1.2,  speed: 1.0  },
+  { name: 'Carlos',   lang: 'es',    pitch: 0.85, speed: 0.95 },
+  { name: 'Sofía',    lang: 'es',    pitch: 1.3,  speed: 1.05 },
+  { name: 'Diego',    lang: 'es',    pitch: 0.75, speed: 0.9  },
   { name: 'Elena',    lang: 'es',    pitch: 1.15, speed: 1.1  },
-  { name: 'Pedro',    lang: 'es',    pitch: 0.75, speed: 1.0  },
-  { name: 'Isabella', lang: 'es',    pitch: 1.4,  speed: 1.0  },
-  { name: 'Emma',     lang: 'en-GB', pitch: 1.2,  speed: 1.0  },
-  { name: 'Brian',    lang: 'en-US', pitch: 0.85, speed: 1.0  },
-  { name: 'Sakura',   lang: 'ja',    pitch: 1.3,  speed: 1.0  },
+  { name: 'Pedro',    lang: 'es',    pitch: 0.8,  speed: 1.0  },
+  { name: 'Isabella', lang: 'es',    pitch: 1.35, speed: 1.0  },
+  { name: 'Emma',     lang: 'en-GB', pitch: 1.15, speed: 1.0  },
+  { name: 'Brian',    lang: 'en-US', pitch: 0.9,  speed: 1.0  },
+  { name: 'Sakura',   lang: 'ja',    pitch: 1.25, speed: 1.0  },
   { name: 'Pierre',   lang: 'fr',    pitch: 0.9,  speed: 1.0  },
 ]
 
@@ -73,48 +78,52 @@ export default {
     }
 
     const tmpDir = os.tmpdir()
-    const id = Date.now() + '_' + Math.random().toString(36).slice(2)
-    const inputFile = path.join(tmpDir, `tts_in_${id}.mp3`)
-    const outputFile = path.join(tmpDir, `tts_out_${id}.mp3`)
+    const uid = Date.now() + '_' + Math.random().toString(36).slice(2)
+    const rawFile = path.join(tmpDir, `tts_raw_${uid}.mp3`)
+    const outFile = path.join(tmpDir, `tts_out_${uid}.mp3`)
 
     try {
-      // Descargar audio base de Google TTS
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${selectedVoice.lang}&client=tw-ob&q=${encodeURIComponent(text)}`
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://translate.google.com/'
+      // Descargar audio con curl (más confiable que node-fetch para binarios)
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${selectedVoice.lang}&client=tw-ob&q=${encodeURIComponent(text)}`
+      
+      execSync(`curl -s -L -o "${rawFile}" -H "User-Agent: Mozilla/5.0" -H "Referer: https://translate.google.com/" "${ttsUrl}"`, { timeout: 15000 })
+
+      if (!fs.existsSync(rawFile) || fs.statSync(rawFile).size < 100) {
+        throw 'Audio vacío de Google TTS'
+      }
+
+      let finalFile = rawFile
+
+      // Modificar pitch con ffmpeg si disponible y la voz lo requiere
+      if (selectedVoice.pitch !== 1.0 && hasFfmpeg()) {
+        try {
+          const sampleRate = Math.round(44100 * selectedVoice.pitch)
+          execSync(
+            `ffmpeg -y -i "${rawFile}" -af "asetrate=${sampleRate},aresample=44100,atempo=${selectedVoice.speed}" "${outFile}"`,
+            { timeout: 15000, stdio: 'ignore' }
+          )
+          if (fs.existsSync(outFile) && fs.statSync(outFile).size > 100) {
+            finalFile = outFile
+          }
+        } catch (ffErr) {
+          console.error('TTS: ffmpeg falló, usando audio original')
         }
-      })
+      }
 
-      if (!res.ok) throw 'No se pudo generar el audio.'
-
-      const buffer = Buffer.from(await res.arrayBuffer())
-      fs.writeFileSync(inputFile, buffer)
-
-      // Modificar pitch y velocidad con ffmpeg
-      const sampleRate = Math.round(44100 * selectedVoice.pitch)
-      const atempo = selectedVoice.speed
-      await execAsync(
-        `ffmpeg -y -i "${inputFile}" -af "asetrate=${sampleRate},aresample=44100,atempo=${atempo}" "${outputFile}"`,
-        { timeout: 10000 }
-      )
-
-      const audioBuffer = fs.readFileSync(outputFile)
+      const audioBuffer = fs.readFileSync(finalFile)
 
       await client.sendMessage(m.chat, {
         audio: audioBuffer,
         ptt: true,
-        mimetype: 'audio/mpeg'
+        mimetype: 'audio/ogg; codecs=opus'
       }, { quoted: m })
 
     } catch (e) {
       console.error('Error TTS:', e)
       await m.reply('*⚠️ Error al generar el audio de voz.*')
     } finally {
-      // Limpiar archivos temporales
-      try { fs.unlinkSync(inputFile) } catch {}
-      try { fs.unlinkSync(outputFile) } catch {}
+      try { fs.unlinkSync(rawFile) } catch {}
+      try { fs.unlinkSync(outFile) } catch {}
     }
   }
 }
