@@ -70,11 +70,11 @@ export default {
     const chatData = db.chats[chatId]
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     if (args.length === 0)
       return m.reply(
-        `✎ Por favor, proporciona el nombre de un personaje.`
+        `🐲 Por favor, proporciona el nombre de un personaje. (◕︿◕)`
       )
 
     try {
@@ -83,9 +83,9 @@ export default {
       const character = findSimilarCharacter(characterName, characters)
 
       if (!character)
-        return m.reply(`✎ No se ha encontrado el personaje *${characterName}*, ni uno similar.`)
+        return m.reply(`🐲 No se ha encontrado el personaje *${characterName}*, ni uno similar. (◕︿◕)`)
 
-      const message = `➭ Nombre › *${character.name}*\n\n✎ Género › *${character.gender}*\n⛁ Valor › *${character.value.toLocaleString()}*\n❖ Fuente › *${character.source}*\n\n${dev}`
+      const message = `╭─── ⋆🐉⋆ ───\n│ Char Info (◕ᴗ◕✿)\n├───────────────\n│ ❀ Nombre › *${character.name}*\n│ ❀ Género › *${character.gender}*\n│ ❀ Valor › *${character.value.toLocaleString()}*\n│ ❀ Fuente › *${character.source}*\n╰─── ⋆✨⋆ ───\n\n${dev}`
 
       const imagenUrl = await obtenerImagenGelbooru(character.keyword)
       if (imagenUrl) {

@@ -56,10 +56,10 @@ export default {
         try {
             // 1. SEGURIDAD
             if (m.isGroup && global.db.data.chats[m.chat]?.nsfw === false) {
-                return m.reply('🚫 *NSFW desactivado.*')
+                return m.reply('� *NSFW desactivado.* (◕︿◕)')
             }
             
-            await m.reply('⏳ *Preparando ráfaga de 4 videos...*')
+            await m.reply('🐲 *Preparando ráfaga de 4 videos...* (◕ᴗ◕✿)')
             
             // 2. LISTA DE BÚSQUEDA (Mucha Variedad)
             const queries = [
@@ -77,7 +77,7 @@ export default {
             const results = await xnxxSearch(randomQuery)
             
             if (!results || results.length === 0) {
-                return m.reply('❌ No encontré resultados. Intenta de nuevo.')
+                return m.reply('🐲 No encontré resultados. (╥﹏╥)')
             }
 
             // 3. SELECCIONAR 4 VIDEOS ALEATORIOS (Sin repetir)
@@ -112,11 +112,11 @@ export default {
                 }
             }
 
-            if (sentCount === 0) m.reply('❌ No pude descargar ninguno de los videos seleccionados.')
+            if (sentCount === 0) m.reply('🐲 No pude descargar ninguno de los videos. (╥﹏╥)')
 
         } catch (e) {
             console.error(e)
-            m.reply('❌ Error fatal interno.')
+            m.reply('🐲 Error fatal interno. (╥﹏╥)')
         }
     }
 }

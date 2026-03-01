@@ -27,13 +27,13 @@ export default {
     const cooldown = 600000 // 10 min
     const nextTime = user.jointime + cooldown
     if (new Date() - user.jointime < cooldown) {
-      return m.reply(`⏳ Espera *${msToTime(nextTime - new Date())}* para enviar otra invitación.`)
+      return m.reply('⏳ Espera *${msToTime(nextTime - new Date())}* para enviar otra invitación (◞‸◟)')
     }
 
     // 3. Validar Link
     const link = args.join(' ')
     if (!link || !link.match(linkRegex)) {
-      return m.reply('❌ *Falta el enlace válido.*\n\nDebes escribir el comando junto al link de tu grupo.\nEjemplo: `#invite https://chat.whatsapp.com/ABCD123...`')
+      return m.reply('🐲 *Falta el enlace válido.*\n\nEscribe el comando con el link de tu grupo.\nEjemplo: `#invite https://chat.whatsapp.com/ABCD123...`')
     }
 
     // Datos del bot
@@ -61,15 +61,16 @@ export default {
 
     const userName = m.pushName || 'Usuario'
 
-    const sugg = `❀ 𝗦𝗢𝗟𝗜𝗖𝗜𝗧𝗨𝗗 𝗥𝗘𝗖𝗜𝗕𝗜𝗗𝗔
-
-✩ *Usuario ›* ${userName}
-✿ *Enlace ›* ${link}
-✿ *Origen ›* ${grupo}
-
-➤ 𝗜𝗡𝗙𝗢 𝗕𝗢𝗧
-★ *Nombre ›* ${botname}
-❐ *Versión ›* ${version}`
+    const sugg = `╭─── ⋆🐉⋆ ───
+│  *𝐒𝐎𝐋𝐈𝐂𝐈𝐓𝐔𝐃 𝐃𝐄 𝐈𝐍𝐕𝐈𝐓𝐀𝐂𝐈𝐎́𝐍*
+├───────────────
+│ 👤 *Usuario ›* ${userName}
+│ 🔗 *Enlace ›* ${link}
+│ 📍 *Origen ›* ${grupo}
+│
+│ 🐲 *Bot ›* ${botname}
+│ 📦 *Versión ›* ${version}
+╰─── ⋆✨⋆ ───`
 
     // Enviar a los dueños
     let enviados = 0
@@ -84,7 +85,7 @@ export default {
     }
 
     if (enviados > 0) {
-        await m.reply('ꕥ Enlace de invitación enviado con éxito a los Desarrolladores.')
+        await m.reply('🐉 Enlace enviado con éxito a los Desarrolladores (◕ᴗ◕✿)')
         user.jointime = new Date() * 1 // Activar cooldown
     } else {
         m.reply('❌ Hubo un error al contactar a los desarrolladores.')

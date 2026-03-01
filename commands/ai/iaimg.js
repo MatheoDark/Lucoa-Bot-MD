@@ -9,16 +9,20 @@ export default {
     // Mensaje de ayuda si no escriben nada
     if (!text) {
       return m.reply(
-        `🎨 *Generador de Imágenes IA (General)*\n\n` +
-        `Uso:\n` +
-        `\`${usedPrefix + command} descripción | resolución\`\n\n` +
-        `Ejemplos:\n` +
-        `• ${usedPrefix + command} un gato astronauta en el espacio | 1\n` +
-        `• ${usedPrefix + command} paisaje cyberpunk futurista | 2\n\n` +
-        `Resoluciones disponibles:\n` +
-        `1️⃣ = 1:1 (Cuadrado)\n` +
-        `2️⃣ = 16:9 (Horizontal/PC)\n` +
-        `3️⃣ = 9:16 (Vertical/Celular)`
+        `╭─── ⋆🐉⋆ ───\n` +
+        `│ *Generador de Imágenes IA* (◕ᴗ◕✿)\n` +
+        `├───────────────\n` +
+        `│ ❀ *Uso:* \`${usedPrefix + command} descripción | resolución\`\n` +
+        `│\n` +
+        `│ ❀ *Ejemplos:*\n` +
+        `│ • ${usedPrefix + command} un gato astronauta | 1\n` +
+        `│ • ${usedPrefix + command} paisaje cyberpunk | 2\n` +
+        `│\n` +
+        `│ ❀ *Resoluciones:*\n` +
+        `│ 1️⃣ = 1:1 (Cuadrado)\n` +
+        `│ 2️⃣ = 16:9 (Horizontal/PC)\n` +
+        `│ 3️⃣ = 9:16 (Vertical/Celular)\n` +
+        `╰─── ⋆✨⋆ ───`
       )
     }
 
@@ -40,7 +44,7 @@ export default {
       ratio = random[Math.floor(Math.random() * random.length)]
     }
 
-    await m.reply('🧠 *Imaginando...*\nEspera unos segundos mientras dibujo tu petición. 🎨')
+    await m.reply('🐲 *Imaginando tu pedido...* (◕ᴗ◕✿)')
 
     try {
       // Mapeamos ratios a dimensiones
@@ -66,17 +70,17 @@ export default {
         {
           image: buffer,
           caption: 
-            `✨ *IMAGEN GENERADA* ✨\n\n` +
-            `📝 *Pedido:* ${prompt}\n` +
-            `📐 *Ratio:* ${ratio}\n\n` +
-            `> 🐲 Powered by MatheoDark`
+            `🐉 *Imagen Generada* (✿❛◡❛)\n\n` +
+            `❀ *Pedido:* ${prompt}\n` +
+            `❀ *Ratio:* ${ratio}\n\n` +
+            `${global.dev || "> 🐉 Powered by MatheoDark"}`
         },
         { quoted: m }
       )
 
     } catch (err) {
       console.error(err)
-      m.reply('❌ *Error:* No se pudo generar la imagen. Puede que la API esté saturada o el texto sea muy complejo. Intenta de nuevo.')
+      m.reply('🐲 No se pudo generar la imagen. (╥﹏╥)\n> Puede que la API esté saturada. Intenta de nuevo.')
     }
   }
 }

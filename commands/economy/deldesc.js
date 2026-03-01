@@ -11,7 +11,7 @@ export default {
 
     // 2. Validar si existe el usuario y la descripción
     if (!user || !user.description) {
-        return m.reply(`《✧》 No tienes una descripción establecida para borrar.`)
+        return m.reply(`🐲 No tienes una descripción establecida para borrar. (◕︿◕)`)
     }
 
     // 3. Borrar

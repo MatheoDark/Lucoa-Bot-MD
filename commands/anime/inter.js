@@ -232,7 +232,7 @@ export default {
     } catch (e) {
       console.error(e)
       // Mensaje de error discreto
-      await m.reply('❌ No se pudo cargar la reacción.')
+      await m.reply('🐲 No se pudo cargar la reacción. (╥﹏╥)')
     }
   },
 }

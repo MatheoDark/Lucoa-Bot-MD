@@ -9,22 +9,22 @@ export default {
 
     const chatData = db.chats[chatId] || {}
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
-    if (!characterName) return m.reply('✎ Especifica el nombre del personaje que deseas cancelar.')
+    if (!characterName) return m.reply('🐲 Especifica el nombre del personaje que deseas cancelar. (◕︿◕)')
 
     // --- MODELO HÍBRIDO (Personajes Locales) ---
     const userData = chatData.users?.[userId]
 
-    if (!userData) return m.reply('《✧》 No tienes datos en este grupo.')
+    if (!userData) return m.reply('🐲 No tienes datos en este grupo. (◕︿◕)')
 
-    if (!userData.personajesEnVenta?.length) return m.reply('《✧》 No tienes personajes en venta aquí.')
+    if (!userData.personajesEnVenta?.length) return m.reply('🐲 No tienes personajes en venta aquí. (◕︿◕)')
 
     const index = userData.personajesEnVenta.findIndex(
       (p) => p.name?.toLowerCase() === characterName,
     )
     if (index === -1)
-      return m.reply(`《✧》 No se encontró a *${characterName}* en tus ventas de este grupo.`)
+      return m.reply(`🐲 No se encontró a *${characterName}* en tus ventas de este grupo. (◕︿◕)`)
 
     const personajeCancelado = userData.personajesEnVenta.splice(index, 1)[0]
     
@@ -41,7 +41,7 @@ export default {
     await client.sendMessage(
       chatId,
       {
-        text: `✎ Tu personaje *${personajeCancelado.name}* ha sido retirado de la venta.`,
+        text: `🐉 Tu personaje *${personajeCancelado.name}* ha sido retirado de la venta. (≧◡≦)`,
       },
       { quoted: m },
     )

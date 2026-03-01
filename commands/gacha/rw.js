@@ -77,18 +77,18 @@ export default {
     const now = Date.now()
 
     if (chat.adminonly || !chat.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     // Usamos cooldown global para no spammear en todos los grupos
     const cooldown = globalUser.rwCooldown || 0
     const restante = cooldown - now
     if (restante > 0) {
-      return m.reply(`ꕥ Espera *${msToTime(restante)}* para volver a usar este comando.`)
+      return m.reply(`🐲 Espera *${msToTime(restante)}* para volver a usar este comando. (◕︿◕)`)
     }
 
     const personajes = obtenerPersonajes()
     const personaje = personajes[Math.floor(Math.random() * personajes.length)]
-    if (!personaje) return m.reply('《✧》 No se encontró ningún personaje disponible.')
+    if (!personaje) return m.reply('🐲 No se encontró ningún personaje disponible. (◕︿◕)')
 
     const idUnico = uuidv4().slice(0, 8)
     
@@ -116,12 +116,15 @@ export default {
     globalUser.rwCooldown = now + 15 * 60000
 
     const valorPersonaje = typeof personaje.value === 'number' ? personaje.value.toLocaleString() : '0'
-    const mensaje = `➩ Nombre › *${personaje.name || 'Desconocido'}*
-
-⚥ Género › *${personaje.gender || 'Desconocido'}*
-⛁ Valor › *${valorPersonaje}*
-♡ Estado › *${estado}*
-❖ Fuente › *${personaje.source || 'Desconocido'}*
+    const mensaje = `╭─── ⋆🐉⋆ ───
+│ Roll Waifu (◕ᴗ◕✿)
+├───────────────
+│ ❀ Nombre › *${personaje.name || 'Desconocido'}*
+│ ❀ Género › *${personaje.gender || 'Desconocido'}*
+│ ❀ Valor › *${valorPersonaje}*
+│ ❀ Estado › *${estado}*
+│ ❀ Fuente › *${personaje.source || 'Desconocido'}*
+╰─── ⋆✨⋆ ───
 
 ${global.dev || ''}`
 

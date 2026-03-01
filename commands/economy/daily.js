@@ -43,7 +43,7 @@ export default {
     if (timeSinceLast < oneDay) {
       const restante = formatRemainingTime(oneDay - timeSinceLast)
       return m.reply(
-        `⏱️ Ya reclamaste tu *Daily* de hoy.\n` +
+        `⏳ Ya reclamaste tu *Daily* de hoy (◞‸◟)\n` +
         `> Vuelve en: *${restante}* para no perder tu racha.`
       ) 
     }
@@ -59,9 +59,9 @@ export default {
       user.coins += recompensa
 
       return m.reply(
-        `💔 *¡RACHA PERDIDA!*\nPasaron más de 48 horas y perdiste tu racha de ${rachaAnterior} días.\n\n` +
-        `「✿」Recompensa (Día 1): *¥${recompensa.toLocaleString()} ${monedas}*\n` +
-        `> Mañana (Día 2): *¥${siguiente.toLocaleString()}*`
+        `💔 *¡RACHA PERDIDA!* (╥﹏╥)\nPasaron más de 48h y perdiste tu racha de ${rachaAnterior} días.\n\n` +
+        `❀ Recompensa (Día 1) › *¥${recompensa.toLocaleString()} ${monedas}*\n` +
+        `> Mañana (Día 2) › *¥${siguiente.toLocaleString()}*`
       )
     }
 
@@ -74,13 +74,17 @@ export default {
     user.coins += recompensa
 
     const mensajeRacha = user.dailyStreak >= 5 
-      ? `\n🔥 ¡Increíble! Racha de *${user.dailyStreak}* días.` 
+      ? `\n🔥 ¡Increíble! Racha de *${user.dailyStreak}* días (≧◡≦) ♥` 
       : ''
 
     await m.reply(
-      `📅 *RECOMPENSA DIARIA*\n` +
-      `「✿」Ganaste: *¥${recompensa.toLocaleString()} ${monedas}* (Día *${user.dailyStreak}*)\n` +
-      `> Mañana (Día ${user.dailyStreak + 1}): *¥${siguiente.toLocaleString()}*${mensajeRacha}`
+      `╭─── ⋆🐉⋆ ───\n` +
+      `│  *🌟 RECOMPENSA DIARIA*\n` +
+      `├───────────────\n` +
+      `│ ❀ Ganaste › *¥${recompensa.toLocaleString()} ${monedas}*\n` +
+      `│ 📅 Día › *${user.dailyStreak}*\n` +
+      `│ ✨ Mañana › *¥${siguiente.toLocaleString()}*${mensajeRacha}\n` +
+      `╰─── ⋆✨⋆ ───`
     )
   },
 };

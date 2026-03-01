@@ -8,14 +8,14 @@ export default {
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     const user = global.db.data.users[userId]
 
-    if (user.genre) return m.reply(`《✧》 Ya tienes género. Usa *${prefa}delgenre* para borrarlo.`)
+    if (user.genre) return m.reply(`🐲 Ya tienes género, usa *${prefa}delgenre* para borrarlo (◕ᴗ◕)`)
 
     const input = args.join(' ').toLowerCase()
     const genre = (input === 'hombre' || input === 'h') ? 'Hombre' : (input === 'mujer' || input === 'm') ? 'Mujer' : null
 
-    if (!genre) return m.reply(`《✧》 Género inválido. Usa: *Hombre* o *Mujer*.`)
+    if (!genre) return m.reply('🐲 Género inválido. Usa: *Hombre* o *Mujer* (◕︿◕)')
 
     user.genre = genre
-    return m.reply(`✎ Género establecido: *${user.genre}*`)
+    return m.reply(`🐉 Género establecido: *${user.genre}* (◕ᴗ◕✿)`)
   },
 };

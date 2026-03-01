@@ -16,10 +16,10 @@ export default {
     const monedas = botSettings.currency || 'Coins'
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Desactivado.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     const personajeNombre = args.join(' ')?.trim()?.toLowerCase()
-    if (!personajeNombre) return m.reply(`✎ Especifica el nombre.`)
+    if (!personajeNombre) return m.reply(`🐲 Especifica el nombre. (◕︿◕)`)
 
     // Buscamos vendedores EN EL GRUPO (Mercado Local)
     // Asumimos que la lista de ventas está en chatData.users...personajesEnVenta
@@ -29,11 +29,11 @@ export default {
 
     const personaje = personajesEnVenta.find((p) => p.name.toLowerCase() === personajeNombre)
     if (!personaje)
-      return m.reply(`✎ No se encontró a *${personajeNombre}* en venta en este grupo.`)
+      return m.reply(`🐲 No se encontró a *${personajeNombre}* en venta en este grupo. (◕︿◕)`)
 
     // Verificar Dinero Global
     if ((globalUser.coins || 0) < personaje.precio)
-      return m.reply(`ꕥ No tienes suficientes *${monedas}* (Saldo: ${globalUser.coins}).`)
+      return m.reply(`🐲 No tienes suficientes *${monedas}* (Saldo: ${globalUser.coins}). (◕︿◕)`)
 
     // TRANSACCIÓN
     globalUser.coins -= personaje.precio
@@ -57,7 +57,7 @@ export default {
     const nombreComprador = globalUser.name || userId.split('@')[0]
     const nombreVendedor = vendedorGlobal?.name || personaje.vendedorId.split('@')[0]
 
-    const mensaje = `ꕥ *${personaje.name}* comprado por *${nombreComprador}*.\n> Pagado: *${personaje.precio.toLocaleString()} ${monedas}* a *${nombreVendedor}*.`
+    const mensaje = `╭─── ⋆🐉⋆ ───\n│ Compra Exitosa (◕ᴗ◕✿)\n├───────────────\n│ ❀ Personaje: *${personaje.name}*\n│ ❀ Comprador: *${nombreComprador}*\n│ ❀ Pagado: *${personaje.precio.toLocaleString()} ${monedas}* a *${nombreVendedor}*\n╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(chatId, { text: mensaje }, { quoted: m })
   },

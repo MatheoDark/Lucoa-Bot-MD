@@ -6,8 +6,8 @@ export default {
   run: async ({client, m, text, usedPrefix, command}) => {
     // Validaciones de grupo
     const chatData = global.db.data.chats[m.chat] || {}
-    if (chatData.adminonly) return m.reply(`❒ Solo administradores.`);
-    if (!chatData.rpg) return m.reply(`❒ Economía pausada.`);
+    if (chatData.adminonly) return m.reply('🐲 Solo administradores (◕ᴗ◕✿)');
+    if (!chatData.rpg) return m.reply('🐉 La economía está dormida zzZ');
 
     // CORRECCIÓN: Usuario Global + Resolución LID/JID
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
@@ -25,14 +25,14 @@ export default {
     let monedas = botSettings.currency || 'coins'
 
     if (remainingTime > 0) {
-      return m.reply(`✿ Espera *${msToTime(remainingTime)}*.`);
+      return m.reply(`🐲 Espera *${msToTime(remainingTime)}* (◕︿◕✿)`);
     }
 
     const options = ['piedra', 'papel', 'tijera'];
     const userChoice = text.trim().toLowerCase();
 
     if (!options.includes(userChoice)) {
-      return m.reply(`✿ Uso correcto: ${usedPrefix}${command} <piedra|papel|tijera>`);
+      return m.reply(`🐲 Uso: *${usedPrefix}${command} <piedra|papel|tijera>* (◕ᴗ◕)`);
     }
 
     const botChoice = options[Math.floor(Math.random() * options.length)];
@@ -51,7 +51,7 @@ export default {
     if (result === '✧ ¡Ganaste!') {
       user.coins += randomReward;
       user.exp = (user.exp || 0) + randomExp;
-      await client.reply(m.chat, `✧ Ganaste.\n\n> ✿ *Tu elección ›* ${userChoice}\n> ❀ *Elección del bot ›* ${botChoice}\n> ✰ *${monedas} ›* +¥${randomReward.toLocaleString()}\n> ✱ *Exp ›* +${randomExp}`, m);
+      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ ✨ *¡Ganaste!*\n├───────────────\n│ ❀ Tu elección › *${userChoice}*\n│ ❀ Bot › *${botChoice}*\n│ ❀ ${monedas} › +¥${randomReward.toLocaleString()}\n│ ❀ Exp › +${randomExp}\n╰─── ⋆✨⋆ ───`, m);
     } else if (result === '✿ Perdiste. ¡Intenta de nuevo!') {
       if (user.coins >= randomLoss) {
         user.coins -= randomLoss;
@@ -62,11 +62,11 @@ export default {
         user.coins = 0;
         user.bank = Math.max(0, user.bank - (randomLoss - user.coins));
       }
-      await client.reply(m.chat, `✿ Perdiste.\n\n> ✿ *Tu elección ›* ${userChoice}\n> ❀ *Elección del bot ›* ${botChoice}\n> ✰ *${monedas} ›* -¥${randomLoss.toLocaleString()}`, m);
+      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 💀 *Perdiste* (╥﹏╥)\n├───────────────\n│ ❀ Tu elección › *${userChoice}*\n│ ❀ Bot › *${botChoice}*\n│ ❀ ${monedas} › -¥${randomLoss.toLocaleString()}\n╰─── ⋆✨⋆ ───`, m);
     } else {
       user.coins += randomTieReward;
       user.exp += randomTieExp;
-      await client.reply(m.chat, `❀ Empate.\n\n> ✿ *Tu elección ›* ${userChoice}\n> ❀ *Elección del bot ›* ${botChoice}\n> ✰ *${monedas} ›* +¥${randomTieReward.toLocaleString()}`, m);
+      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🤝 *Empate*\n├───────────────\n│ ❀ Tu elección › *${userChoice}*\n│ ❀ Bot › *${botChoice}*\n│ ❀ ${monedas} › +¥${randomTieReward.toLocaleString()}\n╰─── ⋆✨⋆ ───`, m);
     }
 
     user.pptCooldown = Date.now() + 10 * 60000;

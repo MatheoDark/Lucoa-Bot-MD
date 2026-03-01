@@ -7,8 +7,8 @@ export default {
     const prefa = usedPrefix || '/'
 
     // 1. Validaciones de Grupo
-    if (global.db.data.chats[m.chat].adminonly) return m.reply(`❒ Solo admins.`)
-    if (!global.db.data.chats[m.chat].rpg) return m.reply(`❒ Economía pausada.`)
+    if (global.db.data.chats[m.chat].adminonly) return m.reply('🐲 Solo administradores (◕ᴗ◕✿)')
+    if (!global.db.data.chats[m.chat].rpg) return m.reply('🐉 La economía está dormida zzZ')
 
     // 2. Resolución de Usuario
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
@@ -25,7 +25,7 @@ export default {
     let remainingTime = user.coinfCooldown - Date.now();
 
     if (remainingTime > 0) {
-      return m.reply(`✿ Espera *${msToTime(remainingTime)}*.`);
+      return m.reply(`🐲 Espera *${msToTime(remainingTime)}* (◕︿◕✿)`);
     }
 
     // 4. Configuración Bot
@@ -39,7 +39,7 @@ export default {
     let eleccionArg = args.find(a => isNaN(parseInt(a)) && a.toLowerCase() !== 'all' && a.toLowerCase() !== 'todo')
 
     if (!eleccionArg || !cantidadArg) {
-      return m.reply(`✿ Ejemplo:\n> *${prefa + command} 500 cara*\n> *${prefa + command} cara 500*`)
+      return m.reply(`🐲 Ejemplo (◕ᴗ◕):\n│ *${prefa + command} 500 cara*\n│ *${prefa + command} cara 500*`)
     }
 
     // Procesar Cantidad
@@ -57,12 +57,12 @@ export default {
     if (eleccion === 'tails') eleccion = 'cruz'
 
     if (eleccion !== 'cara' && eleccion !== 'cruz')
-      return m.reply(`ꕥ Elige *cara* o *cruz*.`)
+      return m.reply('🐲 Elige *cara* o *cruz* (◕ᴗ◕)')
 
     // 6. Validaciones de Dinero
-    if (isNaN(cantidad) || cantidad < 200) return m.reply(`ꕥ Mínimo *200 ${monedas}*.`)
-    if (cantidad > 50000) return m.reply(`ꕥ Máximo *50,000 ${monedas}*.`) // Subí un poco el límite
-    if (user.coins < cantidad) return m.reply(`ꕥ No tienes suficientes *${monedas}*.`)
+    if (isNaN(cantidad) || cantidad < 200) return m.reply(`🐲 Mínimo *200 ${monedas}* (◕︿◕)`)
+    if (cantidad > 50000) return m.reply(`🐲 Máximo *50,000 ${monedas}* (◕︿◕)`) // Subí un poco el límite
+    if (user.coins < cantidad) return m.reply(`🐲 No tienes suficientes *${monedas}* (╥﹏╥)`)
 
     // 7. Lógica del Juego
     let azar = Math.random()
@@ -75,21 +75,21 @@ export default {
     else resultado = azar < 0.55 ? 'cara' : 'cruz'
 
     let cantidadFormatted = cantidad.toLocaleString()
-    let mensaje = `🎰 *Lanzando moneda...*\n\n✿ Cayó en `
+    let mensaje = `╭─── ⋆🐉⋆ ───\n│ 🪙 *COINFLIP*\n├───────────────\n│ Cayó en `
 
     if (resultado === eleccion) {
       // GANAR
       user.coins += cantidad
-      mensaje += `*${resultado.toUpperCase()}* 🪙\n\n✨ ¡Ganaste *¥${cantidadFormatted} ${monedas}*!`
+      mensaje += `*${resultado.toUpperCase()}* 🪙\n│\n│ ✨ ¡Ganaste *¥${cantidadFormatted} ${monedas}*!\n╰─── ⋆✨⋆ ───`
     } else if (resultado === 'perdido') {
       // CANTO (Mala suerte)
       let perdida = Math.floor(cantidad * 0.5)
       user.coins -= perdida
-      mensaje += `*DE CANTO* 😵‍💫\n(La moneda rodó lejos...)\n\n💸 ¡Perdiste la mitad! (*¥${perdida.toLocaleString()}*)`
+      mensaje += `*DE CANTO* 😵‍💫\n│ La moneda rodó lejos...\n│\n│ 💸 Perdiste la mitad (*¥${perdida.toLocaleString()}*)\n╰─── ⋆✨⋆ ───`
     } else {
       // PERDER
       user.coins -= cantidad
-      mensaje += `*${resultado.toUpperCase()}* 💀\n\n❌ Perdiste *¥${cantidadFormatted} ${monedas}*.`
+      mensaje += `*${resultado.toUpperCase()}* 💀\n│\n│ ❌ Perdiste *¥${cantidadFormatted} ${monedas}* (╥﹏╥)\n╰─── ⋆✨⋆ ───`
     }
 
     await client.reply(m.chat, mensaje, m)

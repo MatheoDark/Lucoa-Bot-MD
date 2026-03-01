@@ -20,7 +20,7 @@ export default {
   category: 'downloader',
   run: async (client, m, args) => {
     if (!args[0]) {
-      return m.reply('💣 Ingresa el *enlace* de *Mediafire* o una *palabra clave*.')
+      return m.reply('� Ingresa un enlace de *Mediafire* o palabra clave (◕ᴗ◕)')
     }
 
     const input = args.join(' ')
@@ -34,7 +34,7 @@ export default {
         const searchData = searchRes.data
 
         if (!searchData.status || !searchData.results?.length) {
-          return m.reply('💣 No se encontraron resultados para tu búsqueda.')
+          return m.reply('� No se encontraron resultados (╥﹏╥)')
         }
 
         const result = searchData.results[Math.floor(Math.random() * searchData.results.length)]
@@ -46,11 +46,11 @@ try {
   response = await axios.get(`${api.url}/dl/mediafire?url=${mediafireUrl}&key=${api.key}`)
   data = response.data
 } catch (err) {
-  return m.reply(`💣 No se pudo descargar el archivo *Mediafire*, intenta mas tarde.`)
+  return m.reply(`� No se pudo descargar de Mediafire (╥﹏╥)`)
 }
 
 if (!data || !data.status || !data.data || !data.data.dl) {
-  return m.reply(`💣 No se pudo descargar el archivo, intenta mas tarde.`)
+  return m.reply(`� No se pudo descargar el archivo (╥﹏╥)`)
 }
 
       const { title, dl } = data.data
@@ -91,14 +91,12 @@ const mimeTypes = {
 const ext = path.extname(title);
 const tipo = mimeTypes[ext.toLowerCase()] || 'application/octet-stream';
 
-      const info = `💥 ᩧ　𓈒　ׄ　𝖬𝖾𝖽𝗂𝖺𝖥𝗂𝗋𝖾　ׅ　💣\n\n` +
-        `ׄ ﹙ׅ💥﹚ּ *Nombre* › ${title}\n` +
-        `ׄ ﹙ׅ💥﹚ּ *Tipo* › ${tipo}\n\n${dev}`
+      const info = `╭─── ⋆🐉⋆ ───\n│ 📂 *Mediafire*\n├───────────────\n│ ❀ Nombre: ${title}\n│ ❀ Tipo: ${tipo}\n╰─── ⋆✨⋆ ───\n\n${dev}`
 
       await client.sendContextInfoIndex(m.chat, info, {}, m, true, null, {
         banner: 'https://cdn.stellarwa.xyz/files/1755745696353.jpeg',
-        title: '𖹭  ׄ  ְ 💣 Mediafire ✩',
-        body: '💥 Descarga De MF',
+        title: '🐉 Mediafire (◕ᴗ◕✿)',
+        body: '🐲 Descarga De Mediafire',
         redes: global.db.data.settings[client.user.id.split(':')[0] + "@s.whatsapp.net"].link,
       })
 

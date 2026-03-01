@@ -10,20 +10,20 @@ export default {
       const q = m.quoted || m;
       const mime = q.mimetype || q.msg?.mimetype || '';
 
-      if (!mime) return m.reply(`《✧》 Envía una *imagen* junto al *comando* ${prefa}tofigure`);
+      if (!mime) return m.reply(`🐲 Envía una *imagen* junto al *comando* ${prefa}tofigure (◕ᴗ◕)`);
       if (!/image\/(jpe?g|png)/.test(mime)) {
-        return m.reply(`《✧》 El formato *${mime}* no es compatible`);
+        return m.reply(`🐲 Formato *${mime}* no compatible (◕︿◕)`);
       }
 
       const buffer = await q.download();
       const uploadedUrl = await uploadToUguu(buffer);
       if (!uploadedUrl) {
-        return m.reply('《✧》 No se pudo *subir* la imagen');
+        return m.reply('🐲 No se pudo *subir* la imagen (╥﹏╥)');
       }
 
       const figureBuffer = await getFigureBuffer(uploadedUrl);
       if (!figureBuffer) {
-        return m.reply('《✧》 No se pudo *generar* la figura');
+        return m.reply('🐲 No se pudo *generar* la figura (╥﹏╥)');
       }
 
       await client.sendMessage(m.chat, { image: figureBuffer, caption: null }, { quoted: m });

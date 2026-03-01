@@ -7,15 +7,20 @@ export default {
     
     const chat = global.db.data.chats[m.chat] || {}
     if (!chat.nsfw) {
-      return m.reply('⛔ *ALERTA:* Activa el modo +18 primero con:\n`#on nsfw`')
+      return m.reply('🐲 *NSFW desactivado.* Activa el modo +18 con: `#on nsfw` (◕︿◕)')
     }
 
     if (!text) {
-      return m.reply(`🔥 *Generador NSFW*\n\nIngresa una descripción.\n📌 Ejemplo:\n${usedPrefix + command} Lucoa`)
+      return m.reply(`╭─── ⋆🐉⋆ ───
+│ *Generador NSFW* (◕ᴗ◕✿)
+├───────────────
+│ ❀ Ingresa una descripción
+│ ❀ *Ejemplo:* ${usedPrefix + command} Lucoa
+╰─── ⋆✨⋆ ───`)
     }
 
     await client.sendMessage(m.chat, { react: { text: '🍑', key: m.key } })
-    await m.reply('😈 *Generando imagen...*')
+    await m.reply('� *Generando imagen...* (◕ᴗ◕✿)')
 
     try {
       const seed = Math.floor(Math.random() * 1000000)
@@ -39,14 +44,14 @@ export default {
         m.chat,
         { 
             image: buffer, 
-            caption: `🔞 *GENERADO* 🔞\n\n📝 *Pedido:* ${text}\n\n> 🐲 Powered by MatheoDark` 
+            caption: `� *Imagen Generada* (✿❛◡❛)\n\n❀ *Pedido:* ${text}\n\n${global.dev || "> 🐉 Powered by MatheoDark"}` 
         },
         { quoted: m }
       )
       
     } catch (e) {
       console.error(e)
-      m.reply(`❌ Error de conexión.`)
+      m.reply(`🐲 Error de conexión. (╥﹏╥)`)
     }
   }
 }

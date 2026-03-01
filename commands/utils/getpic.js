@@ -30,7 +30,7 @@ export default {
 
     if (!whoRaw) {
       return m.reply(
-        `《✧》 Etiqueta, responde o use *me*.\n\n` +
+        `🐲 Etiqueta, responde o usa *me* (◕ᴗ◕)\n\n` +
         `Ej:\n` +
         `• *${usedPrefix || '#'}${command || 'getpic'}* me\n` +
         `• *${usedPrefix || '#'}${command || 'getpic'}* @usuario\n` +
@@ -49,7 +49,7 @@ export default {
           m.chat,
           {
             image: { url: FALLBACK_PP },
-            caption: `《✧》 No pude obtener la foto de perfil de @${String(who).split('@')[0]}.`,
+            caption: `🐲 No pude obtener la foto de perfil de @${String(who).split('@')[0]} (╥﹏╥)`,
             mentions: [who],
           },
           { quoted: m }
@@ -60,14 +60,14 @@ export default {
         m.chat,
         {
           image: { url: img },
-          caption: `🖼️ Foto de perfil de @${String(who).split('@')[0]}`,
+          caption: `🐉 Foto de perfil de @${String(who).split('@')[0]} (◕ᴗ◕✿)`,
           mentions: [who],
         },
         { quoted: m }
       )
     } catch (e) {
       console.error('[getpic] error:', e?.message || e)
-      await m.reply('❌ Error al obtener la foto de perfil.')
+      await m.reply('🐲 Error al obtener la foto de perfil (╥﹏╥)')
     }
   },
 }

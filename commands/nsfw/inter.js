@@ -203,7 +203,7 @@ export default {
   run: async ({ client, m }) => {
     const db = global.db
     if (m.isGroup && !db.data.chats[m.chat]?.nsfw) {
-        return m.reply('🚫 Los comandos *NSFW* están desactivados en este Grupo.')
+        return m.reply('� Los comandos *NSFW* están desactivados en este grupo. (◕︿◕)')
     }
 
     if (!m.text) return
@@ -251,7 +251,7 @@ export default {
           } catch (e) {}
       }
 
-      if (!url) return m.reply('❌ No se encontró nada.')
+      if (!url) return m.reply('🐲 No se encontró nada. (╥﹏╥)')
 
       // DESCARGA Y ENVÍO
       console.log(`[NSFW] Enviando: ${url}`)
@@ -292,7 +292,7 @@ export default {
 
     } catch (e) {
       console.error(e)
-      m.reply(`❌ Error: ${e.message}`)
+      m.reply(`🐲 Error: ${e.message} (╥﹏╥)`)
     }
   }
 }

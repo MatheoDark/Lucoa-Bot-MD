@@ -8,14 +8,14 @@ export default {
     const mime = (q.msg || q).mimetype || q.mediaType || ''
 
     if (!/image/.test(mime))
-      return m.reply('《✧》 Te faltó la imagen para cambiar el perfil del grupo.')
+      return m.reply('🐲 Te faltó la imagen para cambiar el perfil del grupo.')
 
     const img = await q.download()
-    if (!img) return m.reply('《✧》 No se pudo descargar la imagen.')
+    if (!img) return m.reply('🐲 No se pudo descargar la imagen. (╥﹏╥)')
 
     try {
       await client.updateProfilePicture(m.chat, img)
-      m.reply('✿ La imagen del grupo se actualizó con éxito.')
+      m.reply('🐉 La imagen del grupo se actualizó con éxito. (✿❛◡❛)')
     } catch {
       m.reply(msgglobal)
     }

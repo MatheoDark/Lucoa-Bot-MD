@@ -9,17 +9,18 @@ export default {
     const mentioned = m.mentionedJid || []
     const who2 = mentioned.length > 0 ? mentioned[0] : (m.quoted ? m.quoted.sender : false)
 
-    if (!who2) return m.reply('《✧》 Debes mencionar o responder al usuario cuya advertencia deseas eliminar.')
+    if (!who2) return m.reply('🐲 Debes mencionar o responder al usuario cuya advertencia deseas eliminar.')
 
     const targetId = await resolveLidToRealJid(who2, client, m.chat)
     const user = chat.users[targetId]
-    if (!user) return m.reply('《✧》 No se encontró al usuario en la base de datos.')
+    if (!user) return m.reply('🐲 No se encontró al usuario en la base de datos. (╥﹏╥)')
 
     const total = user?.warnings?.length || 0
     if (total === 0) {
       return client.reply(
         m.chat,
-        `《✧》 El usuario @${targetId.split('@')[0]} no tiene advertencias registradas.`,
+        `🐲 El usuario @${targetId.split('@')[0]} no tiene advertencias registradas. (◕︿◕)`,
+
         m,
         { mentions: [targetId] }
       )
@@ -33,7 +34,8 @@ export default {
       user.warnings = []
       return client.reply(
         m.chat,
-        `✐ Se han eliminado todas las advertencias del usuario @${targetId.split('@')[0]} (${name}).`,
+        `🐉 Se han eliminado todas las advertencias del usuario @${targetId.split('@')[0]} (${name}). (✿❛◡❛)`,
+
         m,
         { mentions: [targetId] }
       )
@@ -41,11 +43,11 @@ export default {
 
     const index = parseInt(rawIndex)
     if (isNaN(index)) {
-      return m.reply('《✧》 Debes especificar el índice de la advertencia que deseas eliminar o usar all para borrar todas.')
+      return m.reply('🐲 Debes especificar el índice de la advertencia que deseas eliminar o usar all para borrar todas.')
     }
 
     if (index < 1 || index > total) {
-      return m.reply(`ꕥ El índice debe ser un número entre 1 y ${total}.`)
+      return m.reply(`🐲 El índice debe ser un número entre 1 y ${total}. (◕︿◕)`)
     }
 
     const realIndex = total - index
@@ -53,7 +55,7 @@ export default {
 
     await client.reply(
       m.chat,
-      `ꕥ Se ha eliminado la advertencia #${index} del usuario @${targetId.split('@')[0]} (${name}).`,
+      `🐉 Se ha eliminado la advertencia #${index} del usuario @${targetId.split('@')[0]} (${name}). (✿❛◡❛)`,
       m,
       { mentions: [targetId] }
     )

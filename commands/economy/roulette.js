@@ -6,11 +6,11 @@ export default {
   run: async ({ client, m, text, usedPrefix, command, args }) => {
     
     // 1. Validaciones de Grupo
-    if (!m.isGroup) return m.reply('❌ Solo en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Solo en grupos (◕ᴗ◕✿)')
 
     const chat = global.db.data.chats[m.chat] || {}
     if (chat.adminonly || !chat.rpg) {
-         return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
+         return m.reply('🐉 La economía está dormida zzZ')
     }
 
     // 2. Configuración Bot
@@ -35,13 +35,13 @@ export default {
     // 4. Cooldown (10 Minutos)
     let remainingTime = user.rtCooldown - Date.now()
     if (remainingTime > 0) {
-      return m.reply(`⏳ Debes esperar *${msToTime(remainingTime)}* antes de volver a girar la ruleta 🎰`)
+      return m.reply(`🐲 Espera *${msToTime(remainingTime)}* para la ruleta (◕︿◕✿)`)
     }
 
     // 5. Validar Argumentos
     // Ejemplo: #rt 100 red
     if (!args[0] || !args[1]) {
-      return m.reply(`ꕥ Debes ingresar una cantidad y apostar a un color.\n🎲 *Ejemplo ›* ${usedPrefix + command} 200 black\n\n🎨 *Colores:*\n🔴 Red (x2)\n⚫ Black (x2)\n🟢 Green (x15)`)
+      return m.reply(`╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA*\n├───────────────\n│ Ingresa cantidad y color\n│ 🎲 *Ejemplo:* ${usedPrefix + command} 200 black\n│\n│ 🎨 *Colores:*\n│ ❀ 🔴 Red (x2)\n│ ❀ ⚫ Black (x2)\n│ ❀ 🟢 Green (x15)\n╰─── ⋆✨⋆ ───`)
     }
 
     let amount = 0
@@ -55,17 +55,17 @@ export default {
     const color = args[1].toLowerCase()
 
     // 6. Validaciones de Dinero
-    if (isNaN(amount) || amount < 1) return m.reply(`⚠️ Ingresa una cantidad válida.`)
-    if (amount < 50) return m.reply(`💰 La apuesta mínima es de *50 ${currency}*.`)
-    if (amount > 500000) return m.reply(`🚫 No puedes apostar más de *500,000 ${currency}* por ronda.`)
+    if (isNaN(amount) || amount < 1) return m.reply('🐲 Ingresa una cantidad válida (◕ᴗ◕)')
+    if (amount < 50) return m.reply(`🐲 La apuesta mínima es *50 ${currency}* (◕ᴗ◕)`)
+    if (amount > 500000) return m.reply(`🐲 Máximo *500,000 ${currency}* por ronda (◕ᴗ◕)`)
     
     if (user.coins < amount) {
-        return m.reply(`🚫 No tienes suficientes *${currency}* para esta apuesta.\n👛 Tienes: *${user.coins.toLocaleString()}*`)
+        return m.reply(`� No tienes suficientes *${currency}* (╥﹏╥)\n│ 👛 Tienes: *${user.coins.toLocaleString()}*`)
     }
 
     // Validar Color (Acepta Español e Inglés)
     if (!['red', 'black', 'green', 'rojo', 'negro', 'verde'].includes(color)) {
-      return m.reply(`🎨 Colores disponibles:\n🔴 Red (Rojo)\n⚫ Black (Negro)\n🟢 Green (Verde)`)
+      return m.reply(`╭─── ⋆🐉⋆ ───\n│ 🎨 *Colores disponibles:*\n│ ❀ 🔴 Red (Rojo)\n│ ❀ ⚫ Black (Negro)\n│ ❀ 🟢 Green (Verde)\n╰─── ⋆✨⋆ ───`)
     }
 
     // Normalizar color a Inglés
@@ -95,7 +95,7 @@ export default {
     // Pierdes solo lo apostado, aunque hayas acertado el color (mala suerte extremas)
     if (resultColor === 'orange') {
       user.coins -= amount
-      await client.reply(m.chat, `🎰 *RULETA ESPECIAL*\n\nCayó en ${colorEmojis[resultColor]} *ORANGE*\n😵 ¡Color maldito! La bola rebotó mal.\n💸 Perdiste *${amount.toLocaleString()} ${currency}*.`, m)
+      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA ESPECIAL*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *ORANGE*\n│ 😵 ¡Color maldito! La bola rebotó mal\n│ 💸 Perdiste *${amount.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───`, m)
       return
     }
 
@@ -104,7 +104,7 @@ export default {
     if (resultColor === 'white') {
       let totalPerdido = user.coins
       user.coins = 0 
-      await client.reply(m.chat, `🎰 *RULETA FATAL*\n\nCayó en ${colorEmojis[resultColor]} *WHITE*\n☠️ ¡Desastre Total! La casa se queda con todo.\n💸 Perdiste: *${totalPerdido.toLocaleString()} ${currency}*`, m)
+      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA FATAL*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *WHITE*\n│ ☠️ ¡Desastre Total! La casa se queda con todo\n│ 💸 Perdiste: *${totalPerdido.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───`, m)
       return
     }
 
@@ -119,11 +119,11 @@ export default {
 
       user.coins += netWin // Sumamos la ganancia neta
       
-      await client.reply(m.chat, `🎰 *RULETA*\n\nCayó en ${colorEmojis[resultColor]} *${resultColor.toUpperCase()}*\n✨ ¡Ganaste *${profit.toLocaleString()} ${currency}*!`, m)
+      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *${resultColor.toUpperCase()}*\n│ ✨ ¡Ganaste *${profit.toLocaleString()} ${currency}*!\n╰─── ⋆✨⋆ ───`, m)
     } else {
       // PERDER
       user.coins -= amount
-      await client.reply(m.chat, `🎰 *RULETA*\n\nCayó en ${colorEmojis[resultColor]} *${resultColor.toUpperCase()}*\n💸 Perdiste *${amount.toLocaleString()} ${currency}*.`, m)
+      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *${resultColor.toUpperCase()}*\n│ 💸 Perdiste *${amount.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───`, m)
     }
   }
 }

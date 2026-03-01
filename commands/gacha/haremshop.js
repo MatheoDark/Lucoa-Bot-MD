@@ -37,7 +37,7 @@ export default {
     const monedas = db.settings?.[botId]?.currency || 'Coins'
 
     if (chatConfig.adminonly || !chatConfig.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     // --- MODELO HÍBRIDO (Ventas Locales del Grupo) ---
     // Recopilamos todas las ventas de todos los usuarios en ESTE chat
@@ -51,33 +51,33 @@ export default {
         }))
     )
 
-    if (personajesEnVenta.length === 0) return m.reply('ꕥ No hay personajes en venta en este grupo.')
+    if (personajesEnVenta.length === 0) return m.reply('🐲 No hay personajes en venta en este grupo. (◕︿◕)')
 
     const page = parseInt(args[0]) || 1
     const perPage = 10
     const totalPages = Math.ceil(personajesEnVenta.length / perPage)
 
     if (page < 1 || page > totalPages)
-      return m.reply(`《✧》 La página *${page}* no existe. Hay *${totalPages}* páginas.`)
+      return m.reply(`🐲 La página *${page}* no existe. Hay *${totalPages}* páginas. (◕︿◕)`)
 
     const start = (page - 1) * perPage
     const end = start + perPage
     const lista = personajesEnVenta.slice(start, end)
 
-    let mensaje = `✰ ໌　۟　𝖧𝖺𝗋𝖾𝗆𝖲𝗁𝗈𝗉 (Grupo)　ׅ　팅화　ׄ\n✐ Personajes en venta:\n\n`
+    let mensaje = `╭─── ⋆🐉⋆ ───\nHaremShop (Grupo) (◕ᴗ◕✿)\n├───────────────\n\n`
 
     lista.forEach((p) => {
       const vendedorNombre = db.users?.[p.vendedor]?.name || p.vendedor.split('@')[0]
       const valorEstimado = obtenerCharacterValue(p.name)
       const tiempo = obtenerTiempoRestante(new Date(p.expira).getTime())
       
-      mensaje += `> 𖣣ֶㅤ֯⌗ ꕥ  ׄ ⬭ *${p.name}* (Ref: ${valorEstimado})\n`
-      mensaje += `> 𖣣ֶㅤ֯⌗ ⛁  ׄ ⬭ Precio › *${p.precio.toLocaleString()} ${monedas}*\n`
-      mensaje += `> 𖣣ֶㅤ֯⌗ ❖  ׄ ⬭ Vendedor › *${vendedorNombre}*\n`
-      mensaje += `> 𖣣ֶㅤ֯⌗ ❀  ׄ ⬭ Expira › *${tiempo}*\n\n`
+      mensaje += `│ ❀ *${p.name}* (Ref: ${valorEstimado})\n`
+      mensaje += `│ ❀ Precio › *${p.precio.toLocaleString()} ${monedas}*\n`
+      mensaje += `│ ❀ Vendedor › *${vendedorNombre}*\n`
+      mensaje += `│ ❀ Expira › *${tiempo}*\n\n`
     })
 
-    mensaje += `> ⌦ Página *${page}* de *${totalPages}*`
+    mensaje += `╰─── ⋆✨⋆ ───\n> ⌦ Página *${page}* de *${totalPages}*`
     mensaje += `\n> Compra con: */buychar [Nombre]*`
 
     try {

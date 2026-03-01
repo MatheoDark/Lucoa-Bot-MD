@@ -11,13 +11,13 @@ export default {
 
     const chatData = global.db.data.chats[m.chat]
     if (chatData.adminonly || !chatData.rpg)
-      return m.reply(`✐ Estos comandos estan desactivados en este grupo.`)
+      return m.reply('🐉 La economía está dormida en este grupo zzZ')
 
     if (!user.crimeCooldown) user.crimeCooldown = 0
     const remainingTime = user.crimeCooldown - Date.now()
 
     if (remainingTime > 0) {
-      return m.reply(`ꕥ Debes esperar *${msToTime(remainingTime)}* antes de intentar nuevamente.`)
+      return m.reply(`🐲 Espera *${msToTime(remainingTime)}* para otro crimen (◕︿◕✿)`)
     }
 
     const éxito = Math.random() < 0.5
@@ -61,7 +61,7 @@ export default {
       }
     }
 
-    await client.sendMessage(m.chat, { text: `「✿」 ${message}` }, { quoted: m })
+    await client.sendMessage(m.chat, { text: `╭─── ⋆🐉⋆ ───\n│ 🔫 *CRIMEN*\n├───────────────\n│ ${message}\n╰─── ⋆✨⋆ ───` }, { quoted: m })
   },
 };
 

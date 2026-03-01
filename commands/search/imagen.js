@@ -6,7 +6,7 @@ export default {
   run: async ({ client, m, args }) => {
     const text = args.join(' ')
     if (!text) {
-      return m.reply(`《✧》 Ingresa un *término* de búsqueda.`)
+      return m.reply(`🐲 Ingresa un *término* de búsqueda. (◕ᴗ◕✿)`)
     }
 
     // Lista de palabras prohibidas (Filtro NSFW)
@@ -47,10 +47,10 @@ export default {
     const nsfwEnabled = global.db.data.chats[m.chat]?.nsfw === true
 
     if (!nsfwEnabled && bannedWords.some((word) => lowerText.includes(word))) {
-      return m.reply('《✧》 Este comando no *permite* búsquedas de contenido *+18* o *NSFW* en este grupo.\n> Un administrador debe activar el modo NSFW primero.')
+      return m.reply('🐲 Este comando no permite búsquedas +18 en este grupo. (◕︿◕)\n> Un administrador debe activar el modo NSFW.')
     }
 
-    await m.reply('🔍 *Buscando imagen...*')
+    await m.reply('� *Buscando imagen...* (◕ᴗ◕✿)')
 
     try {
       const apiUrl = `${global.api.url}/search/googleimagen?query=${encodeURIComponent(text)}&key=${global.api.key}`
@@ -114,7 +114,7 @@ export default {
         }
       }
 
-      return m.reply(`ꕥ No se encontraron resultados para *${text}*.`)
+      return m.reply(`🐲 No se encontraron resultados para *${text}*. (╥﹏╥)`)
 
     } catch (e) {
       console.error(e)

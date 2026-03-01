@@ -18,7 +18,7 @@ export default {
     const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     try {
       const characters = await loadCharacters()
@@ -36,15 +36,15 @@ export default {
       const totalPages = Math.ceil(sortedSources.length / sourcesPerPage)
 
       if (page < 1 || page > totalPages)
-        return m.reply(`ꕥ La página ${page} no existe. Intenta entre 1 y ${totalPages}.`)
+        return m.reply(`🐲 La página ${page} no existe. Intenta entre 1 y ${totalPages}. (◕︿◕)`)
 
       const startIndex = (page - 1) * sourcesPerPage
       const paginatedSources = sortedSources.slice(startIndex, startIndex + sourcesPerPage)
 
       const message =
-        `*✩ AnimeList (✿❛◡❛)*\n*❒ Lista de series (${sortedSources.length}):*\n\n` +
-        paginatedSources.map(([source, count]) => `› *${source}* (${count})`).join('\n') +
-        `\n\n> ⌦ Página *${page}* de *${totalPages}*`
+        `╭─── ⋆🐉⋆ ───\n│ AnimeList (✿❛◡❛)\n├───────────────\n│ ❀ Series totales: ${sortedSources.length}\n\n` +
+        paginatedSources.map(([source, count]) => `│ › *${source}* (${count})`).join('\n') +
+        `\n╰─── ⋆✨⋆ ───\n> ⌦ Página *${page}* de *${totalPages}*`
 
       await client.sendMessage(chatId, { text: message }, { quoted: m })
     } catch (error) {

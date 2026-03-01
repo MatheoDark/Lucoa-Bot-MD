@@ -4,11 +4,11 @@ export default {
   run: async ({client, m, args}) => {
 
     if (!args[0]) {
-      return m.reply('ꕥ Ingrese un enlace de *Facebook*')
+      return m.reply('🐲 Ingresa un enlace de *Facebook* (◕ᴗ◕)')
     }
 
     if (!args[0].match(/facebook\.com|fb\.watch|video\.fb\.com/)) {
-      return m.reply('《✧》Por favor, envía un link de Facebook válido')
+      return m.reply('🐲 Envía un link de Facebook válido (◕︿◕)')
     }
 
     try {
@@ -18,9 +18,11 @@ export default {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const buffer = Buffer.from(await response.arrayBuffer())
 
-      const caption = `ೀ܀⊹˙┆✽ " *ᖴᥲᥴᥱᑲ᥆᥆k ᗪ᥆ᥕᥒᥣ᥆ᥲძ* 𝜗𝜚┆˙⊹܀ೀ
-
-⭒̇ㅤ֯◌ 〃 ׄ 〬〿 *Enlace* › ${args[0]}`
+      const caption = `╭─── ⋆🐉⋆ ───
+│ 📘 *Facebook Download*
+├───────────────
+│ 🔗 ${args[0]}
+╰─── ⋆✨⋆ ───`
 
       await client.sendMessage(
         m.chat,
@@ -28,7 +30,7 @@ export default {
         { quoted: m }
       )
     } catch (e) {
-      await m.reply('ꕥ Error: ' + e.message)
+      await m.reply(`🐲 Error: ${e.message} (╥﹏╥)`)
     }
   }
 }

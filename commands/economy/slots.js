@@ -37,10 +37,10 @@ export default {
   command: ['slots', 'slot', 'tragamonedas', 'tragaperras'],
   category: 'rpg',
   run: async ({ client, m, args, usedPrefix, command }) => {
-    if (!m.isGroup) return m.reply('❌ Solo en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Solo en grupos (◕ᴗ◕✿)')
 
     const chat = global.db.data.chats[m.chat] || {}
-    if (chat.adminonly || !chat.rpg) return m.reply('✎ Economía desactivada en este grupo.')
+    if (chat.adminonly || !chat.rpg) return m.reply('🐉 La economía está dormida zzZ')
 
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const settings = global.db.data.settings[botId] || {}
@@ -56,7 +56,7 @@ export default {
 
     // Validar apuesta
     if (!args[0]) {
-      return m.reply(`🎰 *TRAGAMONEDAS*\n\n> Uso: *${usedPrefix}${command} <cantidad>*\n> Ejemplo: *${usedPrefix}${command} 1000*\n> También: *${usedPrefix}${command} all*\n\n🏆 *Premios:*\n> 7️⃣7️⃣7️⃣ = x50 (Jackpot)\n> 💎💎💎 = x25\n> ⭐⭐⭐ = x15\n> 🎰🎰🎰 = x10\n> 🍇🍇🍇 = x8\n> 🍊🍊🍊 = x6\n> 🍋🍋🍋 = x5\n> 🍒🍒🍒 = x4\n> 2 iguales = x2`)
+      return m.reply(`╭─── ⋆🐉⋆ ───\n│ 🎰 *TRAGAMONEDAS*\n├───────────────\n│ ❀ Uso: *${usedPrefix}${command} <cantidad>*\n│ ❀ Ejemplo: *${usedPrefix}${command} 1000*\n│ ❀ También: *${usedPrefix}${command} all*\n│\n│ 🏆 *Premios:*\n│ ❀ 7️⃣7️⃣7️⃣ = x50 (Jackpot)\n│ ❀ 💎💎💎 = x25\n│ ❀ ⭐⭐⭐ = x15\n│ ❀ 🎰🎰🎰 = x10\n│ ❀ 🍇🍇🍇 = x8\n│ ❀ 🍊🍊🍊 = x6\n│ ❀ 🍋🍋🍋 = x5\n│ ❀ 🍒🍒🍒 = x4\n│ ❀ 2 iguales = x2\n╰─── ⋆✨⋆ ───`)
     }
 
     let amount
@@ -66,9 +66,9 @@ export default {
       amount = parseInt(args[0])
     }
 
-    if (isNaN(amount) || amount < 100) return m.reply(`💰 Apuesta mínima: *100 ${monedas}*.`)
-    if (amount > 200000) return m.reply(`🚫 Apuesta máxima: *200,000 ${monedas}*.`)
-    if (user.coins < amount) return m.reply(`🚫 No tienes suficiente. Tienes: *¥${user.coins.toLocaleString()}*`)
+    if (isNaN(amount) || amount < 100) return m.reply(`� Apuesta mínima: *100 ${monedas}* (◕ᴗ◕)`)
+    if (amount > 200000) return m.reply(`🐲 Apuesta máxima: *200,000 ${monedas}* (◕︿◕)`)
+    if (user.coins < amount) return m.reply(`🐲 No tienes suficiente. Tienes: *¥${user.coins.toLocaleString()}* (╥﹏╥)`)
 
     // Girar rodillos
     const r1 = spin()
@@ -102,15 +102,15 @@ export default {
 
     const jackpotMsg = combo === '7️⃣7️⃣7️⃣' ? '\n\n🎊🎊🎊 ¡¡¡JACKPOT MÁXIMO!!! 🎊🎊🎊' : ''
 
-    const msg = `🎰 *T R A G A M O N E D A S*
-
-╔═══════════╗
-║  ${r1} │ ${r2} │ ${r3}  ║
-╚═══════════╝
-
-${resultado}${jackpotMsg}
-
-> 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*`
+    const msg = `╭─── ⋆🐉⋆ ───
+│ 🎰 *T R A G A M O N E D A S*
+├───────────────
+│   ${r1} │ ${r2} │ ${r3}
+│
+│ ${resultado}${jackpotMsg}
+│
+│ 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*
+╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(m.chat, { text: msg }, { quoted: m })
   }

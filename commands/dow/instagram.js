@@ -11,12 +11,12 @@ const COMMANDS = ['ig', 'instagram', 'igdl', 'instadl'];
 const CATEGORY = 'downloader';
 
 const UI = {
-  downloading: '❤️ Descargando contenido de Instagram…',
-  invalid: '🚩 Enlace no válido.',
-  missing: (p = '#') => `🚩 Ingrese un enlace de Instagram.\nEjemplo: ${p}ig https://www.instagram.com/reel/xxxx`,
-  notFound: '❌ No se encontró contenido para descargar.',
-  error: '❌ Ocurrió un error al descargar desde Instagram.',
-  done: '✅ Contenido listo.'
+  downloading: '🐲 Descargando de Instagram~ (◕ᴗ◕✿)',
+  invalid: '🐲 Enlace no válido (◕︿◕)',
+  missing: (p = '#') => `🐲 Ingresa un enlace de Instagram (◕ᴗ◕)\n│ Ejemplo: ${p}ig https://www.instagram.com/reel/xxxx`,
+  notFound: '🐲 No se encontró contenido (╥﹏╥)',
+  error: '🐲 Error al descargar de Instagram (╥﹏╥)',
+  done: '🐉 Contenido listo~ (◕ᴗ◕✿)'
 };
 
 /* ───────────────────────── Helpers ───────────────────────── */

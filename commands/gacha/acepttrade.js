@@ -12,9 +12,9 @@ export default {
     )
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Desactivado.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
-    if (!intercambio) return m.reply('✎ No tienes solicitudes activas.')
+    if (!intercambio) return m.reply('🐲 No tienes solicitudes activas. (◕︿◕)')
 
     // Verificar que aun tengan los personajes
     const solicitanteChars = chatData.users[intercambio.solicitante].characters || []
@@ -26,7 +26,7 @@ export default {
     if (!tieneP1 || !tieneP2) {
         chatData.intercambios = chatData.intercambios.filter((i) => i !== intercambio)
         chatData.timeTrade = 0
-        return m.reply("❌ Intercambio cancelado: Uno de los usuarios ya no tiene el personaje.")
+        return m.reply("🐲 Intercambio cancelado: Uno de los usuarios ya no tiene el personaje. (╥﹏╥)")
     }
 
     // Intercambiar
@@ -46,7 +46,7 @@ export default {
     const solicitanteName = db.users[intercambio.solicitante]?.name || intercambio.solicitante.split('@')[0]
     const destName = db.users[userId]?.name || userId.split('@')[0]
 
-    const mensajeConfirmacion = `ꕥ *Intercambio Exitoso*\n\n✎ *${intercambio.personaje1.name}* ➔ ${destName}\n✎ *${intercambio.personaje2.name}* ➔ ${solicitanteName}`
+    const mensajeConfirmacion = `╭─── ⋆🐉⋆ ───\n│ Intercambio Exitoso (◕ᴗ◕✿)\n├───────────────\n│ ❀ *${intercambio.personaje1.name}* ➔ ${destName}\n│ ❀ *${intercambio.personaje2.name}* ➔ ${solicitanteName}\n╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(chatId, { text: mensajeConfirmacion }, { quoted: m })
   },

@@ -9,16 +9,16 @@ export default {
     const monedas = botSettings.currency || 'Coins'
 
     const chat = global.db.data.chats[m.chat] || {}
-    if (chat.adminonly || !chat.rpg) return m.reply(`✎ Desactivado.`)
+    if (chat.adminonly || !chat.rpg) return m.reply('🐉 La economía está dormida aquí zzZ')
 
     // CORRECCIÓN: Usuario Global + Resolución LID/JID
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     const user = global.db.data.users[userId]
-    if (!user) return m.reply("⚠ Usuario no registrado.")
+    if (!user) return m.reply('🐲 No estás registrado (◕︿◕)')
 
     const remaining = (user.mineCooldown || 0) - Date.now()
     if (remaining > 0) {
-      return m.reply(`ꕥ Espera *${msToTime(remaining)}*.`)
+      return m.reply(`🐲 Espera *${msToTime(remaining)}* para minar de nuevo (◕︿◕✿)`)
     }
 
     user.mineCooldown = Date.now() + 10 * 60000
@@ -28,8 +28,8 @@ export default {
 
     if (isLegendary) {
       reward = Math.floor(Math.random() * 150000) + 100000
-      narration = '¡DESCUBRISTE UN TESORO LEGENDARIO!\n\n'
-      bonusMsg = '\nꕥ Recompensa ÉPICA obtenida!'
+      narration = '✨ ¡TESORO LEGENDARIO! ✨\n│ '
+      bonusMsg = '\n│ 🌟 ¡Recompensa ÉPICA! (≧◡≦)'
     } else {
       reward = Math.floor(Math.random() * 13000) + 2000
       const scenario = pickRandom(escenarios)
@@ -38,14 +38,15 @@ export default {
       if (Math.random() < 0.1) {
         const bonus = Math.floor(Math.random() * 8000) + 2000
         reward += bonus
-        bonusMsg = `\n「✿」 ¡Bonus! Ganaste *${bonus.toLocaleString()}* extra`
+        bonusMsg = `\n│ ❀ ¡Bonus! +*${bonus.toLocaleString()}* extra`
       }
     }
 
     user.coins = (user.coins || 0) + reward
 
-    let msg = `「✿」 ${narration} *${reward.toLocaleString()} ${monedas}*`
+    let msg = `╭─── ⋆🐉⋆ ───\n│ ⛏️ *MINERÍA*\n├───────────────\n│ ${narration} *${reward.toLocaleString()} ${monedas}*`
     if (bonusMsg) msg += `\n${bonusMsg}`
+    msg += '\n╰─── ⋆✨⋆ ───'
 
     await client.reply(m.chat, msg, m)
   }

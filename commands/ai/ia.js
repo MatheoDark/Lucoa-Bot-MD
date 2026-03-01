@@ -52,14 +52,20 @@ export default {
 
     if (args[0] === 'on') {
         chat.chatbot = true
-        return m.reply('✅ *Auto-Lucoa ACTIVADO.*')
+        return m.reply('🐉 *Auto-Lucoa ACTIVADO.* (≧◡≦)')
     }
     if (args[0] === 'off') {
         chat.chatbot = false
-        return m.reply('❌ *Auto-Lucoa DESACTIVADO.*')
+        return m.reply('🐲 *Auto-Lucoa DESACTIVADO.* (◕︿◕)')
     }
 
-    if (!text) return m.reply(`🍟 *Hola soy Lucoa.*\n\nComandos:\n• *#${command} on* (Activar)\n• *#${command} off* (Desactivar)\n• *#${command} hola* (Hablar)`)
+    if (!text) return m.reply(`╭─── ⋆🐉⋆ ───
+│ *Hola, soy Lucoa* (◕ᴗ◕✿)
+├───────────────
+│ ❀ *#${command} on* ─ Activar
+│ ❀ *#${command} off* ─ Desactivar
+│ ❀ *#${command} hola* ─ Hablar
+╰─── ⋆✨⋆ ───`)
     
     const username = m.pushName || 'Humano'
     await pensarComoLucoa(text, username, m, client)

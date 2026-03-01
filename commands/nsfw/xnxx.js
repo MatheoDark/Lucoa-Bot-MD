@@ -61,12 +61,12 @@ export default {
 
     // 1. Verificación NSFW
     if (!global.db.data.chats[m.chat].nsfw) {
-        return m.reply('🚫 Los comandos *NSFW* están desactivados en este Grupo.')
+        return m.reply('� Los comandos *NSFW* están desactivados. (◕︿◕)')
     }
 
     // 2. Validar Argumentos
     const query = args.join(" ")
-    if (!query) return m.reply("🔞 Ingresa el nombre de un video o una URL de XNXX.")
+    if (!query) return m.reply('🐲 Ingresa el nombre de un video o una URL. (◕ᴗ◕✿)')
 
     m.react('🔥')
 
@@ -85,7 +85,7 @@ export default {
         const resultados = await xnxxSearch(query)
 
         if (!resultados.length) {
-            return m.reply("❌ No se encontró el video.")
+            return m.reply('🐲 No se encontró el video. (╥﹏╥)')
         }
 
         const randomPost = resultados[Math.floor(Math.random() * resultados.length)]
@@ -100,7 +100,7 @@ export default {
       // ----------------------------------------------------
       const mp4Url = await xnxxScraper(videoUrl)
 
-      if (!mp4Url) return m.reply("❌ No se pudo extraer el video.")
+      if (!mp4Url) return m.reply('🐲 No se pudo extraer el video. (╥﹏╥)')
 
       // ----------------------------------------------------
       // PASO 3: ENVIAR VIDEO
@@ -117,7 +117,7 @@ export default {
 
     } catch (err) {
       console.error(err)
-      return m.reply(`❌ Error interno: ${err.message}`)
+      return m.reply(`🐲 Error: ${err.message} (╥﹏╥)`)
     }
   },
 }

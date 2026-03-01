@@ -15,15 +15,15 @@ export default {
     const estado = chat.self ?? false
 
     if (args[0] === 'enable' || args[0] === 'on') {
-      if (estado) return m.reply('《✧》 El modo *Self* ya estaba activado.')
+      if (estado) return m.reply('🐲 El modo *Self* ya estaba activado.')
       chat.self = true
-      return m.reply('《✧》 Has *Activado* el modo *Self*.')
+      return m.reply('🐉 Has *Activado* el modo *Self*.')
     }
 
     if (args[0] === 'disable' || args[0] === 'off') {
-      if (!estado) return m.reply('1ñ《✧》 El modo *Self* ya estaba desactivado.')
+      if (!estado) return m.reply('🐲 El modo *Self* ya estaba desactivado.')
       chat.self = false
-      return m.reply('《✧》 Has *Desactivado* el modo *Privado*.')
+      return m.reply('🐉 Has *Desactivado* el modo *Privado*.')
     }
 
     return m.reply(

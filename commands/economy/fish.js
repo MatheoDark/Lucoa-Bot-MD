@@ -67,10 +67,10 @@ export default {
   command: ['fish', 'pescar', 'pesca'],
   category: 'rpg',
   run: async ({ client, m }) => {
-    if (!m.isGroup) return m.reply('❌ Solo en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Solo funciona en grupos (◕ᴗ◕✿)')
 
     const chat = global.db.data.chats[m.chat] || {}
-    if (chat.adminonly || !chat.rpg) return m.reply('✎ Economía desactivada en este grupo.')
+    if (chat.adminonly || !chat.rpg) return m.reply('🐉 La economía está dormida aquí zzZ')
 
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const settings = global.db.data.settings[botId] || {}
@@ -88,7 +88,7 @@ export default {
     if (remaining > 0) {
       const m2 = Math.floor(remaining / 60000)
       const s = Math.floor((remaining % 60000) / 1000)
-      return m.reply(`🎣 La caña se está cargando... espera *${m2}m ${s}s*`)
+      return m.reply(`🐲 La caña se recarga... espera *${m2}m ${s}s* (◕︿◕)`)
     }
 
     user.fishCooldown = Date.now() + 5 * 60 * 1000
@@ -96,7 +96,7 @@ export default {
     // 15% chance de no atrapar nada
     if (Math.random() < 0.15) {
       const fail = fracasos[Math.floor(Math.random() * fracasos.length)]
-      return m.reply(`🎣 ${fail}\n\n> Inténtalo de nuevo en 5 minutos.`)
+      return m.reply(`🐲 ${fail}\n│ Inténtalo de nuevo en 5 min (╥﹏╥)`)
     }
 
     const evento = eventos[Math.floor(Math.random() * eventos.length)]
@@ -111,21 +111,23 @@ export default {
     const rarezaBadge = rarezaColor[pez.rareza] || '⚪'
 
     const bonusMsg = pez.rareza === 'Mítico' 
-      ? '\n\n✨✨ ¡¡CAPTURA MÍTICA!! ✨✨\n¡Una en un millón! ¡Eres una leyenda!'
+      ? '\n│\n│ ✨✨ ¡¡CAPTURA MÍTICA!! ✨✨\n│ ¡Una en un millón! (≧◡≦)'
       : pez.rareza === 'Legendario'
-      ? '\n\n🌟 ¡Captura Legendaria! ¡Increíble suerte!'
+      ? '\n│\n│ 🌟 ¡Captura Legendaria! (◕ᴗ◕✿)'
       : ''
 
-    const msg = `🎣 *PESCA*
-
-${evento.emoji} ${evento.texto}
-
-${pez.emoji} ¡Atrapaste un *${pez.nombre}*!
-> ${rarezaBadge} Rareza: *${pez.rareza}*
-
-💰 +*¥${coins.toLocaleString()} ${monedas}*
-⚡ +*${exp.toLocaleString()} XP*
-🐟 Peces totales: *${user.totalFish}*${bonusMsg}`
+    const msg = `╭─── ⋆🐉⋆ ───
+│ 🎣 *PESCA*
+├───────────────
+│ ${evento.emoji} ${evento.texto}
+│
+│ ${pez.emoji} ¡Atrapaste un *${pez.nombre}*!
+│ ${rarezaBadge} Rareza: *${pez.rareza}*
+│
+│ 💰 +*¥${coins.toLocaleString()} ${monedas}*
+│ ⚡ +*${exp.toLocaleString()} XP*
+│ 🐟 Peces totales: *${user.totalFish}*${bonusMsg}
+╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(m.chat, { text: msg }, { quoted: m })
   }

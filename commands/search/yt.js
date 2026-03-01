@@ -7,7 +7,7 @@ export default {
   run: async ({client, m, args}) => {
     if (!args || !args[0]) {
       return m.reply(
-        '《✧》 Ingrese el *título* de un *vídeo*.',
+        '🐲 Ingresa el *título* de un *video* de YouTube. (◕ᴗ◕✿)',
       )
     }
 
@@ -39,7 +39,7 @@ export default {
       .filter((v) => v)
       .join('\n\n╾۪〬─ ┄۫╌ ׄ┄┈۪ ─〬 ׅ┄╌ ۫┈ ─ׄ─۪〬 ┈ ┄۫╌ ┈┄۪ ─ׄ〬╼\n\n')
     client.sendMessage(m.chat, { image: Ibuff, caption: teks2 }, { quoted: m }).catch((err) => {
-      m.reply('Error')
+      m.reply('🐲 Error al buscar el video. (╥﹏╥)')
     })
   },
 };

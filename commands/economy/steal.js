@@ -6,13 +6,13 @@ export default {
   run: async ({ client, m }) => {
     
     // 1. Validaciones Básicas
-    if (!m.isGroup) return m.reply('❌ Este comando solo funciona en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Este comando solo funciona en grupos (◕ᴗ◕✿)')
 
     const chatId = m.chat
     const chatData = global.db.data.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.rpg) {
-      return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
+      return m.reply('🐉 La economía está dormida en este grupo zzZ')
     }
 
     // 2. Configuración del Bot
@@ -34,21 +34,21 @@ export default {
     const mentioned = m.mentionedJid || []
     const who = mentioned[0] || (m.quoted ? m.quoted.sender : null)
 
-    if (!who) return m.reply(`《✧》 Menciona a alguien para robar.`)
+    if (!who) return m.reply('🐲 Menciona a alguien para robar (◕ᴗ◕)')
 
     // Resolver ID de la Víctima
     const targetId = await resolveLidToRealJid(who, client, chatId)
 
     // Validaciones de Víctima
-    if (targetId === senderId) return m.reply(`《✧》 No puedes robarte a ti mismo.`)
-    if (targetId === botId) return m.reply(`《✧》 No puedes robarme a mí, soy la autoridad. 👮`)
+    if (targetId === senderId) return m.reply('🐲 No puedes robarte a ti mismo (≧◡≦)')
+    if (targetId === botId) return m.reply('🐲 No puedes robarme a mí~ soy un dragón (◕ᴗ◕✿) 🐉')
 
     // Asegurar que la víctima existe en la DB
     const targetData = global.db.data.users[targetId]
-    if (!targetData) return m.reply('《✧》 El usuario no tiene dinero registrado (es nuevo).')
+    if (!targetData) return m.reply('🐲 Ese usuario no tiene dinero registrado (◕︿◕)')
 
     if ((targetData.coins || 0) < 50) {
-      return m.reply(`《✧》 La víctima es muy pobre, no vale la pena el riesgo.`)
+      return m.reply('🐲 La víctima es muy pobre, no vale la pena (╥﹏╥)')
     }
 
     // 5. Cooldown (Tiempo de espera)
@@ -56,7 +56,7 @@ export default {
     const remainingTime = senderData.roboCooldown - Date.now()
 
     if (remainingTime > 0) {
-      return m.reply(`ꕥ La policía te vigila. Espera *${msToTime(remainingTime)}* para volver a robar.`)
+      return m.reply(`🐲 La policía te vigila. Espera *${msToTime(remainingTime)}* (◕︿◕✿)`)
     }
 
     // 6. Ejecución del Robo
@@ -76,7 +76,7 @@ export default {
       senderData.roboCooldown = now + cooldown // Aplica cooldown
 
       return client.sendMessage(chatId, {
-          text: `🚔 ¡ATRAPADO!\n\nꕥ Intentaste robar a *@${targetId.split('@')[0]}* y la policía te atrapó.\n💸 Multa: *-${fine.toLocaleString()} ${monedas}*`,
+          text: `╭─── ⋆🐉⋆ ───\n│ 🚔 *¡ATRAPADO!*\n├───────────────\n│ Intentaste robar a *@${targetId.split('@')[0]}*\n│ 💸 Multa: *-${fine.toLocaleString()} ${monedas}*\n╰─── ⋆✨⋆ ───`,
           mentions: [senderId, targetId],
         }, { quoted: m }
       )
@@ -91,7 +91,7 @@ export default {
     senderData.roboCooldown = now + cooldown // Aplica cooldown
 
     await client.sendMessage(chatId, {
-        text: `ꕥ ¡Éxito! Le robaste *${cantidadRobada.toLocaleString()} ${monedas}* a *@${targetId.split('@')[0]}* sin que se diera cuenta. 🥷`,
+        text: `╭─── ⋆🐉⋆ ───\n│ 🥷 *¡ROBO EXITOSO!*\n├───────────────\n│ Le robaste *${cantidadRobada.toLocaleString()} ${monedas}*\n│ a *@${targetId.split('@')[0]}* (◕ᴗ◕✿)\n╰─── ⋆✨⋆ ───`,
         mentions: [targetId],
       }, { quoted: m }
     )

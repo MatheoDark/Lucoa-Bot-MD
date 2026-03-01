@@ -47,7 +47,7 @@ export default {
     })
    })
 
-   let msg = `《✧》 Limpieza completada\n\n> Total archivos eliminados: ${total}`
+   let msg = `🐉 Limpieza completada (≧◡≦)\n\n> Total archivos eliminados: ${total}`
    if (details.length > 0) msg += `\n\n${details.join('\n')}`
 
    await m.reply(msg)

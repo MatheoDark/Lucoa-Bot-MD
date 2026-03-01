@@ -11,7 +11,7 @@ export default {
   let q = m.quoted ? m.quoted : m;
   let mime = (q.msg || q).mimetype || '';
   if (!mime) {
-    return client.reply(m.chat, '💜 Responde a una *Imagen*, *Vídeo* o *Audio (mp3/wav).*', m);
+    return client.reply(m.chat, '� Responde a una *Imagen*, *Vídeo* o *Audio* (◕ᴗ◕)', m);
   }
 
   await client.sendMessage(m.chat, { react: { text: '💥', key: m.key } });
@@ -21,7 +21,7 @@ export default {
 
     let isMedia = /image\/(png|jpe?g|gif)|video\/mp4|audio\/(mpeg|mp3|wav)/.test(mime);
     if (!isMedia) {
-      return client.reply(m.chat, '⚠️ El archivo no es compatible, solo se permiten *imágenes, videos y audios (mp3/wav)*.', m);
+      return client.reply(m.chat, '🐲 Formato no compatible. Solo *imágenes, videos y audios* (◕︿◕)', m);
     }
 
     let link = await uploadImage(media);
@@ -46,12 +46,12 @@ export default {
       shortLink = 'No disponible';
     }
 
-    let txt = `乂  *L I N K - E N L A C E*  乂\n\n`;
-    txt += `*» Enlace* : ${link}\n`;
-    txt += `*» Acortado* : ${shortLink}\n`;
-    txt += `*» Tamaño* : ${formatBytes(media.length)}\n`;
-    txt += `*» Expiración* : No expira\n\n`;
-    txt += `> *${botname}*`;
+    let txt = `╭─── ⋆🐉⋆ ───\n│ 🔗 *LINK*\n├───────────────\n`;
+    txt += `│ ❀ Enlace: ${link}\n`;
+    txt += `│ ❀ Acortado: ${shortLink}\n`;
+    txt += `│ ❀ Tamaño: ${formatBytes(media.length)}\n`;
+    txt += `│ ❀ Expiración: No expira\n`;
+    txt += `╰─── ⋆✨⋆ ───\n\n> *${botname}*`;
 
     if (img) {
       await client.sendMessage(m.chat, {

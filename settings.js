@@ -33,6 +33,6 @@ global.mods = [
   '56992523459' 
 ]
 
-global.msgglobal = 'Hubo un error. Usa el comando /reporte <problema> para avisar a mi creador.'
+global.msgglobal = '🐲 Algo salió mal... (╥﹏╥)\n> Usa */reporte <problema>* para avisar a mi creador.'
 
-globalThis.dev = '© ⍴᥆ᥕᥱrᥱძ ᑲᥡ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ ❨🐉❩'
+globalThis.dev = '🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ'

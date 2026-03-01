@@ -67,28 +67,31 @@ export default {
     const rank = sortedLevel.findIndex(x => x[0] === userId) + 1
 
     // 8. Construir Mensaje
-    const profileText = `「✿」 *PERFIL DE USUARIO* 👤 *Nombre:* ${name}
-🔰 *Rango:* #${rank} (Top Global)
+    const profileText = `╭─── ⋆🐉⋆ ───
+│  *𝐏𝐄𝐑𝐅𝐈𝐋 𝐃𝐄 𝐔𝐒𝐔𝐀𝐑𝐈𝐎*
+├───────────────
+│ 👤 *Nombre ›* ${name}
+│ 🏅 *Rango ›* #${rank} (Top Global)
+│
+│ ── 🌸 *Info Personal* ──
+│ 🎂 Cumpleaños › *${birth}*
+│ 🎮 Pasatiempo › *${pasatiempo}*
+│ ✧ Género › *${genero}*
+│ 💕 ${estadoCivil} › *${parejaDisplay}*
+│
+│ ── 💎 *Finanzas* ──
+│ 💰 En Mano › *${coins.toLocaleString()} ${currency}*
+│ 🏦 En Banco › *${bank.toLocaleString()} ${currency}*
+│ 💎 Total › *${totalCoins.toLocaleString()} ${currency}*
+│
+│ ── 📊 *Stats* ──
+│ ✨ Nivel › *${nivel}*
+│ ❀ Exp › *${exp.toLocaleString()}*
+│ 🐲 Harem › *${harem}*
+│ 📝 Comandos › *${comandos.toLocaleString()}*
+╰─── ⋆✨⋆ ───
 
-📋 *Información Personal*
-♛ Cumpleaños › *${birth}*
-♛ Pasatiempo › *${pasatiempo}*
-♛ Género › *${genero}*
-♡ ${estadoCivil} › *${parejaDisplay}*
-
-💰 *Estado Financiero*
-✰ Dinero en Mano › *${coins.toLocaleString()} ${currency}*
-🏦 Dinero en Banco › *${bank.toLocaleString()} ${currency}*
-💎 Patrimonio Total › *${totalCoins.toLocaleString()} ${currency}*
-
-📊 *Estadísticas*
-✿ Nivel › *${nivel}*
-❀ Experiencia › *${exp.toLocaleString()}*
-ꕥ Personajes (Harem) › *${harem}*
-❒ Comandos Usados › *${comandos.toLocaleString()}*
-
-📝 *Descripción:*
-_${desc}_`
+> _${desc}_`
 
     // 9. Enviar
     await client.sendMessage(m.chat, { 

@@ -47,7 +47,7 @@ export async function before(m, { client }) {
 
     // Validar entrada
     if (!/^[a-zñ]+$/i.test(guess)) {
-      return m.reply(`✧ Por favor, envía solo letras (sin números ni símbolos).`);
+      return m.reply('🐲 Solo letras, nada de números ni símbolos (◕ᴗ◕)');
     }
 
     // --- CASO 1: ADIVINAR PALABRA COMPLETA ---
@@ -58,7 +58,7 @@ export async function before(m, { client }) {
         user.coins = (user.coins || 0) + REWARD_COINS;
         user.ahorcadoCooldown = Date.now() + COOLDOWN;
 
-        const info = `➪ *¡GANASTE!* 🎉\n\n> Palabra: *${word.toUpperCase()}*\n> Premio: *${REWARD_EXP} EXP* y *${REWARD_COINS} ${currency}*\n> Nuevo Saldo: ${user.coins} ${currency}\n\n⏳ Debes esperar *${msToTime(COOLDOWN)}* para jugar de nuevo.`;
+        const info = `╭─── ⋆🐉⋆ ───\n│ 🎉 *¡GANASTE!*\n├───────────────\n│ ❀ Palabra: *${word.toUpperCase()}*\n│ ❀ Premio: *${REWARD_EXP} EXP* + *${REWARD_COINS} ${currency}*\n│ ❀ Saldo: ${user.coins} ${currency}\n│ ⏳ Espera *${msToTime(COOLDOWN)}*\n╰─── ⋆✨⋆ ───`;
         
         clearTimeout(game.timeout);
         delete global.games[m.chat];
@@ -71,7 +71,7 @@ export async function before(m, { client }) {
     // --- CASO 2: ADIVINAR LETRA ---
     else {
       if (game.guessedLetters.has(guess)) {
-        return m.reply(`✧ La letra *${guess.toUpperCase()}* ya fue usada.`);
+        return m.reply(`🐲 La letra *${guess.toUpperCase()}* ya fue usada (◕ᴗ◕)`);
       }
 
       game.guessedLetters.add(guess);
@@ -99,7 +99,7 @@ export async function before(m, { client }) {
         user.coins = (user.coins || 0) + REWARD_COINS;
         user.ahorcadoCooldown = Date.now() + COOLDOWN;
 
-        const info = `➪ *¡GANASTE!* 🎉\n\n> Palabra: *${word.toUpperCase()}*\n> Premio: *${REWARD_EXP} EXP* y *${REWARD_COINS} ${currency}*\n> Nuevo Saldo: ${user.coins} ${currency}\n\n⏳ Debes esperar *${msToTime(COOLDOWN)}* para jugar de nuevo.`;
+        const info = `╭─── ⋆🐉⋆ ───\n│ 🎉 *¡GANASTE!*\n├───────────────\n│ ❀ Palabra: *${word.toUpperCase()}*\n│ ❀ Premio: *${REWARD_EXP} EXP* + *${REWARD_COINS} ${currency}*\n│ ❀ Saldo: ${user.coins} ${currency}\n│ ⏳ Espera *${msToTime(COOLDOWN)}*\n╰─── ⋆✨⋆ ───`;
         
         clearTimeout(game.timeout);
         delete global.games[m.chat];
@@ -112,7 +112,7 @@ export async function before(m, { client }) {
         user.coins = Math.max(0, (user.coins || 0) - PENALTY_COINS);
         user.ahorcadoCooldown = Date.now() + COOLDOWN;
 
-        const info = `➪ *PERDISTE* 💀\n\n> Palabra: *${word.toUpperCase()}*\n> Castigo: -${PENALTY_EXP} EXP, -${PENALTY_COINS} ${currency}\n\n${hangmanArt[6]}\n\n⏳ Espera *${msToTime(COOLDOWN)}*.`;
+        const info = `╭─── ⋆🐉⋆ ───\n│ 💀 *PERDISTE* (╥﹏╥)\n├───────────────\n│ ❀ Palabra: *${word.toUpperCase()}*\n│ ❀ Castigo: -${PENALTY_EXP} EXP, -${PENALTY_COINS} ${currency}\n│\n${hangmanArt[6]}\n│ ⏳ Espera *${msToTime(COOLDOWN)}*\n╰─── ⋆✨⋆ ───`;
         
         clearTimeout(game.timeout);
         delete global.games[m.chat];
@@ -121,7 +121,7 @@ export async function before(m, { client }) {
 
     // 3. Juego Continúa
     const usedLetters = Array.from(game.guessedLetters).join(', ').toUpperCase() || 'Ninguna';
-    const info = `➪ *AHORCADO*\n\n> Palabra: ${hiddenWord.toUpperCase()}\n> Vidas: ${game.attemptsLeft}\n> Usadas: ${usedLetters}\n${hangmanArt[6 - game.attemptsLeft]}\n\n✧ Responde con una letra o la palabra completa.`;
+    const info = `╭─── ⋆🐉⋆ ───\n│ 💀 *AHORCADO*\n├───────────────\n│ Palabra: ${hiddenWord.toUpperCase()}\n│ Vidas: ${game.attemptsLeft}\n│ Usadas: ${usedLetters}\n│\n${hangmanArt[6 - game.attemptsLeft]}\n│\n│ Responde con una letra o la palabra\n╰─── ⋆✨⋆ ───`;
     
     const sentMsg = await client.reply(m.chat, info, m);
     game.messageId = sentMsg.key.id; // Actualizamos ID para seguir el hilo
@@ -142,14 +142,14 @@ const handler = {
     if (args[0] === 'cancel' && global.games[m.chat]) {
         clearTimeout(global.games[m.chat].timeout);
         delete global.games[m.chat];
-        return m.reply('✧ Juego del ahorcado cancelado.');
+        return m.reply('🐲 Juego cancelado (◕ᴗ◕)');
     }
 
-    if (global.db.data.chats[m.chat].adminonly) return m.reply(`❒ Solo admins.`);
-    if (!global.db.data.chats[m.chat].rpg) return m.reply(`❒ Economía pausada.`);
+    if (global.db.data.chats[m.chat].adminonly) return m.reply('🐲 Solo administradores (◕ᴗ◕✿)');
+    if (!global.db.data.chats[m.chat].rpg) return m.reply('🐉 La economía está dormida zzZ');
 
     if (global.games[m.chat]) {
-      return m.reply(`✧ Ya hay un juego activo. Termínalo o escribe *${prefa}ahorcado cancel*.`);
+      return m.reply(`🐲 Ya hay un juego activo, termínalo o usa *${prefa}ahorcado cancel* (◕ᴗ◕)`);
     }
 
     // Resolver Usuario y Cooldown (Global)
@@ -165,7 +165,7 @@ const handler = {
     const remainingTime = user.ahorcadoCooldown - Date.now();
     
     if (remainingTime > 0) {
-      return m.reply(`✿ Debes esperar *${msToTime(remainingTime)}* para jugar de nuevo.`);
+      return m.reply(`🐲 Espera *${msToTime(remainingTime)}* para jugar de nuevo (◕︿◕✿)`);
     }
 
     // Iniciar Juego
@@ -194,7 +194,7 @@ const handler = {
     global.games[m.chat].timeout = setTimeout(() => {
         if (global.games[m.chat]) {
             const w = global.games[m.chat].word;
-            client.reply(m.chat, `✧ ¡Tiempo agotado! La palabra era: *${w.toUpperCase()}*`, m);
+            client.reply(m.chat, `🐲 ¡Tiempo agotado! La palabra era: *${w.toUpperCase()}* (╥﹏╥)`, m);
             delete global.games[m.chat];
         }
     }, TIME_LIMIT);
@@ -205,7 +205,7 @@ const handler = {
     const settings = global.db.data.settings[botId] || {}
     const currency = settings.currency || 'Coins'
 
-    const info = `➪ *JUEGO DEL AHORCADO* 💀\n\n> Palabra: ${hiddenWord.toUpperCase()}\n> Vidas: ${maxAttempts}\n> Pista: ${revealedLetter.toUpperCase()}\n${hangmanArt[0]}\n\n✧ Tienes 5 minutos. Gana *${REWARD_COINS} ${currency}*.\n✧ Responde a este mensaje con una letra.`;
+    const info = `╭─── ⋆🐉⋆ ───\n│ 💀 *JUEGO DEL AHORCADO*\n├───────────────\n│ Palabra: ${hiddenWord.toUpperCase()}\n│ Vidas: ${maxAttempts}\n│ Pista: ${revealedLetter.toUpperCase()}\n│\n${hangmanArt[0]}\n│\n│ Tienes 5 min. Gana *${REWARD_COINS} ${currency}*\n│ Responde a este mensaje con una letra\n╰─── ⋆✨⋆ ───`;
 
     const sentMsg = await client.reply(m.chat, info, m);
     global.games[m.chat].messageId = sentMsg.key.id;

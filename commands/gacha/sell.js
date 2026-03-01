@@ -11,27 +11,27 @@ export default {
 
     const chatData = db.chats[chatId] || {}
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Desactivado.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     const precioCoins = parseInt(args[0])
     const personajeNombre = args.slice(1).join(' ').trim().toLowerCase()
 
     if (!personajeNombre || isNaN(precioCoins))
-      return m.reply('✎ Especifica el precio y el nombre. Ej: sell 5000 Rem')
+      return m.reply('🐲 Especifica el precio y el nombre. Ej: sell 5000 Rem (◕︿◕)')
 
     // --- MODELO HÍBRIDO (Personajes Locales) ---
     const userData = chatData.users[userId] || {}
     
-    if (!userData?.characters?.length) return m.reply('《✧》 No tienes personajes aquí.')
+    if (!userData?.characters?.length) return m.reply('🐲 No tienes personajes aquí. (◕︿◕)')
 
     const characterIndex = userData.characters.findIndex(
       (c) => c.name?.toLowerCase() === personajeNombre,
     )
     if (characterIndex === -1)
-      return m.reply(`《✧》 No tienes a *${personajeNombre}*.`)
+      return m.reply(`🐲 No tienes a *${personajeNombre}*. (◕︿◕)`)
 
-    if (precioCoins < 5000) return m.reply(`《✧》 Mínimo *5,000 ${currency}*.`)
-    if (precioCoins > 20000000) return m.reply(`《✧》 Máximo *20,000,000 ${currency}*.`)
+    if (precioCoins < 5000) return m.reply(`🐲 Mínimo *5,000 ${currency}*. (◕︿◕)`)
+    if (precioCoins > 20000000) return m.reply(`🐲 Máximo *20,000,000 ${currency}*. (◕︿◕)`)
 
     const character = userData.characters[characterIndex]
     const expira = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
@@ -47,7 +47,7 @@ export default {
 
     userData.characters.splice(characterIndex, 1)
 
-    const mensaje = `✎ *${character.name}* a la venta!\n\n> ꕥ Vendedor › *@${userId.split('@')[0]}*\n> ⛁ Valor › *${precioCoins.toLocaleString()} ${currency}*\n> ❖ Expira en › *3 días*`
+    const mensaje = `╭─── ⋆🐉⋆ ───\n│ Venta Registrada (◕ᴗ◕✿)\n├───────────────\n│ ❀ Personaje: *${character.name}*\n│ ❀ Vendedor › *@${userId.split('@')[0]}*\n│ ❀ Valor › *${precioCoins.toLocaleString()} ${currency}*\n│ ❀ Expira en › *3 días*\n╰─── ⋆✨⋆ ───`
     await client.sendMessage(chatId, { text: mensaje, mentions: [userId] }, { quoted: m })
   },
 };

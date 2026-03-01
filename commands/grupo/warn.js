@@ -20,7 +20,7 @@ export default {
       : args.slice(0).join(' ') || 'Sin razón.'
 
     try {
-      if (!who2) return m.reply('《✧》 Debes mencionar o responder al usuario que deseas advertir.')
+      if (!who2) return m.reply('🐲 Debes mencionar o responder al usuario que deseas advertir.')
 
       if (!chat.users[targetId]) chat.users[targetId] = {}
       const user = chat.users[targetId]
@@ -51,7 +51,7 @@ export default {
         })
         .join('\n')
 
-      let message = `✐ Se ha añadido una advertencia a @${targetId.split('@')[0]}.\n✿ Advertencias totales \`(${total})\`:\n\n${warningList}`
+      let message = `🐉 Se ha añadido una advertencia a @${targetId.split('@')[0]}.\n🐉 Advertencias totales \`(${total})\`:\n\n${warningList}`
 
       const warnLimit = chat.warnLimit || 3
       const expulsar = chat.expulsar === true
@@ -61,12 +61,12 @@ export default {
           await client.groupParticipantsUpdate(m.chat, [targetId], 'remove')
           delete chat.users[targetId]
           delete global.db.data.users[targetId]
-          message += `\n\n> ❖ El usuario ha alcanzado el límite de advertencias y fue expulsado del grupo.`
+          message += `\n\n> ❀ El usuario ha alcanzado el límite de advertencias y fue expulsado del grupo.`
         } catch {
-          message += `\n\n> ❖ El usuario alcanzó el límite, pero no se pudo expulsar automáticamente.`
+          message += `\n\n> ❀ El usuario alcanzó el límite, pero no se pudo expulsar automáticamente.`
         }
       } else if (total >= warnLimit && !expulsar) {
-        message += `\n\n> ❖ El usuario ha alcanzado el límite de advertencias.`
+        message += `\n\n> ❀ El usuario ha alcanzado el límite de advertencias.`
       }
 
       await client.reply(m.chat, message, m, { mentions: [targetId] })

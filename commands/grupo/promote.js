@@ -7,7 +7,7 @@ export default {
     const mentioned = await m.mentionedJid
     const who = mentioned.length > 0 ? mentioned[0] : m.quoted ? await m.quoted.sender : false
 
-    if (!who) return m.reply('《✧》 Menciona al usuario que deseas promover a administrador.')
+    if (!who) return m.reply('🐲 Menciona al usuario que deseas promover a administrador.')
 
     try {
       const groupMetadata = await client.groupMetadata(m.chat)
@@ -17,7 +17,7 @@ export default {
         return client.sendMessage(
           m.chat,
           {
-            text: `《✧》 *@${who.split('@')[0]}* ya es administrador del grupo!`,
+            text: `🐲 *@${who.split('@')[0]}* ya es administrador del grupo!`,
             mentions: [who],
           },
           { quoted: m },
@@ -27,7 +27,7 @@ export default {
       await client.sendMessage(
         m.chat,
         {
-          text: `✿ *@${who.split('@')[0]}* ha sido promovido a administrador del grupo!`,
+          text: `🐉 *@${who.split('@')[0]}* ha sido promovido a administrador del grupo! (✿❛◡❛)`,
           mentions: [who],
         },
         { quoted: m },

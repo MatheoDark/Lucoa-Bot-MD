@@ -11,16 +11,16 @@ export default {
 
     // 1. Verificar Modo NSFW
     if (m.isGroup && !db.data.chats[chatId]?.nsfw) {
-        return m.reply('🚫 Los comandos *NSFW* están desactivados en este grupo.\nUsa `#enable nsfw` para activarlos.')
+        return m.reply('� Los comandos *NSFW* están desactivados en este grupo. (◕︿◕)\n> Usa `#enable nsfw` para activarlos.')
     }
 
     // 2. Validar Texto
-    if (!args[0]) return m.reply('📝 Ingresa un personaje o etiqueta para buscar.\nEjemplo: #danbooru lucoa')
+    if (!args[0]) return m.reply('� Ingresa un personaje o etiqueta para buscar. (◕ᴗ◕✿)\n> Ejemplo: *#danbooru lucoa*')
 
     // --- CORRECCIÓN DEL ERROR ---
     // Antes decía: await m.reply(mess.wait) -> Esto daba error.
     // Ahora dice:
-    await m.reply('🔍 *Buscando en Danbooru...*')
+    await m.reply('� *Buscando en Danbooru...* (◕ᴗ◕✿)')
 
     const tag = args.join('_')
     
@@ -78,17 +78,17 @@ export default {
       }
 
       if (!url) {
-        return m.reply(`❌ No encontré nada sobre *${args.join(' ')}*.\nIntenta usar el nombre en inglés (ej: cat_girl).`)
+        return m.reply(`🐲 No encontré nada sobre *${args.join(' ')}*. (╥﹏╥)\n> Intenta usar el nombre en inglés (ej: cat_girl).`)
       }
 
       await client.sendMessage(chatId, { 
           image: { url }, 
-          caption: `🔥 *${source} ID:* ${postId}${artist ? `\n👤 *Autor:* ${artist}` : ''}`
+          caption: `� *${source} ID:* ${postId} (✿❛◡❛)${artist ? `\n❀ *Autor:* ${artist}` : ''}`
       }, { quoted: m })
 
     } catch (err) {
       console.error('[Danbooru Error]', err)
-      m.reply('❌ Ocurrió un error al conectar con Danbooru. Intenta más tarde.')
+      m.reply('🐲 Error al conectar con Danbooru. (╥﹏╥)')
     }
   },
 }

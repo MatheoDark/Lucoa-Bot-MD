@@ -9,7 +9,7 @@ export default {
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     const user = global.db.data.users[userId]
 
-    if (!user || !user.marry) return m.reply('《✧》 No estás casado con nadie... disfruta tu libertad. 🍃')
+    if (!user || !user.marry) return m.reply('🐲 No estás casado/a con nadie~ disfruta tu libertad 🍃 (◕ᴗ◕)')
 
     const partnerId = user.marry
 
@@ -27,7 +27,7 @@ export default {
     const partnerName = partner ? (partner.name || partnerId.split('@')[0]) : 'tu ex-pareja'
 
     return m.reply(
-      `💔 *DIVORCIO FINALIZADO*\n\n📝 *${myName}* ha firmado los papeles.\nTe has divorciado de *${partnerName}*.\n\n_Ahora eres libre nuevamente._`
+      `╭─── ⋆🐉⋆ ───\n│ 💔 *DIVORCIO FINALIZADO*\n├───────────────\n│ 📝 *${myName}* ha firmado los papeles\n│ Te has divorciado de *${partnerName}*\n│\n│ Ahora eres libre~ (◕ᴗ◕)\n╰─── ⋆✨⋆ ───`
     )
   },
 };

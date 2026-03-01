@@ -35,7 +35,7 @@ export default {
     const tiempoRestante = user.workCooldown + cooldown - Date.now()
 
     if (tiempoRestante > 0) {
-      return m.reply(`⚒️ Estás cansado. Debes esperar ⏱️ *${msToTime(tiempoRestante)}* para volver a trabajar.`)
+      return m.reply(`🐲 Estás cansado/a. Debes esperar ⏱️ *${msToTime(tiempoRestante)}* para volver a trabajar (◞‸◟)`)
     }
 
     // 5. Recompensa
@@ -52,7 +52,7 @@ export default {
     const trabajo = pickRandom(listaTrabajos)
     
     await client.sendMessage(m.chat, {
-      text: `👷 ${trabajo} y ganaste *${reward} ${currency}* y *${exp} XP*.`,
+      text: `� ${trabajo} y ganaste *¥${reward.toLocaleString()} ${currency}* y *${exp} XP* (◕ᴗ◕✿)`,
     }, { quoted: m })
   }
 }

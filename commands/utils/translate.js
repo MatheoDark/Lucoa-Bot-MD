@@ -11,7 +11,7 @@ export default {
 
     if (!args[0] && !m.quoted)
       return m.reply(
-        '《✧》 Ingresa el idioma seguido del texto que quieras traducir.'
+        '🐲 Ingresa el idioma y texto a traducir (◕ᴗ◕)'
       )
 
     const translateAPI = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(language)}&dt=t&q=${encodeURIComponent(text)}`
@@ -22,12 +22,12 @@ export default {
 
       // Google Translate devuelve [[["traducción","original",...],...],...] 
       const translated = json?.[0]?.map(s => s[0]).join('') || ''
-      if (!translated) return m.reply('《✧》 No se pudo traducir el texto.')
+      if (!translated) return m.reply('🐲 No se pudo traducir (╥﹏╥)')
 
       const detectedLang = json?.[2] || 'auto'
-      await client.sendMessage(m.chat, { text: `🌐 *${detectedLang} → ${language}*\n\n${translated}` }, { quoted: m })
+      await client.sendMessage(m.chat, { text: `╭─── ⋆🐉⋆ ───\n│ 🌐 *${detectedLang} → ${language}*\n├───────────────\n│ ${translated}\n╰─── ⋆✨⋆ ───` }, { quoted: m })
     } catch {
-      await m.reply('《✧》 Error al traducir. Intenta de nuevo.')
+      await m.reply('🐲 Error al traducir (╥﹏╥)')
     }
   },
 };

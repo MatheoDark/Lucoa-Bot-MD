@@ -87,8 +87,9 @@ export default {
 
     // 4. MOSTRAR LISTA DE OPCIONES (AYUDA)
     if (isListCmd || (isActionCmd && !args[0])) {
-        let txt = `⚙️ *CONFIGURACIÓN DEL GRUPO*\n\n`
-        txt += `Estado actual de las funciones:\n\n`
+        let txt = `╭─── ⋆🐉⋆ ───\n`
+        txt += `│ *Configuración del Grupo* (◕ᴗ◕✿)\n`
+        txt += `├───────────────\n`
         
         // Obtenemos las claves únicas
         const uniqueKeys = [...new Set(Object.values(mapTerms))]
@@ -96,13 +97,15 @@ export default {
         for (const key of uniqueKeys) {
             const status = chatData[key] ? '✅ On' : '❌ Off'
             const title = featureTitles[key] || key
-            txt += `• *${title}:* ${status}\n`
+            txt += `│ ❀ *${title}:* ${status}\n`
         }
 
-        txt += `\n💡 *Modo de uso:*\n`
-        txt += `• *${prefa}enable <opcion>*\n`
-        txt += `• *${prefa}disable <opcion>*\n`
-        txt += `Ejemplo: *${prefa}enable nsfw*`
+        txt += `├───────────────\n`
+        txt += `│ *Modo de uso:*\n`
+        txt += `│ ❀ *${prefa}enable <opcion>*\n`
+        txt += `│ ❀ *${prefa}disable <opcion>*\n`
+        txt += `│ Ejemplo: *${prefa}enable nsfw*\n`
+        txt += `╰─── ⋆✨⋆ ───`
         
         return m.reply(txt)
     }
@@ -123,7 +126,7 @@ export default {
 
     // Si la opción no existe
     if (!normalizedKey || !featureNames[normalizedKey]) {
-         return m.reply(`⚠️ La opción *"${targetFeature || '?'}"* no existe.\nEscribe *${prefa}options* para ver la lista.`)
+         return m.reply(`🐲 La opción *"${targetFeature || '?'}"* no existe. (◕︿◕)\nEscribe *${prefa}options* para ver la lista.`)
     }
 
     const current = chatData[normalizedKey] === true
@@ -135,11 +138,11 @@ export default {
     if (!targetState && !isActionCmd) {
       return client.reply(
         m.chat,
-        `*✩ ${titulo} (✿❛◡❛)*\n` +
-        `❒ *Estado ›* ${estado}\n\n` +
-        `ꕥ Para cambiar esto usa:\n` +
-        `> *${prefa}enable ${normalizedKey}*\n` +
-        `> *${prefa}disable ${normalizedKey}*`,
+        `╭─── ⋆🐉⋆ ───\n│ *${titulo}* (✿❛◡❛)\n├───────────────\n` +
+        `│ ❀ *Estado ›* ${estado}\n│\n` +
+        `│ Para cambiar esto usa:\n` +
+        `│ ❀ *${prefa}enable ${normalizedKey}*\n` +
+        `│ ❀ *${prefa}disable ${normalizedKey}*\n╰─── ⋆✨⋆ ───`,
         m
       )
     }
@@ -148,10 +151,10 @@ export default {
     const shouldEnable = ['on', 'enable', 'activar'].includes(targetState)
 
     if (chatData[normalizedKey] === shouldEnable) {
-      return m.reply(`✎ *${titulo}* ya estaba *${shouldEnable ? 'activado' : 'desactivado'}*.`)
+      return m.reply(`🐲 *${titulo}* ya estaba *${shouldEnable ? 'activado' : 'desactivado'}*. (◕︿◕)`)
     }
 
     chatData[normalizedKey] = shouldEnable
-    return m.reply(`✎ Has *${shouldEnable ? 'activado' : 'desactivado'}* ${nombreBonito}.`)
+    return m.reply(`🐉 Has *${shouldEnable ? 'activado' : 'desactivado'}* ${nombreBonito}. (✿❛◡❛)`)
   }
 };

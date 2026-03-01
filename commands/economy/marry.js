@@ -15,12 +15,12 @@ export default {
     const mentioned = m.mentionedJid
     const who2 = mentioned.length > 0 ? mentioned[0] : (m.quoted ? m.quoted.sender : false)
     
-    if (!who2) return m.reply('《✧》 Menciona al usuario con quien te quieres casar.')
+    if (!who2) return m.reply('🐲 Menciona al usuario con quien quieres casarte (◕ᴗ◕✿)')
 
     const proposeeId = await resolveLidToRealJid(who2, client, m.chat);
 
     // Validaciones
-    if (proposerId === proposeeId) return m.reply('《✧》 No puedes casarte contigo mismo (triste, lo sé).')
+    if (proposerId === proposeeId) return m.reply('🐲 No puedes casarte contigo mismo (╥﹏╥)')
 
     // Inicializar usuarios si no existen
     if (!global.db.data.users[proposerId]) global.db.data.users[proposerId] = { marry: '' }
@@ -32,13 +32,13 @@ export default {
     // Verificar si ya están casados
     if (user1.marry) {
         const partnerName = global.db.data.users[user1.marry]?.name || 'alguien'
-        return m.reply(`《✧》 Ya estás casado con *${partnerName}*.`)
+        return m.reply(`🐲 Ya estás casado/a con *${partnerName}* (◕ᴗ◕)`)
     }
 
     if (user2.marry) {
         const partnerName = global.db.data.users[user2.marry]?.name || 'alguien'
         const targetName = user2.name || proposeeId.split('@')[0]
-        return m.reply(`《✧》 *${targetName}* ya está casado con *${partnerName}*.`)
+        return m.reply(`🐲 *${targetName}* ya está casado/a con *${partnerName}* (◕︿◕)`)
     }
 
     // Lógica de Propuesta
@@ -52,7 +52,7 @@ export default {
       const name1 = user1.name || proposerId.split('@')[0]
       const name2 = user2.name || proposeeId.split('@')[0]
       
-      return m.reply(`💍 *¡BODA REALIZADA!* 💍\n\nFelicidades, *${name1}* y *${name2}* ahora están oficialmente casados. 🎉`)
+      return m.reply(`╭─── ⋆🐉⋆ ───\n│ 💍 *¡BODA REALIZADA!*\n├───────────────\n│ Felicidades~ *${name1}* y *${name2}*\n│ están oficialmente casados 🎉\n│ (◕ᴗ◕✿)\n╰─── ⋆✨⋆ ───`)
     
     } else {
       // ENVIAR PROPUESTA
@@ -64,7 +64,7 @@ export default {
       }, 120000)
 
       return client.sendMessage(m.chat, {
-        text: `💌 *PROPUESTA DE MATRIMONIO*\n\nHola @${proposeeId.split('@')[0]}, el usuario @${proposerId.split('@')[0]} te ha pedido matrimonio.\n\n⚘ *Para aceptar:*\n> Responde con el comando *#marry @${proposerId.split('@')[0]}*\n\n_La propuesta expira en 2 minutos._`,
+        text: `╭─── ⋆🐉⋆ ───\n│ 💌 *PROPUESTA*\n├───────────────\n│ @${proposeeId.split('@')[0]}, el usuario\n│ @${proposerId.split('@')[0]} te ha pedido\n│ matrimonio (◕ᴗ◕✿)\n│\n│ ❀ *Para aceptar:*\n│ Usa *#marry @${proposerId.split('@')[0]}*\n│ ⏳ Expira en 2 min\n╰─── ⋆✨⋆ ───`,
         mentions: [proposerId, proposeeId]
       }, { quoted: m })
     }

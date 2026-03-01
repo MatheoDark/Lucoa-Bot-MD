@@ -10,16 +10,16 @@ export default {
 
     const chat = global.db.data.chats[m.chat] || {}
     if (chat.adminonly || !chat.rpg)
-      return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
+      return m.reply('🐉 La economía está dormida zzZ')
 
     // CORRECCIÓN: Usuario Global + Resolución LID/JID
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     const user = global.db.data.users[userId]
-    if (!user) return m.reply("⚠ Usuario no encontrado.")
+    if (!user) return m.reply('🐲 No estás registrado (◕︿◕)')
 
     const remaining = (user.ritualCooldown || 0) - Date.now()
     if (remaining > 0) {
-      return m.reply(`ꕥ Debes esperar *${msToTime(remaining)}* para invocar otro ritual.`)
+      return m.reply(`🐲 Espera *${msToTime(remaining)}* para otro ritual (◕︿◕✿)`)
     }
 
     user.ritualCooldown = Date.now() + 15 * 60000
@@ -34,31 +34,32 @@ export default {
 
     if (roll < 0.05) {
       reward = Math.floor(Math.random() * 250000) + 100000
-      narration = '「✿」 ¡Has invocado un espíritu ancestral que te entrega un tesoro cósmico!'
-      bonusMsg = '\nꕥ Recompensa MÍTICA obtenida!'
+      narration = '🐉 ¡Invocaste un espíritu ancestral que te entrega un tesoro cósmico!'
+      bonusMsg = '\n│ ✨ ¡Recompensa MÍTICA! (≧◡≦)'
     } else if (roll < 0.25) {
       reward = Math.floor(Math.random() * 22000) + 8000
-      narration = '「✿」 Tu ritual abre un portal y caen riquezas ardientes del vacío'
+      narration = '🐉 Tu ritual abre un portal dimensional~'
     } else if (roll < 0.75) {
       reward = Math.floor(Math.random() * 10000) + 2000
-      narration = `「✿」 Bajo la luna, tu ritual te concede *${reward.toLocaleString()} ${monedas}*`
+      narration = `🐉 Bajo la luna, tu ritual te concede *${reward.toLocaleString()} ${monedas}*`
     } else {
       const loss = Math.floor(Math.random() * 5000) + 1000
       // Evitamos números negativos
       user.coins = Math.max(0, user.coins - loss)
-      return m.reply(`「✿」 El ritual salió mal... una maldición te arrebató *${loss.toLocaleString()} ${monedas}*`)
+      return m.reply(`🐲 El ritual salió mal... perdiste *${loss.toLocaleString()} ${monedas}* (╥﹏╥)`)
     }
 
     if (Math.random() < 0.15) {
       const bonus = Math.floor(Math.random() * 10000) + 3000
       reward += bonus
-      bonusMsg += `\n「✿」 ¡Energía extra! Ganaste *${bonus.toLocaleString()}* ${monedas} adicionales`
+      bonusMsg += `\n│ ❀ ¡Energía extra! +*${bonus.toLocaleString()}* ${monedas}`
     }
 
     user.coins += reward
 
-    let msg = `「✿」 ${narration}\nGanaste *${reward.toLocaleString()} ${monedas}*`
-    if (bonusMsg) msg += `\n${bonusMsg}`
+    let msg = `╭─── ⋆🐉⋆ ───\n│ 🔮 *RITUAL*\n├───────────────\n│ ${narration}\n│ Ganaste *${reward.toLocaleString()} ${monedas}*`
+    if (bonusMsg) msg += bonusMsg
+    msg += '\n╰─── ⋆✨⋆ ───'
 
     await client.reply(m.chat, msg, m)
   },

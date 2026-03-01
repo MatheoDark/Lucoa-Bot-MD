@@ -35,10 +35,10 @@ export default {
   command: ['lottery', 'loteria', 'loto', 'boleto'],
   category: 'rpg',
   run: async ({ client, m, args }) => {
-    if (!m.isGroup) return m.reply('❌ Solo en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Solo en grupos (◕ᴗ◕✿)')
 
     const chat = global.db.data.chats[m.chat] || {}
-    if (chat.adminonly || !chat.rpg) return m.reply('✎ Economía desactivada en este grupo.')
+    if (chat.adminonly || !chat.rpg) return m.reply('🐉 La economía está dormida zzZ')
 
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const settings = global.db.data.settings[botId] || {}
@@ -56,24 +56,26 @@ export default {
 
     // ── Subcomando: ver info ──
     if (!sub || sub === 'info') {
-      const msg = `🎟️ *LOTERÍA*
-
-🎫 Precio por boleto: *¥${TICKET_PRICE.toLocaleString()} ${monedas}*
-🔢 Se extraen *${DRAW_NUMBERS}* números del *1* al *${MAX_NUMBER}*
-📦 Máximo *${MAX_TICKETS}* boletos por sorteo
-
-*💰 Premios (por boleto):*
-> 2 aciertos → x3 (¥${(TICKET_PRICE * 3).toLocaleString()})
-> 3 aciertos → x15 (¥${(TICKET_PRICE * 15).toLocaleString()})
-> 4 aciertos → x100 (¥${(TICKET_PRICE * 100).toLocaleString()})
-> 5 aciertos → x1000 🏆 (¥${(TICKET_PRICE * 1000).toLocaleString()})
-
-*📝 Uso:*
-> *#loteria jugar [cantidad]*
-> Compra 1-${MAX_TICKETS} boletos. Cada boleto tiene 5 números aleatorios.
-> *#loteria jugar 5* → Compra 5 boletos
-
-> 👛 Tu saldo: *¥${user.coins.toLocaleString()} ${monedas}*`
+      const msg = `╭─── ⋆🐉⋆ ───
+│ 🎟️ *LOTERÍA*
+├───────────────
+│ ❀ Precio por boleto: *¥${TICKET_PRICE.toLocaleString()} ${monedas}*
+│ ❀ Se extraen *${DRAW_NUMBERS}* números del *1* al *${MAX_NUMBER}*
+│ ❀ Máximo *${MAX_TICKETS}* boletos por sorteo
+│
+│ *💰 Premios (por boleto):*
+│ ❀ 2 aciertos → x3 (¥${(TICKET_PRICE * 3).toLocaleString()})
+│ ❀ 3 aciertos → x15 (¥${(TICKET_PRICE * 15).toLocaleString()})
+│ ❀ 4 aciertos → x100 (¥${(TICKET_PRICE * 100).toLocaleString()})
+│ ❀ 5 aciertos → x1000 🏆 (¥${(TICKET_PRICE * 1000).toLocaleString()})
+│
+│ *📝 Uso:*
+│ ❀ *#loteria jugar [cantidad]*
+│ ❀ Compra 1-${MAX_TICKETS} boletos (5 nums c/u)
+│ ❀ *#loteria jugar 5* → Compra 5 boletos
+│
+│ 👛 Tu saldo: *¥${user.coins.toLocaleString()} ${monedas}*
+╰─── ⋆✨⋆ ───`
       return m.reply(msg)
     }
 
@@ -83,7 +85,7 @@ export default {
       const costo = cantidad * TICKET_PRICE
 
       if (user.coins < costo) {
-        return m.reply(`❌ Necesitas *¥${costo.toLocaleString()} ${monedas}* para ${cantidad} boleto(s).\n> 👛 Tienes: *¥${user.coins.toLocaleString()}*`)
+        return m.reply(`🐲 Necesitas *¥${costo.toLocaleString()} ${monedas}* (╥﹏╥)\n│ 👛 Tienes: *¥${user.coins.toLocaleString()}*`)
       }
 
       user.coins -= costo
@@ -148,22 +150,24 @@ export default {
           ? `\n\n🔥 ¡${premios[mejorAciertos].texto}!` 
           : ''
 
-      const msg = `🎟️ *LOTERÍA*
-
-🎰 Números ganadores:
-> ${winStr}
-
-🎫 Tus boletos (${cantidad}):
+      const msg = `╭─── ⋆🐉⋆ ───
+│ 🎟️ *LOTERÍA*
+├───────────────
+│ 🎰 Números ganadores:
+│ ${winStr}
+│
+│ 🎫 Tus boletos (${cantidad}):
 ${boletosStr}
-💰 Ganancia total: *¥${totalGanancia.toLocaleString()}*
-💸 Costo: *¥${costo.toLocaleString()}*
-${resultEmoji} Neto: *${resultText} ${monedas}*${jackpotMsg}
-
-> 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*`
+│ 💰 Ganancia total: *¥${totalGanancia.toLocaleString()}*
+│ 💸 Costo: *¥${costo.toLocaleString()}*
+│ ${resultEmoji} Neto: *${resultText} ${monedas}*${jackpotMsg}
+│
+│ 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*
+╰─── ⋆✨⋆ ───`
 
       return client.sendMessage(m.chat, { text: msg }, { quoted: m })
     }
 
-    return m.reply(`❌ Subcomando no reconocido.\n> Usa *#loteria* para ver info\n> Usa *#loteria jugar [cantidad]* para comprar boletos`)
+    return m.reply(`🐲 Subcomando no reconocido (◕︿◕)\n│ Usa *#loteria* para ver info\n│ Usa *#loteria jugar [cantidad]* para comprar boletos`)
   }
 }

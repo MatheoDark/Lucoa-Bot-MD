@@ -6,7 +6,7 @@ export default {
   run: async ({ client, m, args, usedPrefix }) => { 
     
     // 1. Validaciones
-    if (!m.isGroup) return m.reply('❌ Este comando solo funciona en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Solo en grupos (◕ᴗ◕✿)')
 
     const chatId = m.chat
     // Aseguramos que chatData exista
@@ -16,7 +16,7 @@ export default {
     // Se eliminó "chatData.adminonly" para que cualquiera pueda usarlo.
     // Solo se verifica si el sistema RPG está activo (opcional, si quieres borrar esto también, avísame).
     if (chatData.rpg === false) {
-      return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
+      return m.reply('🐉 La economía está dormida zzZ')
     }
 
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
@@ -31,7 +31,7 @@ export default {
       try {
         groupMetadata = await client.groupMetadata(chatId)
       } catch (e) {
-        return m.reply('⚠️ No pude leer los participantes del grupo. Asegúrate de que soy admin.')
+        return m.reply('🐲 No pude leer los participantes (◕︿◕)')
       }
 
       const participants = groupMetadata.participants.map(p => p.id)
@@ -61,7 +61,7 @@ export default {
           .sort((a, b) => b.total - a.total)
 
       if (sorted.length === 0) {
-        return m.reply(`ꕥ Nadie tiene dinero en este grupo... ¡A trabajar! (${prefix}work)`)
+        return m.reply(`🐲 Nadie tiene dinero aquí... ¡A trabajar! (${prefix}work) (╥﹏╥)`)
       }
 
       // 5. Paginación
@@ -76,9 +76,9 @@ export default {
       const topUsers = sorted.slice(start, end)
 
       // 6. Construir Mensaje
-      let text = `*📊 TABLA DE POSICIONES (TOP MONEY)*\n`
-      text += `👥 Grupo: *${groupMetadata.subject}*\n`
-      text += `📄 Página: *${page}/${totalPages}*\n\n`
+      let text = `╭─── ⋆🐉⋆ ───\n│ 📊 *TOP MONEY*\n├───────────────\n`
+      text += `│ 👥 *${groupMetadata.subject}*\n`
+      text += `│ 📄 Página *${page}/${totalPages}*\n│\n`
       
       const medals = ['🥇', '🥈', '🥉']
 
@@ -86,10 +86,10 @@ export default {
         const rank = start + i + 1
         const icon = (rank <= 3) ? medals[rank - 1] : `*${rank}.*`
         
-        return `${icon} ${user.name}\n   └─ 💰 *${user.total.toLocaleString()} ${monedas}*`
-      }).join('\n\n')
+        return `│ ${icon} ${user.name}\n│    └─ 💰 *${user.total.toLocaleString()} ${monedas}*`
+      }).join('\n')
 
-      text += `\n\n> 💡 Usa *${prefix}top ${page + 1}* para ver más.`
+      text += `\n│\n│ 💡 Usa *${prefix}top ${page + 1}* para más\n╰─── ⋆✨⋆ ───`
 
       await client.sendMessage(chatId, { 
           text: text,
@@ -98,7 +98,7 @@ export default {
 
     } catch (e) {
       console.error(e)
-      await m.reply('❌ Ocurrió un error al generar el top.')
+      await m.reply('🐲 Error al generar el top (╥﹏╥)')
     }
   }
 }

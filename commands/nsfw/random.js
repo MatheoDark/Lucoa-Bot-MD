@@ -23,7 +23,7 @@ export default {
   run: async ({ client, m, command }) => {
     try {
       if (m.isGroup && !db.data.chats[m.chat]?.nsfw) {
-        return m.reply('🚩 *¡Estos comandos están desactivados!*');
+        return m.reply('� Estos comandos están desactivados. (◕︿◕)');
       }
 
       const type = waifuPicsMap[command] || 'waifu'
@@ -46,7 +46,7 @@ export default {
       }
 
       if (!imageUrl) {
-        return m.reply('❌ No hay imágenes disponibles.');
+        return m.reply('🐲 No hay imágenes disponibles. (╥﹏╥)');
       }
 
       await client.sendMessage(
@@ -60,7 +60,7 @@ export default {
 
     } catch (err) {
       console.error(err);
-      m.reply('❌ Error al obtener la imagen');
+      m.reply('🐲 Error al obtener la imagen. (╥﹏╥)');
     }
   }
 };

@@ -33,33 +33,40 @@ export default {
     category: 'info',
     run: async ({ client, m, usedPrefix }) => {
         try {
-            const botname = '🐉 LUCOA-BOT-MD'
+            const botname = '𝐋𝐔𝐂𝐎𝐀 𝐁𝐎𝐓'
             const cleanPrefix = (usedPrefix || '#').trim()
             const username = m.pushName || 'Usuario'
             
-            // Títulos de categorías
+            // Kaomojis aleatorios
+            const kaos = ['(◕ᴗ◕✿)', '(●\'◡\'●)', '(˶ᵔ ᵕ ᵔ˶)', '(≧◡≦)', '(✿◠‿◠)', '₍ᐢ..ᐢ₎♡']
+            const kao = kaos[Math.floor(Math.random() * kaos.length)]
+
+            // Títulos de categorías - Estética Lucoa Anime
             const catMap = {
-                'info': 'ℹ️ Información',
+                'info': '🐉 Información',
                 'anime': '🌸 Anime & Reacciones',
                 'nsfw': '🔞 NSFW (+18)',
                 'economia': '💰 Economía',
-                'rpg': '⚔️ RPG & Juegos',
+                'rpg': '🎴 RPG & Juegos',
                 'gacha': '🎲 Gacha & Waifus',
                 'grupo': '👥 Grupos',
                 'sockets': '🤖 Sub-Bots',
-                'utils': '🛠️ Utilidades',
+                'utils': '🔮 Utilidades',
                 'download': '📥 Descargas',
-                'search': '🔎 Búsquedas',
-                'ia': '🧠 Inteligencia Artificial',
+                'search': '🔍 Búsquedas',
+                'ia': '✨ Inteligencia Artificial',
                 'profile': '👤 Perfil',
                 'otros': '🌀 Otros'
             }
 
-            let menuText = `╭━ꕥ *${botname}* ꕥ━\n`
-            menuText += `┃ 👤 *Usuario:* ${username}\n`
-            menuText += `┃ 🤖 *Bot:* Online\n`
-            menuText += `┃ 📚 *Comandos:* ${myCommands.length}\n`
-            menuText += `╰━━━━━━━━━━━━━━╯\n\n`
+            let menuText = `╭─── ⋆🐉⋆ ───────────╮\n`
+            menuText += `│  *${botname}* ${kao}\n`
+            menuText += `├─────────────────────\n`
+            menuText += `│ 👤 *Usuario ›* ${username}\n`
+            menuText += `│ 🐲 *Estado ›* Online\n`
+            menuText += `│ 📚 *Comandos ›* ${myCommands.length}\n`
+            menuText += `│ ✧ *Prefijo ›* ${cleanPrefix}\n`
+            menuText += `╰─── ⋆✨⋆ ───────────╯\n\n`
 
             // Ordenamos categorías
             const categoryKeys = Object.keys(catMap)
@@ -68,27 +75,23 @@ export default {
                 const cmds = myCommands.filter(c => c.category === tag)
                 
                 if (cmds.length > 0) {
-                    menuText += `╭─✦ *${catMap[tag]}* ✦\n`
+                    menuText += `╭── ${catMap[tag]} ──\n`
                     
                     cmds.forEach(cmd => {
-                        // AQUÍ ESTÁ LA MAGIA:
-                        // Juntamos el nombre principal con sus alias
                         let commandLine = `${cleanPrefix}${cmd.name}`
                         
                         if (cmd.alias && Array.isArray(cmd.alias) && cmd.alias.length > 0) {
-                            // Agregamos los alias separados por " / "
-                            // Filtramos alias vacíos y limpiamos posibles barras "/" extra
                             const aliasLimpis = cmd.alias.map(a => `${cleanPrefix}${a.replace(/^\//, '')}`)
                             commandLine += ` / ${aliasLimpis.join(' / ')}`
                         }
 
-                        menuText += `│ ❧ ${commandLine} ${cmd.desc ? `\n│   └ ${cmd.desc}` : ''}\n`
+                        menuText += `│ ❀ ${commandLine}${cmd.desc ? `\n│   ╰ _${cmd.desc}_` : ''}\n`
                     })
-                    menuText += `╰─────────────⬫\n\n`
+                    menuText += `╰──────────⋆✦⋆\n\n`
                 }
             })
             
-            menuText += `> 🐲 Powered by MatheoDark`
+            menuText += `> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`
 
             // Gestión de Multimedia
             const MEDIA_DIR = path.join(process.cwd(), 'media')

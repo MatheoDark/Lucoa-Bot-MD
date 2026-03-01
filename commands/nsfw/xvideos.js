@@ -60,12 +60,12 @@ export default {
 
     // 1. Verificación NSFW
     if (!global.db.data.chats[m.chat].nsfw) {
-        return m.reply('🚫 Los comandos *NSFW* están desactivados en este Grupo.')
+        return m.reply('� Los comandos *NSFW* están desactivados. (◕︿◕)')
     }
 
     // 2. Verificación de argumentos
     const query = args.join(" ")
-    if (!query) return m.reply("🔞 Ingresa el nombre de un video o una URL de XVideos.")
+    if (!query) return m.reply('🐲 Ingresa el nombre de un video o una URL. (◕ᴗ◕✿)')
 
     m.react('🔥')
 
@@ -84,7 +84,7 @@ export default {
         const resultados = await xvideosSearch(query)
 
         if (!resultados.length) {
-            return m.reply("❌ No se encontró ningún video con ese nombre.")
+            return m.reply('🐲 No se encontró ningún video. (╥﹏╥)')
         }
 
         const randomPost = resultados[Math.floor(Math.random() * resultados.length)]
@@ -99,7 +99,7 @@ export default {
       // ----------------------------------------------------
       const mp4Url = await xvideosScraper(videoUrl)
 
-      if (!mp4Url) return m.reply("❌ No se pudo extraer el video.")
+      if (!mp4Url) return m.reply('🐲 No se pudo extraer el video. (╥﹏╥)')
 
       // ----------------------------------------------------
       // PASO 3: ENVIAR VIDEO
@@ -113,7 +113,7 @@ export default {
 
     } catch (err) {
       console.error(err)
-      return m.reply(`❌ Ocurrió un error inesperado: ${err.message}`)
+      return m.reply(`🐲 Error: ${err.message} (╥﹏╥)`)
     }
   },
 }

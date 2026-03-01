@@ -11,14 +11,14 @@ export default {
     const userData = chatData?.users[userId]
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     if (!userData?.characters?.length)
-      return m.reply('《✧》 No tienes personajes reclamados en este grupo.')
+      return m.reply('🐲 No tienes personajes reclamados en este grupo. (◕︿◕)')
 
     if (!args[0])
       return m.reply(
-        '✎ Debes especificar el nombre del personaje que deseas eliminar.',
+        '🐲 Debes especificar el nombre del personaje que deseas eliminar. (◕︿◕)',
       )
 
     const characterName = args.join(' ').toLowerCase()
@@ -27,12 +27,12 @@ export default {
     )
 
     if (characterIndex === -1)
-      return m.reply(`《✧》 El personaje *${args.join(' ')}* no está en tu inventario local.`)
+      return m.reply(`🐲 El personaje *${args.join(' ')}* no está en tu inventario local. (◕︿◕)`)
 
     const removed = userData.characters.splice(characterIndex, 1)[0]
 
     return m.reply(
-      `✐ El personaje *${removed.name}* ha sido eliminado exitosamente.`,
+      `🐉 El personaje *${removed.name}* ha sido eliminado exitosamente. (≧◡≦)`,
     )
   },
 };

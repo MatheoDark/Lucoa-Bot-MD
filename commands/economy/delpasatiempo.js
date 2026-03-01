@@ -5,7 +5,7 @@ export default {
     const user = global.db.data.users[m.sender]
 
     if (!user.pasatiempo || user.pasatiempo === 'No definido') {
-      return m.reply('《✧》 No tienes ningún pasatiempo establecido.')
+      return m.reply('🐲 No tienes ningún pasatiempo establecido. (◕︿◕)')
     }
 
     const pasatiempoAnterior = user.pasatiempo

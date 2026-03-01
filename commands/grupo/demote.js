@@ -7,7 +7,7 @@ export default {
     const mentioned = await m.mentionedJid
     const who = mentioned.length > 0 ? mentioned[0] : m.quoted ? await m.quoted.sender : false
 
-    if (!who) return m.reply('《✧》 Menciona al usuario que deseas degradar de administrador.')
+    if (!who) return m.reply('🐲 Menciona al usuario que deseas degradar de administrador.')
 
     try {
       const groupMetadata = await client.groupMetadata(m.chat)
@@ -17,22 +17,22 @@ export default {
         return client.sendMessage(
           m.chat,
           {
-            text: `《✧》 *@${who.split('@')[0]}* no es administrador del grupo!`,
+            text: `🐲 *@${who.split('@')[0]}* no es administrador del grupo!`,
             mentions: [who],
           },
           { quoted: m },
         )
 
       if (who === groupMetadata.owner)
-        return m.reply('《✧》 No puedes degradar al creador del grupo de administrador.')
+        return m.reply('🐲 No puedes degradar al creador del grupo de administrador.')
 
-      if (who === client.user.jid) return m.reply('《✧》 No puedes degradar al bot de administrador.')
+      if (who === client.user.jid) return m.reply('🐲 No puedes degradar al bot de administrador.')
 
       await client.groupParticipantsUpdate(m.chat, [who], 'demote')
       await client.sendMessage(
         m.chat,
         {
-          text: `✿ *@${who.split('@')[0]}* ha sido degradado de administrador del grupo!`,
+          text: `🐉 *@${who.split('@')[0]}* ha sido degradado de administrador del grupo! (✿❛◡❛)`,
           mentions: [who],
         },
         { quoted: m },

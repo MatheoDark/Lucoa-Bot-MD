@@ -63,22 +63,26 @@ const resolvedUsers = await Promise.all(
     };
 
     try {
-      let message = `*「✿」Grupo ◢ ${groupName} ◤*\n\n`;
-      message += `➪ *Creador ›* ${groupCreator}\n`;
-      message += `❖ Bot Principal › *${settings.botprimary}*\n`;
-      message += `❒ Usuarios › *${totalParticipants}*\n`;
-      message += `ꕥ Registrados › *${registeredUsersInGroup}*\n`;
-      message += `✿ Claims › *${totalClaimedWaifus}*\n`;
-      message += `⛁ Dinero › *${totalCoins.toLocaleString()} ${monedas}*\n\n`;
-      message += `➪ *Configuraciones:*\n`;
-      message += `✐ ${botname} › *${settings.bot}*\n`;
-      message += `✐ AntiLinks › *${settings.antiLinks}*\n`;
-      message += `✐ Bienvenidas › *${settings.welcomes}*\n`;
-      message += `✐ Alertas › *${settings.alerts}*\n`;
-      message += `✐ Gacha › *${settings.gacha}*\n`;
-      message += `✐ Economía › *${settings.rpg}*\n`;
-      message += `✐ Nsfw › *${settings.nsfw}*\n`;
-      message += `✐ ModoAdmin › *${settings.adminMode}*`;
+      let message = `╭─── ⋆🐉⋆ ───\n`;
+      message += `│ *Grupo ◢ ${groupName} ◤* (◕ᴗ◕✿)\n`;
+      message += `├───────────────\n`;
+      message += `│ ❀ *Creador ›* ${groupCreator}\n`;
+      message += `│ ❀ *Bot Principal ›* ${settings.botprimary}\n`;
+      message += `│ ❀ *Usuarios ›* ${totalParticipants}\n`;
+      message += `│ ❀ *Registrados ›* ${registeredUsersInGroup}\n`;
+      message += `│ ❀ *Claims ›* ${totalClaimedWaifus}\n`;
+      message += `│ ❀ *Dinero ›* ${totalCoins.toLocaleString()} ${monedas}\n`;
+      message += `├───────────────\n`;
+      message += `│ *Configuraciones:*\n`;
+      message += `│ ❀ ${botname} › *${settings.bot}*\n`;
+      message += `│ ❀ AntiLinks › *${settings.antiLinks}*\n`;
+      message += `│ ❀ Bienvenidas › *${settings.welcomes}*\n`;
+      message += `│ ❀ Alertas › *${settings.alerts}*\n`;
+      message += `│ ❀ Gacha › *${settings.gacha}*\n`;
+      message += `│ ❀ Economía › *${settings.rpg}*\n`;
+      message += `│ ❀ Nsfw › *${settings.nsfw}*\n`;
+      message += `│ ❀ ModoAdmin › *${settings.adminMode}*\n`;
+      message += `╰─── ⋆✨⋆ ───`;
 
       const mentionOw = groupMetadata.owner ? groupMetadata.owner : '';
       const mentions = [rawPrimary, mentionOw].filter(Boolean);

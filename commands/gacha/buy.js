@@ -26,15 +26,15 @@ export default {
     const localUser = chatConfig.users[userId] // Waifus LOCALES
 
     if (chatConfig.adminonly || !chatConfig.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     // Cooldown global para compras
     if (!globalUser.buyCooldown) globalUser.buyCooldown = 0
     const remainingTime = globalUser.buyCooldown - Date.now()
     if (remainingTime > 0)
-      return m.reply(`ꕥ Espera *${msToTime(remainingTime)}*.`)
+      return m.reply(`🐲 Espera *${msToTime(remainingTime)}* para volver a usar este comando. (◕︿◕)`)
 
-    if (!m.quoted) return m.reply(`✎ Responde a una waifu para reclamarla.`)
+    if (!m.quoted) return m.reply(`🐲 Responde a una waifu para reclamarla. (◕︿◕)`)
 
     const quotedMessage = m.quoted.body || m.quoted.text || ''
     
@@ -51,9 +51,9 @@ export default {
       if (claimedEntry) {
         const [claimerId] = claimedEntry
         const ownerName = db.users[claimerId]?.name || claimerId.split('@')[0]
-        return m.reply(claimerId === userId ? `✎ Ya es tuyo.` : `✎ Ya pertenece a *${ownerName}*.`)
+        return m.reply(claimerId === userId ? `🐲 Ya es tuyo. (◕︿◕)` : `🐲 Ya pertenece a *${ownerName}*. (◕︿◕)`)
       }
-      return m.reply(`《✧》 No se pudo identificar el personaje.`)
+      return m.reply(`🐲 No se pudo identificar el personaje. (◕︿◕)`)
     }
 
     const now = Date.now()
@@ -63,12 +63,12 @@ export default {
       const isUserReserver = reservedCharacter.reservedBy === userId
       const reserverName = db.users[reservedCharacter.reservedBy]?.name || 'Alguien'
       if (!isUserReserver)
-        return m.reply(`✎ Protegido por *${reserverName}*.`)
+        return m.reply(`🐲 Protegido por *${reserverName}*. (◕︿◕)`)
     }
 
     // Verificar Dinero GLOBAL
     if ((globalUser.coins || 0) < reservedCharacter.value)
-      return m.reply(`ꕥ No tienes suficiente *${monedas}* (Saldo: ${globalUser.coins || 0}).`)
+      return m.reply(`🐲 No tienes suficiente *${monedas}* (Saldo: ${globalUser.coins || 0}). (◕︿◕)`)
 
     // Inicializar inventario local si hace falta
     if (!localUser.characters) localUser.characters = []
@@ -101,6 +101,6 @@ export default {
     ]
     const final = frases[Math.floor(Math.random() * frases.length)]
     
-    await client.sendMessage(chatId, { text: `✎ ${final} _(${duration}s)_` }, { quoted: m })
+    await client.sendMessage(chatId, { text: `🐉 ${final} _(${ duration}s)_ (◕ᴗ◕✿)` }, { quoted: m })
   },
 };

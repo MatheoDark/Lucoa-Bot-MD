@@ -49,12 +49,14 @@ export default {
     user.exp += exp
     user.coins = (user.coins || 0) + coins
 
-    const message = `☆ ໌　۟　𝖱𝖾𝖼𝗈𝗆𝗉𝖾𝗇𝗌𝖺　ׅ　팅화　ׄ
+    const message = `╭─── ⋆🐉⋆ ───
+│  *✨ RECOMPENSA SEMANAL*
+├───────────────
+│ ❀ Exp › *${exp}*
+│ 💰 ${currency} › *¥${coins.toLocaleString()}*
+╰─── ⋆✨⋆ ───
 
-> ✩ *Exp ›* ${exp}
-> ⛁ *${currency} ›* ${coins}
-
-${global.dev || ''}`.trim()
+> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`.trim()
 
     await client.sendMessage(
       chatId,

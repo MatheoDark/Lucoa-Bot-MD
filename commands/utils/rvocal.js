@@ -68,7 +68,7 @@ export default {
     if (!mime) {
       return client.reply(
         m.chat,
-        `《✧》 Por favor, responde a un audio , música con el comando *${prefa}rvocal*.`,
+        `🐲 Por favor, responde a un audio, música con el comando *${prefa}rvocal*. (◕ᴗ◕✿)`,
         m
       )
     }

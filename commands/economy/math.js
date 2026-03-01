@@ -60,7 +60,7 @@ async function run({ client, m, args, command, usedPrefix }) {
   if (m.isGroup && (chatData.adminonly || !chatData.rpg)) {
        // Solo respondemos si está intentando iniciar juego, no si responde mensajes
        if (command === 'math' || command === 'matematicas') {
-           return m.reply(`✎ Juegos desactivados en este grupo.`)
+           return m.reply('🐉 Los juegos están dormidos en este grupo zzZ')
        }
        return;
   }
@@ -106,7 +106,7 @@ async function run({ client, m, args, command, usedPrefix }) {
         cleanupGame(chatId)
 
         return client.sendMessage(chatId, { 
-            text: `✅ *¡CORRECTO!*\n\n🧠 Respuesta: *${juego.respuesta}*\n✨ Ganaste: *${expGanada} EXP*`,
+            text: `╭─── ⋆🐉⋆ ───\n│ ✅ *¡CORRECTO!*\n├───────────────\n│ 🧠 Respuesta: *${juego.respuesta}*\n│ ✨ Ganaste: *${expGanada} EXP*\n╰─── ⋆✨⋆ ───`,
             mentions: [userId]
         }, { quoted: m });
 
@@ -117,9 +117,9 @@ async function run({ client, m, args, command, usedPrefix }) {
         
         if (juego.intentos >= intentosMax) {
             cleanupGame(chatId)
-            return m.reply(`❌ *Incorrecto.* Te quedaste sin intentos.\nLa respuesta era: *${juego.respuesta}*`);
+            return m.reply(`🐲 Incorrecto, sin intentos (╥﹏╥)\n│ La respuesta era: *${juego.respuesta}*`);
         } else {
-            return m.reply(`❌ *Incorrecto.* Intenta de nuevo.\nIntentos: ${juego.intentos}/${intentosMax}`);
+            return m.reply(`🐲 Incorrecto, intenta de nuevo (◕︿◕)\n│ Intentos: ${juego.intentos}/${intentosMax}`);
         }
     }
   }
@@ -127,20 +127,20 @@ async function run({ client, m, args, command, usedPrefix }) {
   // --- LÓGICA DE INICIAR JUEGO (math) ---
   if (command === 'math' || command === 'matematicas') {
     if (juego?.juegoActivo) {
-        return m.reply('ꕥ Ya hay un juego activo en este chat. ¡Responde ese primero!');
+        return m.reply('🐲 Ya hay un juego activo, responde ese primero (◕ᴗ◕)');
     }
 
     const dificultad = args[0]?.toLowerCase();
     const dificultadesValidas = Object.keys(limits); // ['facil', 'medio', ...]
 
     if (!dificultad || !dificultadValidas.includes(dificultad)) {
-      return m.reply(`「✎」Elige una dificultad:\n\n*${dificultadesValidas.join(', ')}*\n\nEjemplo: *${usedPrefix}math medio*`);
+      return m.reply(`🐲 Elige una dificultad (◕ᴗ◕✿)\n│\n│ *${dificultadesValidas.join(', ')}*\n│\n│ Ejemplo: *${usedPrefix}math medio*`);
     }
 
     const { problema, resultado } = generarProblema(dificultad);
 
     // Enviamos el mensaje y guardamos su ID
-    const txt = `「✩」*CÁLCULO MENTAL* (${dificultad})\n\nResuelve: *${problema}*\n\n_⏳ Tienes 60s. Responde a este mensaje con el resultado o usa ${usedPrefix}responder_`;
+    const txt = `╭─── ⋆🐉⋆ ───\n│ 🧠 *CÁLCULO MENTAL* (${dificultad})\n├───────────────\n│ Resuelve: *${problema}*\n│\n│ ⏳ Tienes 60s\n│ Responde con el resultado\n╰─── ⋆✨⋆ ───`;
     
     const problemMessage = await client.sendMessage(chatId, { text: txt }, { quoted: m });
 
@@ -152,7 +152,7 @@ async function run({ client, m, args, command, usedPrefix }) {
       problemMessageId: problemMessage.key.id, // Guardamos ID para detectar respuestas
       tiempoLimite: setTimeout(() => {
         if (global.math[chatId]?.juegoActivo) {
-          client.sendMessage(chatId, { text: `「✿」Tiempo agotado. La respuesta era: *${resultado}*` })
+          client.sendMessage(chatId, { text: `🐲 ¡Tiempo agotado! La respuesta era: *${resultado}* (╥﹏╥)` })
           cleanupGame(chatId)
         }
       }, 60000)

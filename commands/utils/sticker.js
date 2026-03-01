@@ -98,7 +98,7 @@ export default {
 
             } else if (/video/.test(mime)) {
                 // 🎥 VIDEO
-                if ((q.msg || q).seconds > 15) return m.reply('❌ El video es muy largo (Máx 15s).')
+                if ((q.msg || q).seconds > 15) return m.reply('🐲 Video muy largo, máximo 15s (◕︿◕)')
                 
                 media = await q.download()
                 enc = await client.sendVideoAsSticker(m.chat, media, m, { packname, author })
@@ -111,12 +111,12 @@ export default {
                 if (!texto && q.text) texto = q.text 
 
                 if (texto) {
-                    if (texto.length > 50) return m.reply('❌ Texto muy largo (Máx 50 caracteres).')
+                    if (texto.length > 50) return m.reply('🐲 Texto muy largo, máximo 50 caracteres (◕︿◕)')
                     let buffer = await generarStickerConTexto(texto)
                     enc = await client.sendImageAsSticker(m.chat, buffer, m, { packname, author })
                 } else {
                     await m.react('❌')
-                    return m.reply('⚠️ Envía una imagen/video o escribe texto para hacer un sticker.')
+                    return m.reply('🐲 Envía una imagen/video o texto para hacer un sticker (◕ᴗ◕)')
                 }
             }
 

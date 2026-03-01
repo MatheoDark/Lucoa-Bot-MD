@@ -6,7 +6,7 @@ export default {
   run: async ({client, m, args}) => {
     if (!args || !args.length) {
       return m.reply(
-        '《✧》 Ingresa el *nombre* de la *aplicación*.',
+        '🐲 Ingresa el *nombre* de la *aplicación*. (◕ᴗ◕✿)',
       )
     }
 let user = global.db.data.chats[m.chat].users[m.sender]
@@ -47,7 +47,7 @@ let user = global.db.data.chats[m.chat].users[m.sender]
           { quoted: m },
         )
       } else {
-        await client.reply(m.chat, `《✧》 No se encontró la aplicación solicitada.`, m)
+        await client.reply(m.chat, `🐲 No se encontró la aplicación solicitada. (╥﹏╥)`, m)
       }
     } catch (error) {
       await m.reply(msgglobal)

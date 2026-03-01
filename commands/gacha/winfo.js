@@ -40,16 +40,16 @@ export default {
     const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     const characterName = args.join(' ').toLowerCase().trim()
     if (!characterName)
-      return m.reply(`「✎」 Por favor, proporciona el nombre de un personaje.\n\n> › *Ejemplo:* winfo Senko`)
+      return m.reply(`🐲 Por favor, proporciona el nombre de un personaje. (◕︿◕)\n\n> › *Ejemplo:* winfo Senko`)
 
     const characters = await loadCharacters()
     const character = findSimilarCharacter(characterName, characters)
     if (!character)
-      return m.reply(`ꕥ No se ha encontrado el personaje *${characterName}*, ni uno similar.`)
+      return m.reply(`🐲 No se ha encontrado el personaje *${characterName}*, ni uno similar. (◕︿◕)`)
 
     const sortedByValue = [...characters].sort((a, b) => (b.value || 0) - (a.value || 0))
     const rank = sortedByValue.findIndex(c => c.name.toLowerCase() === character.name.toLowerCase()) + 1
@@ -78,7 +78,7 @@ export default {
       estado = `*Reservado por ${reserverName}*`
     }
 
-    const message = `➭ Nombre › *${character.name}*\n\n⚥ Género › *${character.gender || 'Desconocido'}*\n✰ Valor › *${character.value.toLocaleString()}*\n♡ Estado › ${estado}\n✧ Votos › *${character.votes || 0}*\n❀ Fuente › *${character.source || 'Desconocida'}*\n✩ Puesto › *#${rank}*\nⴵ Último voto › *${timeAgo}*`
+    const message = `╭─── ⋆🐉⋆ ───\n│ Waifu Info (◕ᴗ◕✿)\n├───────────────\n│ ❀ Nombre › *${character.name}*\n│ ❀ Género › *${character.gender || 'Desconocido'}*\n│ ❀ Valor › *${character.value.toLocaleString()}*\n│ ❀ Estado › ${estado}\n│ ❀ Votos › *${character.votes || 0}*\n│ ❀ Fuente › *${character.source || 'Desconocida'}*\n│ ❀ Puesto › *#${rank}*\n│ ❀ Último voto › *${timeAgo}*\n╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(chatId, { text: message }, { quoted: m })
   }

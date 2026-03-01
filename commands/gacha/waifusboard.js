@@ -8,7 +8,7 @@ export default {
     const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Desactivado.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     // Iteramos usuarios LOCALES (del grupo)
     const users = Object.entries(chatData.users || {})
@@ -19,7 +19,7 @@ export default {
       }))
 
     if (users.length === 0)
-      return m.reply('ꕥ Nadie tiene más de 5 waifus en este grupo.')
+      return m.reply('🐲 Nadie tiene más de 5 waifus en este grupo. (◕︿◕)')
 
     const sorted = users.sort((a, b) => (b.characters?.length || 0) - (a.characters?.length || 0))
     const page = parseInt(args[0]) || 1
@@ -27,17 +27,17 @@ export default {
     const totalPages = Math.ceil(sorted.length / pageSize)
 
     if (isNaN(page) || page < 1 || page > totalPages)
-      return m.reply(`ꕥ Página inválida.`)
+      return m.reply(`🐲 Página inválida. (◕︿◕)`)
 
     const startIndex = (page - 1) * pageSize
     const list = sorted.slice(startIndex, startIndex + pageSize)
 
-    let message = `ꕥ Top Coleccionistas (Grupo)\n\n`
+    let message = `╭─── ⋆🐉⋆ ───\n│ Top Coleccionistas (Grupo) (◕ᴗ◕✿)\n├───────────────\n\n`
     message += list.map((u, i) =>
-      `✩ ${startIndex + i + 1} › *${u.name}*\n     Waifus → *${u.characters.length}*`
+      `│ ❀ ${startIndex + i + 1} › *${u.name}*\n│     Waifus → *${u.characters.length}*`
     ).join('\n\n')
 
-    message += `\n\n> ⌦ Página *${page}* de *${totalPages}*`
+    message += `\n\n╰─── ⋆✨⋆ ───\n> ⌦ Página *${page}* de *${totalPages}*`
     await client.sendMessage(chatId, { text: message.trim() }, { quoted: m })
   }
 };

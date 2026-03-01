@@ -8,12 +8,12 @@ export default {
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     const user = global.db.data.users[userId]
 
-    if (user.description) return m.reply(`《✧》 Ya tienes descripción. Usa *${prefa}deldesc* para borrarla.`)
+    if (user.description) return m.reply(`🐲 Ya tienes descripción, usa *${prefa}deldesc* para borrarla (◕ᴗ◕)`)
 
     const input = args.join(' ')
-    if (!input) return m.reply('《✧》 Escribe tu descripción.')
+    if (!input) return m.reply('🐲 Escribe tu descripción (◕ᴗ◕)')
 
     user.description = input
-    return m.reply(`✎ Descripción actualizada:\n> *${user.description}*`)
+    return m.reply(`🐉 Descripción actualizada (◕ᴗ◕✿)\n│ *${user.description}*`)
   },
 };

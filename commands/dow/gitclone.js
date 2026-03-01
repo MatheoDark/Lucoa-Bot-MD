@@ -13,10 +13,10 @@ let icon = botSettings.icon
 let banner = botSettings.banner
 let currency = botSettings.currency
   if (!args[0]) {
-    return conn.reply(m.chat, `💜 Escribe la URL de un repositorio de GitHub que deseas descargar.`, m, rcanal)
+    return conn.reply(m.chat, `� Escribe la URL de un repo de GitHub (◕ᴗ◕)`, m, rcanal)
   }
   if (!regex.test(args[0])) {
-    return conn.reply(m.chat, `🤓 Verifica que la *URL* sea de GitHub`, m, rcanal).then()
+    return conn.reply(m.chat, `🐲 La URL debe ser de GitHub (◕︿◕)`, m, rcanal).then()
   }
   let [_, user, repo] = args[0].match(regex) || []
   let sanitizedRepo = repo.replace(/.git$/, '')
@@ -38,17 +38,17 @@ let currency = botSettings.currency
     let filename = zipResponse.headers.get('content-disposition').match(/attachment; filename=(.*)/)[1]
     let type = zipResponse.headers.get('content-type')
     let img = 'https://i.ibb.co/tLKyhgM/file.png'
-    let txt = `*乂  G I T H U B  -  D O W N L O A D*\n\n`
-       txt += `✩  *Nombre* : ${sanitizedRepo}\n`
-       txt += `✩  *Repositorio* : ${user}/${sanitizedRepo}\n`
-       txt += `✩  *Creador* : ${repoData.owner.login}\n`
-       txt += `✩  *Descripción* : ${repoData.description || 'Sin descripción disponible'}\n`
-       txt += `✩  *Url* : ${args[0]}\n\n`
-       txt += `*${textbot}*`
+    let txt = `╭─── ⋆🐉⋆ ───\n│ 📦 *GitHub Download*\n├───────────────\n`
+       txt += `│ ❀ *Nombre:* ${sanitizedRepo}\n`
+       txt += `│ ❀ *Repositorio:* ${user}/${sanitizedRepo}\n`
+       txt += `│ ❀ *Creador:* ${repoData.owner.login}\n`
+       txt += `│ ❀ *Descripción:* ${repoData.description || 'Sin descripción disponible'}\n`
+       txt += `│ ❀ *Url:* ${args[0]}\n`
+       txt += `╰─── ⋆✨⋆ ───`
 
 await conn.sendFile(m.chat, img, 'thumbnail.jpg', txt, m, null, rcanal)
 await conn.sendFile(m.chat, await zipResponse.buffer(), filename, null, m)
   } catch {
-m.reply('Error.')
+m.reply('🐲 Error al descargar (╥﹏╥)')
   }
 }}

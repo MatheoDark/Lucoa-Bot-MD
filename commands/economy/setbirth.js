@@ -9,16 +9,16 @@ export default {
     const user = global.db.data.users[userId]
     const currentYear = new Date().getFullYear()
 
-    if (user.birth) return m.reply(`《✧》 Ya tienes fecha. Usa *${prefa}delbirth* para borrarla.`)
+    if (user.birth) return m.reply(`🐲 Ya tienes fecha, usa *${prefa}delbirth* para borrarla (◕ᴗ◕)`)
 
     const input = args.join(' ')
-    if (!input) return m.reply(`《✧》 Formato: DD/MM/AAAA\nEjemplo: *${prefa}setbirth 01/01/2000*`)
+    if (!input) return m.reply(`🐲 Formato: DD/MM/AAAA (◕ᴗ◕)\n│ Ejemplo: *${prefa}setbirth 01/01/2000*`)
 
     const birth = validarFecha(input, currentYear)
-    if (!birth) return m.reply(`《✧》 Fecha inválida.`)
+    if (!birth) return m.reply('🐲 Fecha inválida (◕︿◕)')
 
     user.birth = birth
-    return m.reply(`✎ Cumpleaños establecido: *${user.birth}*`)
+    return m.reply(`🐉 Cumpleaños establecido: *${user.birth}* (◕ᴗ◕✿)`)
   },
 };
 

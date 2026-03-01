@@ -19,7 +19,7 @@ export default {
   category: 'gacha',
   run: async ({ client, m, args }) => {
     
-    if (!m.isGroup) return m.reply('❌ Este comando es exclusivo para grupos.')
+    if (!m.isGroup) return m.reply('🐲 Este comando es exclusivo para grupos. (◕︿◕)')
     
     const db = global.db.data
     const chatId = m.chat
@@ -168,7 +168,7 @@ export default {
         foundChar.obtainedAt = now
         db.chats[chatId].users[thiefId].characters.push(foundChar)
 
-        const successMsg = `🦈 **𝐎𝐏𝐄𝐑𝐀𝐂𝐈𝐎́𝐍 𝐄𝐗𝐈𝐓𝐎𝐒𝐀**\n\n*— Trabajo hecho.* Le quité a **${foundChar.name}** a @${victimId.split('@')[0]}.\nAhora te pertenece.\n\n📊 **Probabilidad:** ${successChance.toFixed(1)}%\n❤️ **Salud:** ${userGlobal.health} HP`
+        const successMsg = `🐉 **𝐎𝐏𝐄𝐑𝐀𝐂𝐈𝐎́𝐍 𝐄𝐗𝐈𝐓𝐎𝐒𝐀** (◕ᴗ◕✿)\n\n*— Trabajo hecho.* Le quité a **${foundChar.name}** a @${victimId.split('@')[0]}.\nAhora te pertenece.\n\n❀ **Probabilidad:** ${successChance.toFixed(1)}%\n❀ **Salud:** ${userGlobal.health} HP`
 
         contextInfo.mentionedJid.push(victimId)
         await client.sendMessage(m.chat, { text: successMsg, contextInfo, mentions: [thiefId, victimId] }, { quoted: m })
@@ -179,7 +179,7 @@ export default {
         const xpLost = Math.floor(userGlobal.exp * XP_LOSS_PERCENT)
         userGlobal.exp = Math.max(0, userGlobal.exp - xpLost)
 
-        const failMsg = `🚑 **¡𝐀𝐔𝐂𝐇! 𝐍𝐎𝐒 𝐏𝐈𝐋𝐋𝐀𝐑𝐎𝐍...**\n\n*— ${victimName} se defendió.* Tuve que retirarme.\n\n🔻 **Salud:** -${HEALTH_LOSS_ON_FAIL} HP (Te queda: ${userGlobal.health})\n🔻 **Experiencia:** -${xpLost} XP`
+        const failMsg = `🐲 **¡𝐀𝐔𝐂𝐇! 𝐍𝐎𝐒 𝐏𝐈𝐋𝐋𝐀𝐑𝐎𝐍...** (╥﹏╥)\n\n*— ${victimName} se defendió.* Tuve que retirarme.\n\n❀ **Salud:** -${HEALTH_LOSS_ON_FAIL} HP (Te queda: ${userGlobal.health})\n❀ **Experiencia:** -${xpLost} XP`
         
         await client.sendMessage(m.chat, { text: failMsg, contextInfo }, { quoted: m })
     }

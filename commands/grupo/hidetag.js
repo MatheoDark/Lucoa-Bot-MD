@@ -13,7 +13,7 @@ export default {
       .map(id => client.decodeJid(id))
 
     if (!m.quoted && !text) {
-      return m.reply(`《✧》 Ingresa un texto o responde a uno`)
+      return m.reply(`🐲 Ingresa un texto o responde a uno`)
     }
 
     const q = m.quoted || m
@@ -77,7 +77,7 @@ try {
     }
   }
   if (!hasText) {
-    return m.reply('《✧》 Ingresa un texto o responde a un mensaje.')
+    return m.reply('🐲 Ingresa un texto o responde a un mensaje.')
   }
 
   return client.sendMessage(
@@ -87,7 +87,7 @@ try {
   )
 
 } catch (e) {
-  return m.reply('《✧》 Error al ejecutar el comando.')
+  return m.reply('🐲 Error al ejecutar el comando. (╥﹏╥)')
 }
   }
 }

@@ -54,7 +54,7 @@ export default {
   command: ['x', 'xtt', 'twitter', 'xtwitter'],
   category: 'downloader',
   run: async ({ client, m, text, usedPrefix, command }) => {
-    if (!text) throw `Ejemplo: *${usedPrefix + command}* https://twitter.com/auronplay/status/1586487664274206720`
+    if (!text) throw `🐲 Usa: *${usedPrefix + command}* <enlace> (◕ᴗ◕)\nEjemplo: *${usedPrefix + command}* https://twitter.com/auronplay/status/1586487664274206720`
     if (enviando) return
     enviando = true
 
@@ -63,7 +63,7 @@ export default {
       const res = await TwitterDL(text)
 
       if (res?.result.type === 'video') {
-        const caption = res.result.caption || '*Aquí tiene su vídeo*'
+        const caption = res.result.caption || '🐉 Aquí está tu video~ (◕ᴗ◕✿)'
         for (let i = 0; i < res.result.media.length; i++) {
           await client.sendMessage(m.chat, {
             document: { url: res.result.media[i].url },
@@ -73,7 +73,7 @@ export default {
           }, { quoted: m })
         }
       } else if (res?.result.type === 'photo') {
-        const caption = res.result.caption || '*Aquí tiene su imagen*'
+        const caption = res.result.caption || '🐉 Aquí está tu imagen~ (◕ᴗ◕✿)'
         for (let i = 0; i < res.result.media.length; i++) {
           await client.sendMessage(m.chat, {
             image: { url: res.result.media[i].url },
@@ -88,7 +88,7 @@ export default {
       enviando = false
       console.error(e)
       await m.react('❌')
-      throw `❌ Error: ${e.message || 'Intente más tarde.'}`
+      throw `🐲 Error: ${e.message || 'Intenta más tarde'} (╥﹏╥)`
     }
   }
 }

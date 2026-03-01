@@ -18,14 +18,14 @@ export default {
   category: 'grupo',
   run: async ({client, m, command, args}) => {
     const chat = global.db.data.chats[m.chat]
-    if (!chat) return m.reply('ꕥ No se encontraron datos del grupo')
+    if (!chat) return m.reply('🐲 No se encontraron datos del grupo (╥﹏╥)')
 
     const metadata = await client.groupMetadata(m.chat)
     const isAdmin = m.isGroup && metadata.participants.find(p => p.phoneNumber === m.sender || p.id === m.sender || p.jid === m.sender)?.admin
     const isDeleteMode = m.text.includes('delete')
     const isViewMode = m.text.includes('views')
 
-    if (!isAdmin && !isViewMode) return m.reply('ꕥ Este comando solo puede ser usado por administradores')
+    if (!isAdmin && !isViewMode) return m.reply('🐲 Este comando solo puede ser usado por administradores (◕︿◕)')
 
     try {
       const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
@@ -64,27 +64,27 @@ export default {
         }
       }
 
-      if (userList.length === 0) return m.reply('ꕥ No hay usuarios inactivos en este grupo')
+      if (userList.length === 0) return m.reply('🐲 No hay usuarios inactivos en este grupo (◕︿◕)')
 
       const currency = global.db.data.settings[client.user.id.split(':')[0] + '@s.whatsapp.net'].currency
       let details = ''
 
       if (isDeleteMode) {
-        details += '*✰ Delete Users Inactivos (●´ϖ`●)*\n'
-        details += `> ✿ *Claims eliminadas ›* ${totalWaifus.toLocaleString()}\n`
-        details += `> ⛁ *${currency} eliminados ›* ${totalDinero.toLocaleString()}\n`
-        details += `> ✩ *Usuarios inactivos ›* ${count.toLocaleString()}\n`
-        details += `> ❒ *Tiempo límite ›* 30 días\n\n`
+        details += '╭─── ⋆🐉⋆ ───\n│ *Delete Users Inactivos* (◕ᴗ◕✿)\n├───────────────\n'
+        details += `│ ❀ *Claims eliminadas ›* ${totalWaifus.toLocaleString()}\n`
+        details += `│ ❀ *${currency} eliminados ›* ${totalDinero.toLocaleString()}\n`
+        details += `│ ❀ *Usuarios inactivos ›* ${count.toLocaleString()}\n`
+        details += `│ ❀ *Tiempo límite ›* 30 días\n╰─── ⋆✨⋆ ───\n\n`
       } else if (isViewMode) {
-        details += '*✰ Users Info (●´ϖ`●)*\n'
-        details += `> ✿ *Claims ›* ${totalWaifus.toLocaleString()}\n`
-        details += `> ⛁ *${currency} ›* ${totalDinero.toLocaleString()}\n`
-        details += `> ❒ *Usuarios encontrados ›* ${userList.length}\n\n`
+        details += '╭─── ⋆🐉⋆ ───\n│ *Users Info* (◕ᴗ◕✿)\n├───────────────\n'
+        details += `│ ❀ *Claims ›* ${totalWaifus.toLocaleString()}\n`
+        details += `│ ❀ *${currency} ›* ${totalDinero.toLocaleString()}\n`
+        details += `│ ❀ *Usuarios encontrados ›* ${userList.length}\n╰─── ⋆✨⋆ ───\n\n`
       } else {
-        details += '*✰ Users Inactivos (●´ϖ`●)*\n'
-        details += `> ✿ *Claims ›* ${totalWaifus.toLocaleString()}\n`
-        details += `> ⛁ *${currency} ›* ${totalDinero.toLocaleString()}\n`
-        details += `> ❒ *Usuarios inactivos ›* ${userList.length}\n\n`
+        details += '╭─── ⋆🐉⋆ ───\n│ *Users Inactivos* (◕ᴗ◕✿)\n├───────────────\n'
+        details += `│ ❀ *Claims ›* ${totalWaifus.toLocaleString()}\n`
+        details += `│ ❀ *${currency} ›* ${totalDinero.toLocaleString()}\n`
+        details += `│ ❀ *Usuarios inactivos ›* ${userList.length}\n╰─── ⋆✨⋆ ───\n\n`
       }
 
       if (isViewMode) {

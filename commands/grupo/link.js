@@ -24,13 +24,13 @@ export default {
       }
 
       const txt = `
-*╭─✦ 🔗 LINK DEL GRUPO ✦─╮*
-│
-│ ❧ *Nombre:* ${groupName}
-│ ❧ *Miembros:* ${participants}
-│ ❧ *Enlace:* ${link}
-│
-╰──────────────────⬫`
+╭─── ⋆🐉⋆ ───
+│ *🔗 Link del Grupo* (◕ᴗ◕✿)
+├───────────────
+│ ❀ *Nombre:* ${groupName}
+│ ❀ *Miembros:* ${participants}
+│ ❀ *Enlace:* ${link}
+╰─── ⋆✨⋆ ───`
 
       // 3. Enviar con Tarjeta (Usando URL directa)
       await client.sendMessage(m.chat, {
@@ -51,7 +51,7 @@ export default {
 
     } catch (e) {
       console.error(e)
-      m.reply('❎ Error. Asegúrate de que soy Admin.')
+      m.reply('🐲 Error. Asegúrate de que soy Admin. (◕︿◕)')
     }
   },
 };

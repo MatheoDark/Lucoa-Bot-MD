@@ -6,12 +6,12 @@ export default {
   run: async ({ client, m, groupMetadata }) => {
     
     // 1. Verificación de Grupo
-    if (!m.isGroup) return client.reply(m.chat, '❌ Este comando solo funciona en grupos.', m)
+    if (!m.isGroup) return client.reply(m.chat, '🐲 Este comando solo funciona en grupos (◕ᴗ◕✿)', m)
 
     // 2. Configuración de Grupo
     const chat = global.db.data.chats[m.chat] || {}
     if (chat.adminonly || !chat.rpg) {
-         return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
+         return m.reply('🐉 La economía está dormida en este grupo zzZ')
     }
 
     // 3. Resolución de Usuario
@@ -33,7 +33,7 @@ export default {
     let tiempoRestante = (user.lastProsti || 0) + cooldown - Date.now()
 
     if (tiempoRestante > 0) {
-      return client.reply(m.chat, `💋 Debes esperar ⏱️ *${msToTime(tiempoRestante)}* para volver a prostituirte.`, m)
+      return client.reply(m.chat, `� Espera *${msToTime(tiempoRestante)}* para volver (◕︿◕✿)`, m)
     }
 
     // 6. Obtener Participantes
@@ -52,7 +52,7 @@ export default {
       .map(v => v.id || v.jid)
       .filter(id => id && id !== userId && id !== botId)
     
-    if (clientes.length === 0) return client.reply(m.chat, '💔 No hay clientes disponibles ahora mismo...', m)
+    if (clientes.length === 0) return client.reply(m.chat, '� No hay clientes disponibles (╥﹏╥)', m)
 
     // 7. Ejecutar Acción
     user.lastProsti = Date.now()
@@ -77,7 +77,7 @@ export default {
 
       return client.reply(
         m.chat,
-        `💄 ${texto} y ganaste *${toNum(xpGanado)} XP* + *${coinsGanados} ${currency}*.`,
+        `╭─── ⋆🐉⋆ ───\n│ 💄 *AVENTURA*\n├───────────────\n│ ${texto}\n│ ❀ +*${toNum(xpGanado)} XP* + *${coinsGanados} ${currency}*\n╰─── ⋆✨⋆ ───`,
         m,
         { mentions: [clienteId] }
       )
@@ -95,7 +95,7 @@ export default {
 
       return client.reply(
         m.chat,
-        `💔 ${texto} Perdiste *${toNum(xpPerdido)} XP* y *${coinsPerdidos} ${currency}*...`,
+        `╭─── ⋆🐉⋆ ───\n│ 💔 *FRACASO*\n├───────────────\n│ ${texto}\n│ ❀ -*${toNum(xpPerdido)} XP* y -*${coinsPerdidos} ${currency}*\n╰─── ⋆✨⋆ ───`,
         m,
         { mentions: [clienteId] }
       )

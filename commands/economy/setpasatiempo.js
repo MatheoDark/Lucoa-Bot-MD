@@ -10,7 +10,7 @@ export default {
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     const user = global.db.data.users[userId]
 
-    if (!user) return m.reply('❌ Usuario no registrado.')
+    if (!user) return m.reply('🐲 No estás registrado (◕︿◕)')
 
     const input = args.join(' ').trim()
 
@@ -33,9 +33,9 @@ export default {
 
     // Si no hay input, mostrar lista
     if (!input) {
-      let lista = '🎯 *Elige un pasatiempo:*\n\n'
-      hobbies.forEach((h, i) => lista += `${i + 1}) ${h}\n`)
-      lista += `\n*Uso:*\n${prefa}sethobby 1\n${prefa}sethobby Leer`
+      let lista = '╭─── ⋆🐉⋆ ───\n│ 🎯 *Elige un pasatiempo*\n├───────────────\n'
+      hobbies.forEach((h, i) => lista += `│ ${i + 1}) ${h}\n`)
+      lista += `│\n│ *Uso:* ${prefa}sethobby 1\n╰─── ⋆✨⋆ ───`
       return m.reply(lista)
     }
 
@@ -45,16 +45,16 @@ export default {
     if (/^\d+$/.test(input)) {
       const index = parseInt(input) - 1
       if (index >= 0 && index < hobbies.length) selected = hobbies[index]
-      else return m.reply(`《✧》 Número inválido. (1-${hobbies.length})`)
+      else return m.reply(`🐲 Número inválido (1-${hobbies.length}) (◕︿◕)`)
     } 
     // Opción B: Texto
     else {
       const cleanInput = input.replace(/[^\w\s]/g, '').toLowerCase().trim()
       selected = hobbies.find(h => h.replace(/[^\w\s]/g, '').toLowerCase().includes(cleanInput))
-      if (!selected) return m.reply('《✧》 Pasatiempo no encontrado en la lista.')
+      if (!selected) return m.reply('🐲 Pasatiempo no encontrado (◕︿◕)')
     }
 
     user.pasatiempo = selected
-    return m.reply(`✎ Pasatiempo actualizado a:\n> *${user.pasatiempo}*`)
+    return m.reply(`🐉 Pasatiempo actualizado (◕ᴗ◕✿)\n│ *${user.pasatiempo}*`)
   },
 };

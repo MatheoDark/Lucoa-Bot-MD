@@ -7,13 +7,13 @@ export default {
     const chatId = m.chat
     
     if (global.db.data.chats[chatId] && !global.db.data.chats[chatId].nsfw) {
-        return m.reply('🚫 Activa el NSFW con `.enable nsfw`')
+        return m.reply('� Activa el NSFW con `.enable nsfw` (◕︿◕)')
     }
     
-    if (!args[0]) return m.reply('🔍 Ingresa un tag. Ejemplo: `#gelbooru girl`')
+    if (!args[0]) return m.reply('� Ingresa un tag. (◕ᴗ◕✿)\n> Ejemplo: *#gelbooru girl*')
 
     const tag = args.join('_')
-    m.reply(`⌛ Buscando *${tag}*...`)
+    m.reply(`🐲 *Buscando ${tag}...* (◕ᴗ◕✿)`)
 
     let url = null
     let source = ''
@@ -60,13 +60,13 @@ export default {
         } catch (e) {}
     }
 
-    if (!url) return m.reply(`❌ No encontré nada para: ${tag}`)
+    if (!url) return m.reply(`🐲 No encontré nada para: *${tag}* (╥﹏╥)`)
 
     try {
-        await client.sendMessage(chatId, { image: { url: url }, caption: `🔞 *Result*\n🏷️ *Tag:* ${tag}\n📡 *Server:* ${source}` }, { quoted: m })
+        await client.sendMessage(chatId, { image: { url: url }, caption: `� *Result* (✿❛◡❛)\n❀ *Tag:* ${tag}\n❀ *Server:* ${source}` }, { quoted: m })
     } catch (e) {
         console.error(e)
-        m.reply('❌ Error al enviar la imagen.')
+        m.reply('🐲 Error al enviar la imagen. (╥﹏╥)')
     }
   }
 }

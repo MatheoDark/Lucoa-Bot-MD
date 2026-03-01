@@ -46,19 +46,21 @@ export default {
     const botType = isOficialBot ? 'Principal 👑' : 'Sub-Bot 🤖'
 
     try {
-      const message = `🔥 *INFORMACIÓN DEL SISTEMA*
-
-👤 *Nombre:* ${botname2}
-🤖 *Tipo:* ${botType}
-🪙 *Moneda:* ${monedas}
-🔧 *Prefijo:* [ ${prefijo} ]
-
-💻 *Plataforma:* ${platform}
-📦 *NodeJS:* ${nodeVersion}
-⏳ *Tiempo Activo:* ${sistemaUptime}
-👑 *Dueño:* ${owner ? `@${owner.split('@')[0]}` : 'Desconocido'}
-
-🔗 *Enlace:* ${link}`.trim()
+    const message = `╭─── ⋆🐉⋆ ───
+│  *𝐈𝐍𝐅𝐎 𝐃𝐄𝐋 𝐒𝐈𝐒𝐓𝐄𝐌𝐀*
+├───────────────
+│ 🐲 *Nombre ›* ${botname2}
+│ 🌟 *Tipo ›* ${botType}
+│ 💎 *Moneda ›* ${monedas}
+│ ✨ *Prefijo ›* [ ${prefijo} ]
+│
+│ 💻 *Plataforma ›* ${platform}
+│ 📦 *NodeJS ›* ${nodeVersion}
+│ ⏳ *Uptime ›* ${sistemaUptime}
+│ 👑 *Dueño ›* ${owner ? `@${owner.split('@')[0]}` : 'Desconocido'}
+│
+│ 🔗 *Enlace ›* ${link}
+╰─── ⋆✨⋆ ───`.trim()
 
       // 3. Enviar mensaje
       // Verificamos si es video/gif
@@ -76,8 +78,8 @@ export default {
             contextInfo: {
               mentionedJid: [owner, m.sender],
               externalAdReply: {
-                title: botname,
-                body: `Powered by ${dev}`, // Ahora 'dev' sí existe
+                title: `🐉 ${botname}`,
+                body: `ᵖᵒʷᵉʳᵉᵈ ᵇʸ ${dev}`, // Ahora 'dev' sí existe
                 thumbnailUrl: banner,
                 sourceUrl: link,
                 mediaType: 1,

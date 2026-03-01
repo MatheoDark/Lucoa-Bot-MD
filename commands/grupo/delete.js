@@ -10,7 +10,7 @@ export default {
       if (!m.quoted)
         return client.sendMessage(
           m.chat,
-          { text: '❀ Responde al mensaje que deseas eliminar.' },
+          { text: '🐲 Responde al mensaje que deseas eliminar.' },
           { quoted: m }
         )
 
@@ -38,7 +38,7 @@ export default {
         await client.sendMessage(m.chat, { delete: m.quoted.vM.key })
       } catch (err) {
         console.error(err)
-        m.reply('❌ No se pudo eliminar el mensaje')
+        m.reply('🐲 No se pudo eliminar el mensaje (╥﹏╥)')
       }
     }
   }

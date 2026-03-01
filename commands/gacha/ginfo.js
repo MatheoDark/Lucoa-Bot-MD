@@ -10,7 +10,7 @@ export default {
     const now = Date.now()
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     // --- MODELO HÍBRIDO + Resolución LID/JID ---
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
@@ -42,14 +42,17 @@ export default {
     const personajes = localUser.characters || []
     const valorTotal = personajes.reduce((acc, char) => acc + (char.value || 0), 0)
 
-    const mensaje = `❀ Usuario \`<${nombre}>\`
-
-ⴵ RollWaifu » *${cooldowns.roll > 0 ? formatTime(cooldowns.roll) : 'Ahora.'}*
-ⴵ Claim » *${cooldowns.claim > 0 ? formatTime(cooldowns.claim) : 'Ahora.'}*
-ⴵ Vote » *${cooldowns.vote > 0 ? formatTime(cooldowns.vote) : 'Ahora.'}*
-
-♡ Personajes reclamados (Grupo) » *${personajes.length}*
-✰ Valor total (Grupo) » *${valorTotal.toLocaleString()}*`
+    const mensaje = `╭─── ⋆🐉⋆ ───
+│ Gacha Info (◕ᴗ◕✿)
+├───────────────
+│ ❀ Usuario: \`<${nombre}>\`
+│ ❀ RollWaifu » *${cooldowns.roll > 0 ? formatTime(cooldowns.roll) : 'Ahora.'}*
+│ ❀ Claim » *${cooldowns.claim > 0 ? formatTime(cooldowns.claim) : 'Ahora.'}*
+│ ❀ Vote » *${cooldowns.vote > 0 ? formatTime(cooldowns.vote) : 'Ahora.'}*
+├───────────────
+│ ❀ Personajes (Grupo) » *${personajes.length}*
+│ ❀ Valor total (Grupo) » *${valorTotal.toLocaleString()}*
+╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(chatId, { text: mensaje }, { quoted: m })
   }

@@ -31,13 +31,15 @@ export default {
 
     const total = (user.coins || 0) + (user.bank || 0)
 
-    const bal = `✿ Usuario \`<${name}>\`
+    const bal = `╭─── ⋆🐉⋆ ───
+│  *𝐁𝐀𝐋𝐀𝐍𝐂𝐄* │ \`<${name}>\`
+├───────────────
+│ 💰 Dinero › *¥${(user.coins || 0).toLocaleString()} ${monedas}*
+│ 🏦 Banco › *¥${(user.bank || 0).toLocaleString()} ${monedas}*
+│ 💎 Total › *¥${total.toLocaleString()} ${monedas}*
+╰─── ⋆✨⋆ ───
 
-⛀ Dinero › *¥${(user.coins || 0).toLocaleString()} ${monedas}*
-⚿ Banco › *¥${(user.bank || 0).toLocaleString()} ${monedas}*
-⛁ Total › *¥${total.toLocaleString()} ${monedas}*
-
-> _Para proteger tu dinero, ¡depósitalo en el banco usando #deposit!_`
+> 🐲 _Deposita tu dinero en el banco con #deposit (◕ᴗ◕✿)_`
 
     await client.sendMessage(chatId, { text: bal }, { quoted: m })
   }

@@ -17,9 +17,9 @@ export default {
     const mentionedJid = await resolveLidToRealJid(who2, client, m.chat);
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Desactivado.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
-    if (!senderLocal.characters?.length) return m.reply('《✧》 No tienes personajes en este grupo.')
+    if (!senderLocal.characters?.length) return m.reply('🐲 No tienes personajes en este grupo. (◕︿◕)')
 
     // Usuario receptor LOCAL
     let receiverLocal = chatData.users[mentionedJid]
@@ -32,7 +32,7 @@ export default {
     const characterIndex = senderLocal.characters.findIndex((c) => c.name?.toLowerCase() === characterName)
 
     if (characterIndex === -1)
-      return m.reply(`《✧》 No tienes a *${characterName}* aquí.`)
+      return m.reply(`🐲 No tienes a *${characterName}* aquí. (◕︿◕)`)
 
     const character = senderLocal.characters[characterIndex]
     
@@ -43,6 +43,6 @@ export default {
     senderLocal.characters.splice(characterIndex, 1)
 
     const receiverName = db.users[mentionedJid]?.name || mentionedJid.split('@')[0]
-    await client.sendMessage(chatId, { text: `✎ *${character.name}* regalado a *${receiverName}*.` }, { quoted: m })
+    await client.sendMessage(chatId, { text: `🐉 *${character.name}* regalado a *${receiverName}*. (≧◡≦)` }, { quoted: m })
   },
 };

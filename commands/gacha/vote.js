@@ -47,20 +47,20 @@ export default {
     const isModBot = db.settings[botId]?.botmod === true
 
     if (!isOficialBot && !isPremiumBot && !isModBot) {
-      return client.reply(m.chat, `《✧》El comando *${command}* no esta disponible en *Sub-Bots.*`, m)
+      return client.reply(m.chat, `🐲 El comando *${command}* no está disponible en *Sub-Bots.* (◕︿◕)`, m)
     }
 
     if (chatConfig.adminonly || !chatConfig.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     // Cooldown Global
     if (!userGlobal.voteCooldown) userGlobal.voteCooldown = 0
     const remainingTime = userGlobal.voteCooldown - Date.now()
     if (remainingTime > 0)
-      return m.reply(`✎ Debes esperar *${msToTime(remainingTime)}* para votar nuevamente`)
+      return m.reply(`🐲 Debes esperar *${msToTime(remainingTime)}* para votar nuevamente. (◕︿◕)`)
 
     if (args.length === 0)
-      return m.reply(`✎ Por favor, indica el nombre del personaje.`)
+      return m.reply(`🐲 Por favor, indica el nombre del personaje. (◕︿◕)`)
 
     try {
       const characterName = args.join(' ').toLowerCase().trim()
@@ -68,19 +68,19 @@ export default {
       const character = characters.find((c) => c.name.toLowerCase() === characterName)
 
       if (!character)
-        return m.reply(`《✧》 No se encontró el personaje *${characterName}*.`)
+        return m.reply(`🐲 No se encontró el personaje *${characterName}*. (◕︿◕)`)
 
       if ((character.votes || 0) >= 10) {
         // Límite de votos global por personaje (esto afecta a todos los usuarios)
         // Puedes quitar esto si quieres votos infinitos
-        return m.reply(`《✧》 El personaje *${character.name}* ya tiene el valor máximo.`)
+        return m.reply(`🐲 El personaje *${character.name}* ya tiene el valor máximo. (◕︿◕)`)
       }
 
       if (characterVotes.has(characterName)) {
         const expires = characterVotes.get(characterName)
         const cooldownLeft = expires - Date.now()
         if (cooldownLeft > 0)
-          return m.reply(`《✧》 *${character.name}* fue votado recientemente. Espera un poco.`)
+          return m.reply(`🐲 *${character.name}* fue votado recientemente. Espera un poco. (◕︿◕)`)
       }
 
       const incrementValue = Math.floor(Math.random() * 100) + 1
@@ -93,7 +93,7 @@ export default {
       userGlobal.voteCooldown = Date.now() + 90 * 60000 // 90 min cooldown para el usuario
       characterVotes.set(characterName, Date.now() + cooldownTime) // 60 min cooldown para el personaje
 
-      const message = `✎ Votaste por *${character.name}*\n\n> ⛁ *Nuevo valor ›* ${character.value.toLocaleString()}\n> ꕥ *Votos totales ›* ${character.votes}`
+      const message = `╭─── ⋆🐉⋆ ───\n│ Voto Registrado (◕ᴗ◕✿)\n├───────────────\n│ ❀ Personaje: *${character.name}*\n│ ❀ Nuevo valor › *${character.value.toLocaleString()}*\n│ ❀ Votos totales › *${character.votes}*\n╰─── ⋆✨⋆ ───`
       await client.sendMessage(chatId, { text: message }, { quoted: m })
     } catch (error) {
       console.error(error)

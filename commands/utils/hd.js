@@ -10,18 +10,18 @@ export default {
       const mime = q.mimetype || q.msg?.mimetype || ''
 
       if (!mime) {
-        return m.reply(`《✧》 Envía una *imagen* junto al comando`)
+        return m.reply(`🐲 Envía una *imagen* con el comando (◕ᴗ◕)`)
       }
 
       if (!/image\/(jpe?g|png)/.test(mime)) {
-        return m.reply(`《✧》 El formato *${mime}* no es compatible`)
+        return m.reply(`🐲 Formato *${mime}* no compatible (◕︿◕)`)
       }
 
       const media = await q.download()
 
       const link = await uploadImage(media)
       if (!link) {
-        return m.reply('《✧》 No se pudo subir la imagen')
+        return m.reply('🐲 No se pudo subir la imagen (╥﹏╥)')
       }
 
       // Usar la API principal del bot para upscale

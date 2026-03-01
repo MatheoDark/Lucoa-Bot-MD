@@ -5,7 +5,7 @@ export default {
   category: 'downloader',
   run: async ({client, m, text, }) => {
 
-  if (!text) return m.reply(`✎ Ingresa el nombre de una canción o una URL de Spotify.`);
+  if (!text) return m.reply(`🐲 Ingresa el nombre o URL de Spotify (◕ᴗ◕)`);
 
   try {
     let song;
@@ -14,22 +14,19 @@ export default {
       song = { url: text };
     } else {
       const results = await spotifyxv(text);
-      if (!results.length) return m.reply('No se encontró la canción.');
+      if (!results.length) return m.reply('🐲 No se encontró la canción (╥﹏╥)');
       song = results[0];
     }
 
     const res = await axios.get(`${api.url}/dl/spotify?url=${song.url}&key=${api.key}`);
     const data = res.data?.data;
-    if (!data?.download) return m.reply('No se pudo obtener el enlace de descarga.');
+    if (!data?.download) return m.reply('🐲 No se pudo obtener el enlace (╥﹏╥)');
 
-    if (!data || !res.data.status) return m.reply('✦ No se pudo obtener resultados.')
+    if (!data || !res.data.status) return m.reply('🐲 No se pudo obtener resultados (╥﹏╥)')
 
-    const info = `➪ Descargando › *${data.title}*\n\n` +
-                 `> ✩ Artista › *${data.artist}*\n` +
-                 (song.album ? `> ✰ Álbum › *${song.album}*\n` : '') +
-                 `> ⴵ Duración › *${data.duration}*\n` +
-                 `> ☁︎ Enlace › *${song.url}*\n\n` +
-                 `${dev}`;
+    const info = `╭─── ⋆🐉⋆ ───\n│ 🎧 *Spotify Download*\n├───────────────\n│ ❀ *${data.title}*\n│ ❀ Artista: *${data.artist}*\n` +
+                 (song.album ? `│ ❀ Álbum: *${song.album}*\n` : '') +
+                 `│ ❀ Duración: *${data.duration}*\n╰─── ⋆✨⋆ ───`;
 
     await conn.sendMessage(m.chat, { image: { url: data.image }, caption: info }, { quoted: m });
 

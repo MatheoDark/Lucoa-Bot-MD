@@ -6,11 +6,11 @@ export default {
   run: async ({ client, m }) => {
     
     // 1. Validaciones de Grupo
-    if (!m.isGroup) return m.reply('❌ Este comando solo funciona en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Este comando solo funciona en grupos (◕ᴗ◕✿)')
 
     const chatData = global.db.data.chats[m.chat] || {}
     if (chatData.adminonly || !chatData.rpg) {
-      return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
+      return m.reply('🐉 La economía está dormida en este grupo zzZ')
     }
 
     // 2. Configuración del Bot
@@ -34,7 +34,7 @@ export default {
     const tiempoRestante = lastMonthly + monthlyCooldown - Date.now()
 
     if (tiempoRestante > 0) {
-      return m.reply(`✎ Ya reclamaste tu recompensa de este mes.\nVuelve en: *${msToTime(tiempoRestante)}*`)
+      return m.reply(`🐲 Ya reclamaste tu recompensa mensual (◕︿◕✿)\n│ ⏳ Vuelve en: *${msToTime(tiempoRestante)}*`)
     }
 
     // 5. Recompensa (Mejorada para valer la pena)
@@ -49,14 +49,16 @@ export default {
     user.coins = (user.coins || 0) + coins
 
     // 7. Mensaje
-    const info = `📅 *RECOMPENSA MENSUAL* 📅
-    
-> 👑 *¡Has reclamado tu premio del mes!*
-
-⚡ *Experiencia:* +${exp.toLocaleString()} XP
-💰 *Dinero:* +${coins.toLocaleString()} ${monedas}
-
-_¡No olvides volver el próximo mes!_`
+    const info = `╭─── ⋆🐉⋆ ───
+│ 📅 *RECOMPENSA MENSUAL*
+├───────────────
+│ 👑 ¡Has reclamado tu premio!
+│
+│ ❀ *Experiencia:* +${exp.toLocaleString()} XP
+│ ❀ *Dinero:* +${coins.toLocaleString()} ${monedas}
+│
+│ (◕ᴗ◕✿) ¡Vuelve el próximo mes!
+╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(m.chat, { 
         text: info,

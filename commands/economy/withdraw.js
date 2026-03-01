@@ -6,11 +6,11 @@ export default {
   run: async ({ client, m, args }) => {
     
     // 1. Validaciones Básicas
-    if (!m.isGroup) return m.reply('❌ Este comando solo funciona en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Este comando solo funciona en grupos (◕ᴗ◕✿)')
 
     const chat = global.db.data.chats[m.chat] || {}
     if (chat.adminonly || !chat.rpg) {
-         return m.reply(`✎ Los comandos de economía están desactivados en este grupo.`)
+         return m.reply('🐉 La economía está dormida en este grupo zzZ')
     }
 
     // 2. Configuración del Bot (Moneda)
@@ -34,7 +34,7 @@ export default {
 
     // 4. Validar Argumentos
     if (!args[0]) {
-      return m.reply(`《✧》 Ingresa la cantidad de *${monedas}* que quieras *retirar* del banco.\nEjemplo: *#retirar 100* o *#retirar all*`)
+      return m.reply(`🐲 Ingresa la cantidad de *${monedas}* a *retirar* (◕ᴗ◕)\n│ Ejemplo: *#retirar 100* o *#retirar all*`)
     }
 
     // 5. Lógica de Retiro
@@ -42,26 +42,26 @@ export default {
 
     // CASO: Retirar TODO
     if (args[0].toLowerCase() === 'all' || args[0].toLowerCase() === 'todo') {
-      if (user.bank <= 0) return m.reply(`✎ No tienes *${monedas}* en tu *banco* para retirar.`)
+      if (user.bank <= 0) return m.reply(`🐲 No tienes *${monedas}* en tu *banco* (╥﹏╥)`)
       amount = user.bank
     } 
     // CASO: Cantidad Específica
     else {
       amount = parseInt(args[0])
       if (!Number.isInteger(amount) || amount < 1) {
-        return m.reply('《✧》 Ingresa una cantidad numérica válida para retirar (mayor a 0).')
+        return m.reply('🐲 Ingresa una cantidad válida para retirar (◕︿◕)')
       }
     }
 
     // 6. Verificar Fondos
     if (user.bank < amount) {
-      return m.reply(`❀ No tienes suficientes *${monedas}* en el banco para retirar esa cantidad.\n🏦 Tienes: *${user.bank.toLocaleString()} ${monedas}*`)
+      return m.reply(`🐲 No tienes suficientes *${monedas}* en el banco (╥﹏╥)\n│ 🏦 Tienes: *${user.bank.toLocaleString()} ${monedas}*`)
     }
 
     // 7. Ejecutar Transacción
     user.bank -= amount
     user.coins += amount
 
-    await m.reply(`ꕥ Has retirado *¥${amount.toLocaleString()} ${monedas}* de tu Banco.\n👛 Cartera: *${user.coins.toLocaleString()}*`)
+    await m.reply(`╭─── ⋆🐉⋆ ───\n│ 🏦 *RETIRO EXITOSO*\n├───────────────\n│ ❀ Monto: *¥${amount.toLocaleString()} ${monedas}*\n│ ❀ Cartera: *¥${user.coins.toLocaleString()}*\n│ (◕ᴗ◕✿)\n╰─── ⋆✨⋆ ───`)
   },
 };

@@ -169,11 +169,11 @@ let handler = {
         let createdFilePath = null; // Variable para guardar la ruta y borrarla luego
 
         try {
-            if (!m.isGroup) return m.reply('❌ Solo en grupos.')
+            if (!m.isGroup) return m.reply('🐲 Solo en grupos. (◕︿◕)')
 
             const chatData = global.db.data.chats[m.chat] || {}
             if (chatData.adminonly || !chatData.gacha) {
-                return m.reply(`✎ Gacha desactivado.`)
+                return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
             }
 
             let rawUserId = m.sender
@@ -188,7 +188,7 @@ let handler = {
             const userCharacters = localUser.characters || []
 
             if (userCharacters.length === 0) {
-                return m.reply(`❀ *${name}* no tiene personajes en este grupo.`)
+                return m.reply(`🐲 *${name}* no tiene personajes en este grupo. (◕︿◕)`)
             }
 
             const charactersData = await loadCharacters()
@@ -208,10 +208,13 @@ let handler = {
             // Generar Collage y obtener RUTA
             createdFilePath = await generateCollage(charsPage, charactersData, name, page, totalPages)
 
-            if (!createdFilePath) return m.reply('❌ Error creando imagen.')
+            if (!createdFilePath) return m.reply('🐲 Error creando imagen. (╥﹏╥)')
 
-            let caption = `❀ *HARÉN DE ${name.toUpperCase()}*\n`
-            caption += `📝 Total: ${total} | Pág: ${page}/${totalPages}\n`
+            let caption = `╭─── ⋆🐉⋆ ───\n`
+            caption += `│ HARÉN DE ${name.toUpperCase()} (◕ᴗ◕✿)\n`
+            caption += `├───────────────\n`
+            caption += `│ ❀ Total: ${total} | Pág: ${page}/${totalPages}\n`
+            caption += `╰─── ⋆✨⋆ ───\n`
             caption += `> Usa *#harem ${page + 1}* para la siguiente.`
 
             // Enviar leyendo desde el archivo
@@ -223,7 +226,7 @@ let handler = {
 
         } catch (error) {
             console.error(error)
-            await m.reply(`✘ Error: ${error.message}`)
+            await m.reply(`🐲 Error: ${error.message} (╥﹏╥)`)
         } finally {
             // --- LIMPIEZA AUTOMÁTICA ---
             // Borramos el archivo temporal pase lo que pase (éxito o error)

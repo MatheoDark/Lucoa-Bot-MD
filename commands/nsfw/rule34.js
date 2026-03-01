@@ -20,14 +20,14 @@ export default {
         
         // Si es un grupo y el NSFW está desactivado, bloquear
         if (m.isGroup && !db.data.chats[chatId]?.nsfw) {
-             return m.reply('🚫 Los comandos *NSFW* están desactivados en este grupo.\nUsa `#enable nsfw` para activarlos.')
+             return m.reply('� Los comandos *NSFW* están desactivados en este grupo. (◕︿◕)\n> Usa `#enable nsfw` para activarlos.')
         }
         // ------------------------------------
 
-        if (!text) return m.reply(`*⚠️ Falta el nombre.*\nEjemplo: ${usedPrefix + command} lucoa`)
+        if (!text) return m.reply(`🐲 Falta el nombre. (◕ᴗ◕✿)\n> Ejemplo: *${usedPrefix + command} lucoa*`)
 
         const tags = text.trim().replace(/\s+/g, '_')
-        m.reply('🔍 *Buscando Pack (5) en Rule34...*')
+        m.reply('� *Buscando Pack (5) en Rule34...* (◕ᴗ◕✿)')
 
         try {
             const searchUrl = `https://rule34.xxx/index.php?page=post&s=list&tags=${encodeURIComponent(tags)}`
@@ -110,7 +110,7 @@ export default {
 
         } catch (e) {
             console.error('Error Pack:', e)
-            m.reply(`❌ *Error:* ${e.message || e}`)
+            m.reply(`🐲 Error: ${e.message || e} (╥﹏╥)`)
         }
     }
 }

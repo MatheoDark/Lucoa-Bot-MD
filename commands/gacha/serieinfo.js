@@ -18,11 +18,11 @@ export default {
     const chatData = db.chats[chatId] || {}
 
     if (chatData.adminonly || !chatData.gacha)
-      return m.reply(`✎ Estos comandos estan desactivados en este grupo.`)
+      return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     try {
       const name = args.join(' ')
-      if (!name) return m.reply('《✧》 Por favor especifica un anime. Ejemplo: *ainfo Naruto*')
+      if (!name) return m.reply('🐲 Por favor especifica un anime. Ejemplo: *ainfo Naruto* (◕︿◕)')
 
       const characters = await loadCharacters()
       const animeCharacters = characters.filter(
@@ -31,7 +31,7 @@ export default {
       )
 
       if (animeCharacters.length === 0)
-        return m.reply(`《✧》 No se encontró el anime con nombre: "${name}".`)
+        return m.reply(`🐲 No se encontró el anime con nombre: "${name}". (◕︿◕)`)
 
       // Contar cuántos están reclamados EN ESTE GRUPO
       const claimedCount = animeCharacters.filter((char) => {
@@ -43,11 +43,12 @@ export default {
       const totalCharacters = animeCharacters.length
 
       const message =
-        '☆ *Serie Info* (●´ϖ`●)' +
-        `\n➭ *Nombre ›* ${name}\n\n` +
-        `☆ *Personajes ›* ${totalCharacters}\n` +
-        `❀ *Reclamados ›* ${claimedCount}/${totalCharacters}\n\n` +
-        `✎ *Lista de personajes* \n${animeCharacters
+        '╭─── ⋆🐉⋆ ───\n│ Serie Info (◕ᴗ◕✿)\n├───────────────' +
+        `\n│ ❀ Nombre › *${name}*\n` +
+        `│ ❀ Personajes › *${totalCharacters}*\n` +
+        `│ ❀ Reclamados › *${claimedCount}/${totalCharacters}*\n` +
+        `├───────────────\n` +
+        `│ ❀ Lista de personajes\n${animeCharacters
           .map((char) => {
             const usuarioPoseedor = Object.entries(chatData.users || {}).find(
               ([_, u]) =>
@@ -57,9 +58,10 @@ export default {
             const estado = userId
               ? `Reclamado por ${db.users[userId]?.name || userId.split('@')[0]}`
               : 'Libre'
-            return `› *${char.name}* (${char.value}) • ${estado}`
+            return `│ › *${char.name}* (${char.value}) • ${estado}`
           })
-          .join('\n')}`
+          .join('\n')}` +
+        `\n╰─── ⋆✨⋆ ───`
 
       await client.sendMessage(chatId, { text: message }, { quoted: m })
     } catch (error) {

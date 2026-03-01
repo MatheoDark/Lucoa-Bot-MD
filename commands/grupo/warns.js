@@ -16,14 +16,14 @@ export default {
    const userId = await resolveLidToRealJid(who2, client, m.chat);
 
     if (!who2 || !chat.users[userId]) {
-      return m.reply('《✧》 Menciona o responde a un usuario válido para ver sus advertencias.')
+      return m.reply('🐲 Menciona o responde a un usuario válido para ver sus advertencias.')
     }
 
     const user = chat.users[userId]
     const total = user.warnings?.length || 0
 
     if (total === 0) {
-      return client.reply(m.chat, `《✧》 @${userId.split('@')[0]} no tiene advertencias registradas.`, m, {
+      return client.reply(m.chat, `🐲 @${userId.split('@')[0]} no tiene advertencias registradas. (◕︿◕)`, m, {
         mentions: [userId],
       })
     }
@@ -38,7 +38,7 @@ export default {
       .join('\n')
 
     await client.reply(m.chat,
-      `✐ Advertencias de @${userId.split('@')[0]} (${name}):\n> ✧ Total de advertencias: \`${total}\`\n\n${warningList}`,
+      `🐉 Advertencias de @${userId.split('@')[0]} (${name}):\n> 🐉 Total de advertencias: \`${total}\`\n\n${warningList}`,
       m,
       { mentions: [userId, ...user.warnings.map(w => w.by).filter(Boolean)] }
     )

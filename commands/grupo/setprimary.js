@@ -34,7 +34,7 @@ export default {
       const who2 = mentioned.length > 0 ? mentioned[0] : m.quoted?.sender || false
      const who = await resolveLidToRealJid(who2, client, m.chat);
       if (!who2) {
-        return client.reply(m.chat, `《✧》 Por favor menciona un bot para convertirlo en primario.`, m)
+        return client.reply(m.chat, `🐲 Por favor menciona un bot para convertirlo en primario.`, m)
       }
       const groupMetadata = m.isGroup ? await client.groupMetadata(m.chat).catch((e) => {
         console.warn(`⚠️ Error obteniendo metadata del grupo ${m.chat}: ${e?.message}`)
@@ -46,15 +46,15 @@ export default {
       const allowedBots = getAllowedBots(mainBotJid)
 
       if (!allowedBots.includes(who)) {
-        return client.reply(m.chat, `《✧》 El usuario mencionado no es una instancia de Sub-Bot.`, m)
+        return client.reply(m.chat, `🐲 El usuario mencionado no es una instancia de Sub-Bot. (◕︿◕)`, m)
       }
 
       if (!groupParticipants.includes(who)) {
-        return client.reply(m.chat, `《✧》 El bot mencionado no está presente en este grupo.`, m)
+        return client.reply(m.chat, `🐲 El bot mencionado no está presente en este grupo. (◕︿◕)`, m)
       }
 
       if (chat.primaryBot === who) {
-        return client.reply(m.chat, `「✿」 @${who.split('@')[0]} ya es el Bot principal del Grupo.`, m, {
+        return client.reply(m.chat, `🐲 @${who.split('@')[0]} ya es el Bot principal del Grupo. (◕︿◕)`, m, {
           mentions: [who],
         })
       }
@@ -62,13 +62,13 @@ export default {
       chat.primaryBot = who
       await client.reply(
         m.chat,
-        `ꕥ Se ha establecido a @${who.split('@')[0]} como bot primario de este grupo.\n> Ahora todos los comandos de este grupo serán ejecutados por @${who.split('@')[0]}.`,
+        `🐉 Se ha establecido a @${who.split('@')[0]} como bot primario de este grupo. (✿❛◡❛)\n> Ahora todos los comandos de este grupo serán ejecutados por @${who.split('@')[0]}.`,
         m,
         { mentions: [who] },
       )
     } catch (e) {
       console.error(e)
-      await m.reply(`《✧》 Ocurrió un error al intentar establecer el bot primario.`)
+      await m.reply(`🐲 Ocurrió un error al intentar establecer el bot primario. (╥﹏╥)`)
     }
   },
 };

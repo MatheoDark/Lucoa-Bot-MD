@@ -24,9 +24,12 @@ export default {
     const userCount = Object.keys(global.db.data.users).length || '0'
 
     const estadoBot = 
-`🌱 Estado de *${botname2}* (●\´ϖ\`●)
-> *Usuarios registrados ›* ${userCount.toLocaleString()}
-> *Grupos registrados ›* ${registeredGroups.toLocaleString()}`
+`╭─── ⋆🐉⋆ ───
+│  *𝐄𝐒𝐓𝐀𝐃𝐎 𝐃𝐄 ${botname2.toUpperCase()}* (●'◡'●)
+├───────────────
+│ 👤 *Usuarios ›* ${userCount.toLocaleString()}
+│ 👥 *Grupos ›* ${registeredGroups.toLocaleString()}
+╰─── ⋆✨⋆ ───`
 
     const sistema = os.type()
     const cpu = os.cpus().length
@@ -35,14 +38,13 @@ export default {
     const arquitectura = os.arch()
 
     const estadoServidor = 
-`🌱 Estado del Servidor *₍ᐢ..ᐢ₎♡*
-
-> *Sistema ›* ${sistema}
-> *CPU ›* ${cpu} cores
-> *RAM ›* ${ramTotal} GB
-> *RAM Usado ›* ${ramUsada} GB
-> *Arquitectura ›* ${arquitectura}
-> *Host ID ›* ${hostId}`
+`╭── 🐲 Servidor ──
+│ 💻 *Sistema ›* ${sistema}
+│ ⚙️ *CPU ›* ${cpu} cores
+│ 📊 *RAM ›* ${ramUsada}/${ramTotal} GB
+│ 🔧 *Arch ›* ${arquitectura}
+│ 🏷️ *Host ›* ${hostId}
+╰──────────⋆✦⋆`
 
     const mensajeEstado = `${estadoBot}\n\n${estadoServidor}`
 

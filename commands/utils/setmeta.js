@@ -8,7 +8,7 @@ export default {
 
     if (!args || args.length === 0)
       return m.reply(
-        '《✧》 Por favor, ingresa los metadatos que deseas asignar a tus stickers.',
+        '🐲 Por favor, ingresa los metadatos que deseas asignar a tus stickers. (◕ᴗ◕✿)',
       )
 
     try {

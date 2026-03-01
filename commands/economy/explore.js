@@ -85,10 +85,10 @@ export default {
   command: ['explore', 'explorar', 'aventura', 'adventure'],
   category: 'rpg',
   run: async ({ client, m }) => {
-    if (!m.isGroup) return m.reply('❌ Solo en grupos.')
+    if (!m.isGroup) return m.reply('🐲 Solo funciona en grupos (◕ᴗ◕✿)')
 
     const chat = global.db.data.chats[m.chat] || {}
-    if (chat.adminonly || !chat.rpg) return m.reply('✎ Economía desactivada en este grupo.')
+    if (chat.adminonly || !chat.rpg) return m.reply('🐉 La economía está dormida aquí zzZ')
 
     const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
     const settings = global.db.data.settings[botId] || {}
@@ -148,20 +148,22 @@ export default {
       : `💸 *¥${Math.abs(coins).toLocaleString()} ${monedas}* perdidos`
 
     const legendarioMsg = resultado.tipo === 'legendario' 
-      ? '\n\n✨✨ ¡¡HALLAZGO LEGENDARIO!! ✨✨' 
+      ? '\n│\n│ ✨✨ ¡¡HALLAZGO LEGENDARIO!! ✨✨' 
       : ''
 
-    const msg = `🗺️ *EXPLORACIÓN*
-
-📍 Zona: *${exploracion.zona}*
-
-${emoji} ${resultado.texto}
-
-${coinsText}
-⚡ +*${exp.toLocaleString()} XP*
-🧭 Exploraciones: *${user.totalExplores}*${legendarioMsg}
-
-> 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*`
+    const msg = `╭─── ⋆🐉⋆ ───
+│ 🗺️ *EXPLORACIÓN*
+├───────────────
+│ 📍 Zona: *${exploracion.zona}*
+│
+│ ${emoji} ${resultado.texto}
+│
+│ ${coinsText}
+│ ⚡ +*${exp.toLocaleString()} XP*
+│ 🧭 Exploraciones: *${user.totalExplores}*${legendarioMsg}
+│
+│ 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*
+╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(m.chat, { text: msg }, { quoted: m })
   }
