@@ -338,10 +338,10 @@ async function convertToMp4(url, originalName = '') {
         const noAudio = inputExt === 'gif' || !hasAudio
         const audioFlags = noAudio ? '-an' : '-c:a aac -b:a 128k'
         const inputFlags = inputExt === 'gif' ? '-ignore_loop 0' : ''
-        const cmd = `ffmpeg -y ${inputFlags} -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 28 ${audioFlags} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -movflags +faststart -t 120 "${outputPath}"`
+        const cmd = `ffmpeg -y ${inputFlags} -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 28 ${audioFlags} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -movflags +faststart "${outputPath}"`
         
         execSync(cmd, {
-            timeout: 90000,
+            timeout: 300000,
             stdio: 'pipe'
         })
         
