@@ -287,7 +287,7 @@ async function detectMediaTypeByHead(url) {
         if (contentType.includes('gif')) return 'gif'
         if (contentType.includes('image')) return 'image'
         return 'image' // default to image
-    } catch {
+    } catch (e) {
         return 'image' // default to image on error
     }
 }
@@ -327,7 +327,7 @@ async function convertToMp4(url, originalName = '') {
                     { timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
                 ).toString().trim()
                 hasAudio = probeOut.includes('audio')
-            } catch { hasAudio = false }
+            } catch (e) { hasAudio = false }
         }
         
         // Convertir con ffmpeg - compatible con WhatsApp móvil:
@@ -349,8 +349,8 @@ async function convertToMp4(url, originalName = '') {
         return { buffer: mp4Buffer, hasAudio }
     } finally {
         // Limpiar archivos temporales
-        try { unlinkSync(inputPath) } catch {}
-        try { unlinkSync(outputPath) } catch {}
+        try { unlinkSync(inputPath) } catch (e) {}
+        try { unlinkSync(outputPath) } catch (e) {}
     }
 }
 
@@ -412,13 +412,13 @@ async function r34Scrape(tag) {
                     fileName = fileUrl.split('/').pop() || ''
                     posts.push({ id, file_url: fileUrl, file_name: fileName, tags: '' })
                 }
-            } catch {
+            } catch (e) {
                 continue
             }
         }
 
         return posts
-    } catch {
+    } catch (e) {
         return []
     }
 }
