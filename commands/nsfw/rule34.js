@@ -172,18 +172,18 @@ export default {
                             }, { quoted: m })
                         }
                     } else if (mediaType === 'gif') {
-                        // Convertir GIF a MP4 y enviar con gifPlayback
+                        // WhatsApp NO soporta GIFs nativos — siempre se envían como MP4 con gifPlayback: true
+                        // Baileys no convierte formatos, así que hay que convertir GIF → MP4 con ffmpeg
                         try {
                             const buffer = await convertToMp4(fileUrl, post.file_name)
                             await client.sendMessage(m.chat, {
                                 video: buffer,
-                                mimetype: 'video/mp4',
                                 gifPlayback: true,
                                 caption: `🔥 *ID:* ${post.id}`
                             }, { quoted: m })
                         } catch (convErr) {
                             console.log(`[R34] Error convirtiendo GIF ${post.id}:`, convErr.message)
-                            // Fallback: enviar como imagen
+                            // Fallback: enviar como imagen estática
                             await client.sendMessage(m.chat, {
                                 image: { url: fileUrl },
                                 caption: `🔥 *ID:* ${post.id} (GIF)`
@@ -314,10 +314,12 @@ async function convertToMp4(url, originalName = '') {
         
         // Convertir con ffmpeg - compatible con WhatsApp móvil:
         // - yuv420p: formato de pixel requerido por WhatsApp
-        // - pad filter: asegura dimensiones pares (WhatsApp lo requiere)
+        // - scale filter: asegura dimensiones pares (requisito H.264)
         // - an: sin audio si es GIF (no tiene)
+        // - ignore_loop 0: para GIFs, lee todos los frames sin loop infinito
         const audioFlags = inputExt === 'gif' ? '-an' : '-c:a aac -b:a 128k'
-        const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 28 ${audioFlags} -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -movflags +faststart -t 120 "${outputPath}"`
+        const inputFlags = inputExt === 'gif' ? '-ignore_loop 0' : ''
+        const cmd = `ffmpeg -y ${inputFlags} -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 28 ${audioFlags} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -movflags +faststart -t 120 "${outputPath}"`
         
         execSync(cmd, {
             timeout: 90000,
