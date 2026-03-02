@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getDropInfo } from '../../lib/drops.js'
 
 export default {
   command: ['waittimes', 'cooldowns', 'economyinfo', 'einfo'],
@@ -12,7 +13,6 @@ export default {
     if (chatData.adminonly || !chatData.rpg)
       return m.reply(`✎ Estos comandos están desactivados en este grupo.`)
 
-    // CORRECCIÓN: Usuario Global + Resolución LID/JID
     const userId = await resolveLidToRealJid(m.sender, client, m.chat);
     const user = db.users[userId]
     if (!user) return m.reply("⚠ Usuario no encontrado en la base de datos global.")
@@ -37,6 +37,7 @@ export default {
     }
 
     const formatTime = (ms) => {
+      if (ms <= 0) return '✅ *Listo*'
       const totalSeconds = Math.floor(ms / 1000)
       const days = Math.floor(totalSeconds / 86400)
       const hours = Math.floor((totalSeconds % 86400) / 3600)
@@ -44,34 +45,70 @@ export default {
       const seconds = totalSeconds % 60
 
       const parts = []
-      if (days > 0) parts.push(`${days} d`)
-      if (hours > 0) parts.push(`${hours} h`)
-      if (minutes > 0) parts.push(`${minutes} m`)
-      if (seconds > 0) parts.push(`${seconds} s`)
-      return parts.length ? parts.join(', ') : 'Ahora.'
+      if (days > 0) parts.push(`${days}d`)
+      if (hours > 0) parts.push(`${hours}h`)
+      if (minutes > 0) parts.push(`${minutes}m`)
+      if (seconds > 0) parts.push(`${seconds}s`)
+      return `⏳ *${parts.join(' ')}*`
     }
 
     const coins = user.coins || 0
+    const bank = user.bank || 0
+    const health = user.health ?? 100
     const name = user.name || userId.split('@')[0]
     const currency = global.db.data.settings[botId]?.currency || 'Coins'
 
-    const mensaje = `✿ Usuario \`<${name}>\`
+    // ═══ INFO DE DROPS ═══
+    let dropSection = ''
+    try {
+      const dropInfo = getDropInfo(chatId)
+      if (dropInfo) {
+        if (dropInfo.dropActivo) {
+          dropSection = `\n│\n│  🎁 *— DROPS —*\n│  🔴 *¡HAY UN DROP ACTIVO AHORA!*\n│  > Escribe *#drop* para reclamarlo`
+        } else if (dropInfo.esDia) {
+          const pendientes = dropInfo.franjasPendientes
+          if (pendientes.length > 0) {
+            const franjasList = pendientes.map(f => `${f.emoji} ${f.label} (${f.horaInicio}:00-${f.horaFin}:00)`).join('\n│  ')
+            dropSection = `\n│\n│  🎁 *— DROPS —*\n│  🟢 *¡Hoy es día de drops!*\n│  Pendientes:\n│  ${franjasList}`
+          } else {
+            dropSection = `\n│\n│  🎁 *— DROPS —*\n│  ✅ *Todos los drops de hoy enviados*\n│  Próximo ciclo en *3 días*`
+          }
+        } else {
+          dropSection = `\n│\n│  🎁 *— DROPS —*\n│  ⏳ Próximo día de drops: *${formatTime(dropInfo.proximoCiclo).replace('⏳ ', '').replace(/\*/g, '')}*`
+        }
+      }
+    } catch {}
 
-ⴵ Work » *${formatTime(cooldowns.work)}*
-ⴵ Crime » *${formatTime(cooldowns.crime)}*
-ⴵ Daily » *${formatTime(cooldowns.daily)}*
-ⴵ Mine » *${formatTime(cooldowns.mine)}*
-ⴵ Ritual » *${formatTime(cooldowns.ritual)}*
-ⴵ Ruleta » *${formatTime(cooldowns.rt)}*
-ⴵ Slut » *${formatTime(cooldowns.slut)}*
-ⴵ Steal » *${formatTime(cooldowns.steal)}*
-ⴵ Ppt » *${formatTime(cooldowns.ppt)}*
-ⴵ Fish » *${formatTime(cooldowns.fish)}*
-ⴵ Explorar » *${formatTime(cooldowns.explore)}*
-ⴵ Weekly » *${formatTime(cooldowns.weekly)}*
-ⴵ Monthly » *${formatTime(cooldowns.monthly)}*
-
-⛁ Coins totales » ¥${coins.toLocaleString()} ${currency}`
+    const mensaje = `╭─── ⋆🐉⋆ ───
+│  🐲 *Cooldowns de ${name}*
+├───────────────
+│
+│  ⚔️ *— ACCIONES —*
+│  ⴵ Work » ${formatTime(cooldowns.work)}
+│  ⴵ Crime » ${formatTime(cooldowns.crime)}
+│  ⴵ Steal » ${formatTime(cooldowns.steal)}
+│  ⴵ Mine » ${formatTime(cooldowns.mine)}
+│  ⴵ Fish » ${formatTime(cooldowns.fish)}
+│  ⴵ Explorar » ${formatTime(cooldowns.explore)}
+│  ⴵ Slut » ${formatTime(cooldowns.slut)}
+│
+│  🎰 *— JUEGOS —*
+│  ⴵ Ruleta » ${formatTime(cooldowns.rt)}
+│  ⴵ Ppt » ${formatTime(cooldowns.ppt)}
+│  ⴵ Ritual » ${formatTime(cooldowns.ritual)}
+│
+│  📅 *— RECOMPENSAS —*
+│  ⴵ Daily » ${formatTime(cooldowns.daily)}
+│  ⴵ Weekly » ${formatTime(cooldowns.weekly)}
+│  ⴵ Monthly » ${formatTime(cooldowns.monthly)}
+│${dropSection}
+│
+│  💼 *— ESTADO —*
+│  ⛁ Coins » *¥${coins.toLocaleString()} ${currency}*
+│  🏦 Banco » *¥${bank.toLocaleString()} ${currency}*
+│  💔 Salud » *${health} HP*
+╰─── ⋆🐲⋆ ───
+> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`
 
     await client.sendMessage(chatId, {
       text: mensaje
