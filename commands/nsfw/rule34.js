@@ -160,12 +160,23 @@ export default {
                             }, { quoted: m })
                         }
                     } else if (mediaType === 'gif') {
-                        // Enviar GIF como gifPlayback (se ve animado en WhatsApp)
-                        await client.sendMessage(m.chat, {
-                            video: { url: fileUrl },
-                            gifPlayback: true,
-                            caption: `🔥 *ID:* ${post.id}`
-                        }, { quoted: m })
+                        // Convertir GIF a MP4 y enviar con gifPlayback
+                        try {
+                            const buffer = await convertToMp4(fileUrl)
+                            await client.sendMessage(m.chat, {
+                                video: buffer,
+                                mimetype: 'video/mp4',
+                                gifPlayback: true,
+                                caption: `🔥 *ID:* ${post.id}`
+                            }, { quoted: m })
+                        } catch (convErr) {
+                            console.log(`[R34] Error convirtiendo GIF ${post.id}:`, convErr.message)
+                            // Fallback: enviar como imagen
+                            await client.sendMessage(m.chat, {
+                                image: { url: fileUrl },
+                                caption: `🔥 *ID:* ${post.id} (GIF)`
+                            }, { quoted: m })
+                        }
                     } else {
                         await client.sendMessage(m.chat, {
                             image: { url: fileUrl },
@@ -194,7 +205,9 @@ export default {
  */
 async function pahealSearch(tag, limit = 100) {
     try {
-        const url = `https://rule34.paheal.net/api/danbooru/find_posts?tags=${encodeURIComponent(tag)}&limit=${limit}`
+        // Escapar cada tag individualmente pero mantener el + como separador de tags
+        const encodedTag = tag.split('+').map(t => encodeURIComponent(t)).join('+')
+        const url = `https://rule34.paheal.net/api/danbooru/find_posts?tags=${encodedTag}&limit=${limit}`
         const res = await fetch(url)
         if (!res.ok) return []
         const xml = await res.text()
