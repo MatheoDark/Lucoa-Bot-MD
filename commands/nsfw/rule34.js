@@ -146,11 +146,10 @@ export default {
                             caption: `🔥 *ID:* ${post.id} (WebM - abrir con reproductor)`
                         }, { quoted: m })
                     } else if (mediaType === 'gif') {
-                        // Enviar como video normal para que se pueda descargar
+                        // Enviar GIF como imagen animada (WhatsApp lo soporta y permite descargarlo)
                         await client.sendMessage(m.chat, {
-                            video: { url: fileUrl },
-                            mimetype: 'video/mp4',
-                            caption: `🔥 *ID:* ${post.id}`
+                            image: { url: fileUrl },
+                            caption: `🔥 *ID:* ${post.id} (GIF)`
                         }, { quoted: m })
                     } else {
                         await client.sendMessage(m.chat, {
