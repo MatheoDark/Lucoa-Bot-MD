@@ -17,53 +17,104 @@ export default {
 
         if (!text) return m.reply(`🐲 Falta el nombre. (◕ᴗ◕✿)\n> Ejemplo: *${usedPrefix + command} lucoa*`)
 
-        const tags = text.trim().replace(/\s+/g, '_').toLowerCase()
-        m.reply('🔎 *Buscando Pack (5) en Rule34...* (◕ᴗ◕✿)')
+        const input = text.trim().toLowerCase()
+        const words = input.split(/\s+/)
+        
+        // Detectar si el usuario quiere solo videos/imágenes
+        const videoKeywords = ['video', 'videos', 'vid', 'mp4', 'webm', 'animated', 'animado']
+        const imageKeywords = ['imagen', 'imagenes', 'img', 'image', 'images', 'pic', 'png', 'jpg']
+        
+        let filterType = 'all' // 'video', 'image', or 'all'
+        const searchWords = []
+        
+        for (const word of words) {
+            if (videoKeywords.includes(word)) {
+                filterType = 'video'
+            } else if (imageKeywords.includes(word)) {
+                filterType = 'image'
+            } else {
+                searchWords.push(word)
+            }
+        }
+        
+        if (searchWords.length === 0) {
+            return m.reply(`🐲 Falta el nombre del personaje. (◕ᴗ◕✿)\n> Ejemplo: *${usedPrefix + command} lucoa*`)
+        }
+
+        const filterLabel = filterType === 'video' ? ' (Videos)' : filterType === 'image' ? ' (Imágenes)' : ''
+        m.reply(`🔎 *Buscando Pack (5) en Rule34${filterLabel}...* (◕ᴗ◕✿)`)
 
         try {
             let posts = []
 
-            // 1. Búsqueda directa por tag via API JSON
-            posts = await r34ApiSearch(tags, 100)
+            // 1. Intentar con todos los tags juntos como un solo tag (ej: mushoku_tensei)
+            const combinedTag = searchWords.join('_')
+            posts = await pahealSearch(combinedTag, 100)
 
-            // 2. Si no hay resultados, intentar con wildcard (tag*)
-            if (posts.length === 0) {
-                posts = await r34ApiSearch(`${tags}*`, 100)
-            }
-
-            // 3. Si sigue sin resultados, usar autocomplete para encontrar el tag correcto
-            if (posts.length === 0) {
-                const suggestedTag = await r34Autocomplete(tags)
-                if (suggestedTag) {
-                    posts = await r34ApiSearch(suggestedTag, 100)
+            // 2. Si no hay resultados y hay múltiples palabras, probar solo la primera
+            if (posts.length === 0 && searchWords.length > 1) {
+                for (const word of searchWords) {
+                    posts = await pahealSearch(word, 100)
+                    if (posts.length > 0) break
                 }
             }
 
+            // 3. Último recurso: scraping directo de rule34.xxx
             if (posts.length === 0) {
-                return m.reply(`🐲 No encontré nada para: *${tags}* (╥﹏╥)\n> Intenta usar el nombre en inglés.`)
+                posts = await r34Scrape(combinedTag)
+            }
+            if (posts.length === 0 && searchWords.length > 1) {
+                posts = await r34Scrape(searchWords[0])
+            }
+
+            if (posts.length === 0) {
+                return m.reply(`🐲 No encontré nada para: *${combinedTag}* (╥﹏╥)\n> Intenta usar el nombre en inglés.`)
+            }
+
+            // Filtrar por tipo si el usuario lo especificó
+            let filtered = posts.filter(p => p.file_url)
+            if (filterType === 'video') {
+                const videoFiltered = filtered.filter(p => getMediaType(p) === 'video' || getMediaType(p) === 'gif')
+                if (videoFiltered.length > 0) filtered = videoFiltered
+                else m.reply('⚠️ No encontré videos, enviando imágenes...')
+            } else if (filterType === 'image') {
+                const imgFiltered = filtered.filter(p => getMediaType(p) === 'image')
+                if (imgFiltered.length > 0) filtered = imgFiltered
             }
 
             // --- MODO PACK: 5 AL AZAR ---
             const count = 5
-            const selected = posts
-                .filter(p => p.file_url)
+            const selected = filtered
                 .sort(() => 0.5 - Math.random())
                 .slice(0, count)
 
-            console.log(`[R34] Enviando pack de ${selected.length} archivos para "${tags}"`)
+            console.log(`[R34] Enviando pack de ${selected.length} archivos para "${combinedTag}" (filtro: ${filterType})`)
 
             for (const post of selected) {
                 try {
                     let fileUrl = post.file_url
                     if (fileUrl.startsWith('//')) fileUrl = 'https:' + fileUrl
 
-                    const cleanUrl = fileUrl.split('?')[0].toLowerCase()
-                    const isVideo = cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.mov')
+                    let mediaType = getMediaType(post)
+                    
+                    // Si no se pudo detectar por nombre, intentar HEAD request
+                    if (mediaType === 'unknown') {
+                        mediaType = await detectMediaTypeByHead(fileUrl)
+                    }
 
-                    if (isVideo) {
+                    console.log(`[R34] ID ${post.id}: ${mediaType} -> ${fileUrl}`)
+
+                    if (mediaType === 'video') {
                         await client.sendMessage(m.chat, {
                             video: { url: fileUrl },
                             mimetype: 'video/mp4',
+                            caption: `🔥 *ID:* ${post.id}`
+                        }, { quoted: m })
+                    } else if (mediaType === 'gif') {
+                        await client.sendMessage(m.chat, {
+                            video: { url: fileUrl },
+                            mimetype: 'video/mp4',
+                            gifPlayback: true,
                             caption: `🔥 *ID:* ${post.id}`
                         }, { quoted: m })
                     } else {
@@ -89,42 +140,150 @@ export default {
 }
 
 /**
- * Busca posts en Rule34 usando la API JSON oficial.
- * @param {string} tags - Tags separados por + o _
- * @param {number} limit - Máximo de resultados (hasta 1000)
- * @returns {Promise<Array>} Array de posts
+ * Busca posts en Rule34 Paheal (rule34.paheal.net) - API funcional sin autenticación.
+ * Devuelve un array de objetos { id, file_url, file_name, tags }.
  */
-async function r34ApiSearch(tags, limit = 100) {
+async function pahealSearch(tag, limit = 100) {
     try {
-        const url = `https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tags)}&limit=${limit}`
+        const url = `https://rule34.paheal.net/api/danbooru/find_posts?tags=${encodeURIComponent(tag)}&limit=${limit}`
         const res = await fetch(url)
         if (!res.ok) return []
-        const data = await res.json()
-        // La API devuelve un array directamente o un objeto con .post
-        return Array.isArray(data) ? data : (data?.post || [])
+        const xml = await res.text()
+        
+        // Parsear XML manualmente (lightweight, sin dependencias)
+        const posts = []
+        const tagRegex = /<tag\s+([^>]+)>/g
+        let match
+        while ((match = tagRegex.exec(xml)) !== null) {
+            const attrs = match[1]
+            const id = getAttr(attrs, 'id')
+            const file_url = getAttr(attrs, 'file_url')
+            const file_name = getAttr(attrs, 'file_name')
+            const tags = getAttr(attrs, 'tags')
+            if (file_url) {
+                posts.push({ id, file_url, file_name: file_name || '', tags })
+            }
+        }
+        return posts
     } catch {
         return []
     }
 }
 
 /**
- * Usa el endpoint de autocomplete de Rule34 para encontrar el tag más relevante.
- * Esto resuelve el problema de que "lucoa" no coincida exactamente con "quetzalcoatl_(dragon_maid)" etc.
- * @param {string} query - Texto de búsqueda parcial
- * @returns {Promise<string|null>} El tag sugerido o null
+ * Detecta el tipo de media a partir del file_name y file_url.
+ * Retorna: 'video', 'gif', 'image', o 'unknown'
  */
-async function r34Autocomplete(query) {
+function getMediaType(post) {
+    // Obtener extensión del file_name (más confiable)
+    const name = (post.file_name || '').toLowerCase()
+    const url = (post.file_url || '').toLowerCase()
+    
+    // Extraer extensión limpia del nombre de archivo
+    const extMatch = name.match(/\.(mp4|webm|mov|avi|gif|jpg|jpeg|png|webp|bmp|svg)(\?|$)/i)
+    const ext = extMatch ? extMatch[1] : null
+    
+    // También verificar la URL por si tiene extensión
+    const urlExtMatch = url.match(/\.(mp4|webm|mov|avi|gif|jpg|jpeg|png|webp|bmp|svg)(\?|$)/i)
+    const urlExt = urlExtMatch ? urlExtMatch[1] : null
+    
+    const finalExt = ext || urlExt
+    
+    if (!finalExt) return 'unknown'
+    if (['mp4', 'webm', 'mov', 'avi'].includes(finalExt)) return 'video'
+    if (finalExt === 'gif') return 'gif'
+    return 'image'
+}
+
+/**
+ * Detecta el tipo de media mediante un HEAD request (fallback cuando no hay extensión).
+ */
+async function detectMediaTypeByHead(url) {
     try {
-        const url = `https://ac.rule34.xxx/autocomplete.php?q=${encodeURIComponent(query)}`
-        const res = await fetch(url)
-        if (!res.ok) return null
-        const data = await res.json()
-        // Devuelve array de objetos { label, value }
-        if (Array.isArray(data) && data.length > 0) {
-            return data[0].value || data[0].label || null
-        }
-        return null
+        const res = await fetch(url, { method: 'HEAD', timeout: 5000 })
+        const contentType = res.headers.get('content-type') || ''
+        if (contentType.includes('video')) return 'video'
+        if (contentType.includes('gif')) return 'gif'
+        if (contentType.includes('image')) return 'image'
+        return 'image' // default to image
     } catch {
-        return null
+        return 'image' // default to image on error
     }
+}
+
+/**
+ * Último recurso: scrapea rule34.xxx directamente (HTML).
+ * Puede fallar si Cloudflare bloquea, pero a veces funciona.
+ */
+async function r34Scrape(tag) {
+    try {
+        const import_https = await import('https')
+        const agent = new import_https.default.Agent({ rejectUnauthorized: false, keepAlive: true, family: 4 })
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Cookie': 'resize-notification=1'
+        }
+
+        const searchUrl = `https://rule34.xxx/index.php?page=post&s=list&tags=${encodeURIComponent(tag)}`
+        let res = await fetch(searchUrl, { agent, headers })
+        let html = await res.text()
+
+        // Verificar si Cloudflare bloqueó
+        if (html.includes('Just a moment') || html.includes('challenge-platform')) return []
+
+        let idMatch = html.match(/index\.php\?page=post&s=view&id=(\d+)/g)
+        if (!idMatch || idMatch.length === 0) return []
+
+        let ids = idMatch.map(link => link.match(/id=(\d+)/)[1])
+        ids = [...new Set(ids)]
+        if (ids.length === 0) return []
+
+        const posts = []
+        // Obtener URLs de los posts individuales (máx 10 para no sobrecargar)
+        const selectedIds = ids.sort(() => 0.5 - Math.random()).slice(0, 10)
+
+        for (const id of selectedIds) {
+            try {
+                const postUrl = `https://rule34.xxx/index.php?page=post&s=view&id=${id}`
+                const resPost = await fetch(postUrl, { agent, headers })
+                const htmlPost = await resPost.text()
+                let fileUrl = null
+                let fileName = ''
+
+                // Intentar extraer URL original
+                const originalMatch = htmlPost.match(/href="([^"]+)">Original image/i)
+                if (originalMatch) fileUrl = originalMatch[1]
+
+                if (!fileUrl) {
+                    const videoMatch = htmlPost.match(/<source src="([^"]+)"/i)
+                    if (videoMatch) fileUrl = videoMatch[1]
+                }
+
+                if (!fileUrl) {
+                    const imgMatch = htmlPost.match(/id="image"[^>]+src="([^"]+)"/i) || htmlPost.match(/src="([^"]+)"[^>]+id="image"/i)
+                    if (imgMatch) fileUrl = imgMatch[1]
+                }
+
+                if (fileUrl) {
+                    if (fileUrl.startsWith('//')) fileUrl = 'https:' + fileUrl
+                    fileName = fileUrl.split('/').pop() || ''
+                    posts.push({ id, file_url: fileUrl, file_name: fileName, tags: '' })
+                }
+            } catch {
+                continue
+            }
+        }
+
+        return posts
+    } catch {
+        return []
+    }
+}
+
+/** Extrae un atributo de un string de atributos XML */
+function getAttr(attrs, name) {
+    const m = attrs.match(new RegExp(`${name}='([^']*)'`))
+    if (m) return m[1]
+    const m2 = attrs.match(new RegExp(`${name}="([^"]*)"`))
+    return m2 ? m2[1] : null
 }
