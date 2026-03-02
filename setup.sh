@@ -56,8 +56,12 @@ sudo chmod a+rx /usr/local/bin/yt-dlp
 # Forzamos actualización a la versión de desarrollo
 sudo /usr/local/bin/yt-dlp --update-to nightly
 
+# También instalamos via pip como respaldo (útil en VPS sin permisos root)
+echo -e "${YELLOW}🐍 Instalando yt-dlp via pip (respaldo)...${NC}"
+pip install --upgrade yt-dlp 2>/dev/null || pip3 install --upgrade yt-dlp 2>/dev/null || echo -e "${YELLOW}⚠️ pip no disponible, usando solo el binario.${NC}"
+
 if command -v yt-dlp &> /dev/null; then
-    echo -e "${GREEN}✅ yt-dlp instalado y actualizado.${NC}"
+    echo -e "${GREEN}✅ yt-dlp instalado: $(yt-dlp --version)${NC}"
 else
     echo -e "${RED}❌ Error instalando yt-dlp.${NC}"
 fi

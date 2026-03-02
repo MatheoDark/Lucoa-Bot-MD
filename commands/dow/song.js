@@ -57,6 +57,39 @@ function fixVideoWithFFmpeg(inputPath) {
 }
 
 // ==========================================
+// 🔄 YT-DLP LOCAL (fallback confiable)
+// ==========================================
+function ytDlpDownload(url, isAudio) {
+    return new Promise((resolve, reject) => {
+        const tmpDir = path.join(process.cwd(), 'tmp')
+        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
+        const outputFile = path.join(tmpDir, `${Date.now()}_ytdlp`)
+
+        let cmd
+        if (isAudio) {
+            cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings --quiet "${url}"`
+        } else {
+            cmd = `yt-dlp -f "bv*[height<=720]+ba/b[height<=720]/best" --merge-output-format mp4 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings --quiet "${url}"`
+        }
+
+        exec(`yt-dlp --get-title --no-warnings "${url}"`, { timeout: 15000 }, (titleErr, titleOut) => {
+            const title = titleOut?.trim() || 'Sin título'
+
+            exec(cmd, { timeout: 120000 }, (error, stdout, stderr) => {
+                if (error) return reject(new Error(`yt-dlp: ${error.message}`))
+
+                const ext = isAudio ? 'mp3' : 'mp4'
+                const files = fs.readdirSync(tmpDir).filter(f => f.startsWith(path.basename(outputFile)))
+                if (files.length === 0) return reject(new Error('yt-dlp: No se generó archivo'))
+
+                const finalFile = path.join(tmpDir, files[0])
+                resolve({ localPath: finalFile, title, source: 'yt-dlp' })
+            })
+        })
+    })
+}
+
+// ==========================================
 // 🔄 DESCARGA CON MÚLTIPLES FALLBACKS
 // ==========================================
 async function getDownloadUrl(url, isAudio) {
@@ -68,6 +101,7 @@ async function getDownloadUrl(url, isAudio) {
         if (res.status && res.download?.status && res.download?.url) {
             return { dl: res.download.url, title: res.metadata?.title, source: 'SaveTube' }
         }
+        errors.push('SaveTube: respuesta sin URL')
     } catch (e) { errors.push(`SaveTube: ${e.message}`) }
 
     // 2. Vreden API
@@ -76,9 +110,10 @@ async function getDownloadUrl(url, isAudio) {
         if (res?.status && res?.download?.url) {
             return { dl: res.download.url, title: res.metadata?.title, source: 'Vreden' }
         }
+        errors.push('Vreden: respuesta sin URL')
     } catch (e) { errors.push(`Vreden: ${e.message}`) }
 
-    // 3. ogmp3 (último fallback)
+    // 3. ogmp3 (fallback)
     try {
         const format = isAudio ? '320' : '720'
         const type = isAudio ? 'audio' : 'video'
@@ -86,8 +121,18 @@ async function getDownloadUrl(url, isAudio) {
         if (res.status && res.result?.download) {
             return { dl: res.result.download, title: res.result.title, source: 'ogmp3' }
         }
+        errors.push('ogmp3: respuesta sin URL')
     } catch (e) { errors.push(`ogmp3: ${e.message}`) }
 
+    // 4. yt-dlp local (último y más confiable)
+    try {
+        const result = await ytDlpDownload(url, isAudio)
+        if (result.localPath) {
+            return { localPath: result.localPath, title: result.title, source: 'yt-dlp' }
+        }
+    } catch (e) { errors.push(`yt-dlp: ${e.message}`) }
+
+    console.error('[ERROR] Todas las APIs fallaron:', errors)
     throw new Error('Todas las APIs fallaron. Intenta de nuevo más tarde.')
 }
 
@@ -129,8 +174,11 @@ export default {
         await m.react(isAudio ? '🎧' : '🎬')
 
         try {
-            const { dl, source } = await getDownloadUrl(url, isAudio)
-            if (!dl) return m.reply('❌ No se pudo obtener el enlace de descarga.')
+            const result = await getDownloadUrl(url, isAudio)
+            if (!result.dl && !result.localPath) return m.reply('❌ No se pudo obtener el enlace de descarga.')
+
+            const source = result.source
+            title = result.title || title
 
             // Miniatura
             let thumbBuffer = null
@@ -143,7 +191,12 @@ export default {
             } catch {}
 
             // Descarga a archivo local
-            let localFilePath = await downloadToLocal(dl, isAudio ? 'mp3' : 'mp4')
+            let localFilePath
+            if (result.localPath) {
+                localFilePath = result.localPath
+            } else {
+                localFilePath = await downloadToLocal(result.dl, isAudio ? 'mp3' : 'mp4')
+            }
 
             // Fix Video si es necesario
             if (isVideo) {
