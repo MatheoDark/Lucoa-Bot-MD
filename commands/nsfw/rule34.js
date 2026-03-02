@@ -303,8 +303,8 @@ async function convertToMp4(url, originalName = '') {
     else if (nameLC.includes('.webm')) inputExt = 'webm'
     else if (nameLC.includes('.mp4')) inputExt = 'mp4'
     
-    const inputPath = join(tmpDir, `${id}.${inputExt}`)
-    const outputPath = join(tmpDir, `${id}.mp4`)
+    const inputPath = join(tmpDir, `${id}_in.${inputExt}`)
+    const outputPath = join(tmpDir, `${id}_out.mp4`)
     
     try {
         // Descargar el archivo
