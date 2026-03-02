@@ -1,4 +1,8 @@
 import fetch from 'node-fetch'
+import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from 'fs'
+import { execSync } from 'child_process'
+import { join } from 'path'
+import os from 'os'
 
 export default {
     command: ['r34', 'rule34'],
@@ -91,18 +95,18 @@ export default {
             // Filtrar por tipo si el usuario lo especificó
             let filtered = posts.filter(p => p.file_url)
             if (filterType === 'video') {
-                // Preferir MP4/GIF sobre WebM (WhatsApp no reproduce WebM en móvil)
-                const mp4Filtered = filtered.filter(p => {
+                // Incluir todo lo animado: video, gif, webm
+                const animatedFiltered = filtered.filter(p => {
                     const t = getMediaType(p)
-                    return t === 'video' || t === 'gif'
+                    return t === 'video' || t === 'gif' || t === 'webm'
                 })
-                if (mp4Filtered.length > 0) {
-                    filtered = mp4Filtered
+                if (animatedFiltered.length > 0) {
+                    // Priorizar MP4 > GIF > WebM
+                    const mp4 = animatedFiltered.filter(p => getMediaType(p) === 'video')
+                    if (mp4.length >= 5) filtered = mp4
+                    else filtered = animatedFiltered
                 } else {
-                    // Si solo hay WebM, usarlos como fallback
-                    const webmFiltered = filtered.filter(p => getMediaType(p) === 'webm')
-                    if (webmFiltered.length > 0) filtered = webmFiltered
-                    else m.reply('⚠️ No encontré videos, enviando imágenes...')
+                    m.reply('⚠️ No encontré videos, enviando imágenes...')
                 }
             } else if (filterType === 'image') {
                 const imgFiltered = filtered.filter(p => getMediaType(p) === 'image')
@@ -138,18 +142,29 @@ export default {
                             caption: `🔥 *ID:* ${post.id}`
                         }, { quoted: m })
                     } else if (mediaType === 'webm') {
-                        // WebM no se reproduce en WhatsApp móvil, enviar como documento
-                        await client.sendMessage(m.chat, {
-                            document: { url: fileUrl },
-                            mimetype: 'video/webm',
-                            fileName: `r34_${post.id}.webm`,
-                            caption: `🔥 *ID:* ${post.id} (WebM - abrir con reproductor)`
-                        }, { quoted: m })
+                        // Convertir WebM a MP4 con ffmpeg para que funcione en móvil
+                        try {
+                            const buffer = await convertToMp4(fileUrl)
+                            await client.sendMessage(m.chat, {
+                                video: buffer,
+                                mimetype: 'video/mp4',
+                                caption: `🔥 *ID:* ${post.id}`
+                            }, { quoted: m })
+                        } catch (convErr) {
+                            console.log(`[R34] Error convirtiendo WebM ${post.id}:`, convErr.message)
+                            // Fallback: enviar como video directo
+                            await client.sendMessage(m.chat, {
+                                video: { url: fileUrl },
+                                mimetype: 'video/mp4',
+                                caption: `🔥 *ID:* ${post.id}`
+                            }, { quoted: m })
+                        }
                     } else if (mediaType === 'gif') {
-                        // Enviar GIF como imagen animada (WhatsApp lo soporta y permite descargarlo)
+                        // Enviar GIF como gifPlayback (se ve animado en WhatsApp)
                         await client.sendMessage(m.chat, {
-                            image: { url: fileUrl },
-                            caption: `🔥 *ID:* ${post.id} (GIF)`
+                            video: { url: fileUrl },
+                            gifPlayback: true,
+                            caption: `🔥 *ID:* ${post.id}`
                         }, { quoted: m })
                     } else {
                         await client.sendMessage(m.chat, {
@@ -243,6 +258,39 @@ async function detectMediaTypeByHead(url) {
         return 'image' // default to image
     } catch {
         return 'image' // default to image on error
+    }
+}
+
+/**
+ * Descarga un WebM y lo convierte a MP4 con ffmpeg.
+ * Retorna un Buffer del MP4 resultante.
+ */
+async function convertToMp4(url) {
+    const tmpDir = join(os.tmpdir(), 'r34_convert')
+    if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true })
+    
+    const id = Date.now() + '_' + Math.random().toString(36).slice(2)
+    const inputPath = join(tmpDir, `${id}.webm`)
+    const outputPath = join(tmpDir, `${id}.mp4`)
+    
+    try {
+        // Descargar el archivo
+        const res = await fetch(url)
+        const buffer = Buffer.from(await res.arrayBuffer())
+        writeFileSync(inputPath, buffer)
+        
+        // Convertir con ffmpeg
+        execSync(`ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart -t 120 "${outputPath}"`, {
+            timeout: 60000,
+            stdio: 'pipe'
+        })
+        
+        const mp4Buffer = readFileSync(outputPath)
+        return mp4Buffer
+    } finally {
+        // Limpiar archivos temporales
+        try { unlinkSync(inputPath) } catch {}
+        try { unlinkSync(outputPath) } catch {}
     }
 }
 
