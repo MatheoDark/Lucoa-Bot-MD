@@ -38,7 +38,14 @@ export default {
         }
         
         if (searchWords.length === 0) {
-            return m.reply(`🐲 Falta el nombre del personaje. (◕ᴗ◕✿)\n> Ejemplo: *${usedPrefix + command} lucoa*`)
+            // Si solo escribió "video"/"imagen" sin personaje, buscar contenido aleatorio con ese tag
+            if (filterType === 'video') {
+                searchWords.push('animated')
+            } else if (filterType === 'image') {
+                return m.reply(`🐲 Falta el nombre del personaje. (◕ᴗ◕✿)\n> Ejemplo: *${usedPrefix + command} lucoa*`)
+            } else {
+                return m.reply(`🐲 Falta el nombre del personaje. (◕ᴗ◕✿)\n> Ejemplo: *${usedPrefix + command} lucoa*`)
+            }
         }
 
         const filterLabel = filterType === 'video' ? ' (Videos)' : filterType === 'image' ? ' (Imágenes)' : ''
@@ -49,7 +56,17 @@ export default {
 
             // 1. Intentar con todos los tags juntos como un solo tag (ej: mushoku_tensei)
             const combinedTag = searchWords.join('_')
-            posts = await pahealSearch(combinedTag, 100)
+
+            // Si el usuario pidió videos, buscar directamente con tag "animated" en Paheal
+            if (filterType === 'video') {
+                posts = await pahealSearch(`${combinedTag}+animated`, 100)
+                if (posts.length === 0) posts = await pahealSearch(`${combinedTag}+webm`, 100)
+            }
+
+            // Búsqueda normal (o si no encontró videos)
+            if (posts.length === 0) {
+                posts = await pahealSearch(combinedTag, 100)
+            }
 
             // 2. Si no hay resultados y hay múltiples palabras, probar solo la primera
             if (posts.length === 0 && searchWords.length > 1) {
@@ -74,7 +91,10 @@ export default {
             // Filtrar por tipo si el usuario lo especificó
             let filtered = posts.filter(p => p.file_url)
             if (filterType === 'video') {
-                const videoFiltered = filtered.filter(p => getMediaType(p) === 'video' || getMediaType(p) === 'gif')
+                const videoFiltered = filtered.filter(p => {
+                    const t = getMediaType(p)
+                    return t === 'video' || t === 'gif'
+                })
                 if (videoFiltered.length > 0) filtered = videoFiltered
                 else m.reply('⚠️ No encontré videos, enviando imágenes...')
             } else if (filterType === 'image') {
@@ -179,13 +199,13 @@ function getMediaType(post) {
     const name = (post.file_name || '').toLowerCase()
     const url = (post.file_url || '').toLowerCase()
     
-    // Extraer extensión limpia del nombre de archivo
-    const extMatch = name.match(/\.(mp4|webm|mov|avi|gif|jpg|jpeg|png|webp|bmp|svg)(\?|$)/i)
-    const ext = extMatch ? extMatch[1] : null
+    // Extraer extensión del nombre de archivo (buscar .ext en cualquier posición)
+    const extMatch = name.match(/\.(mp4|webm|mov|avi|gif|jpg|jpeg|png|webp|bmp|svg)(?:\s|\?|$|[^a-z])/i)
+    const ext = extMatch ? extMatch[1].toLowerCase() : null
     
     // También verificar la URL por si tiene extensión
-    const urlExtMatch = url.match(/\.(mp4|webm|mov|avi|gif|jpg|jpeg|png|webp|bmp|svg)(\?|$)/i)
-    const urlExt = urlExtMatch ? urlExtMatch[1] : null
+    const urlExtMatch = url.match(/\.(mp4|webm|mov|avi|gif|jpg|jpeg|png|webp|bmp|svg)(?:\?|$)/i)
+    const urlExt = urlExtMatch ? urlExtMatch[1].toLowerCase() : null
     
     const finalExt = ext || urlExt
     
