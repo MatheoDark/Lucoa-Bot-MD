@@ -23,30 +23,39 @@ process.on('unhandledRejection', (err) => {
 })
 
 // 🔥 MANEJO DE SEÑALES PM2 - Cierre limpio sin perder sesión
-process.on('SIGTERM', () => {
-    console.log(chalk.yellow('📴 PM2 SIGTERM recibido. Cerrando limpiamente...'))
+// 🔧 FIX: Shutdown asíncrono que guarda credenciales antes de cerrar
+let _isShuttingDown = false
+async function gracefulShutdown(signal) {
+    if (_isShuttingDown) return // Evitar doble ejecución
+    _isShuttingDown = true
+    console.log(chalk.yellow(`📴 ${signal} recibido. Cerrando limpiamente...`))
     try {
+        // 🔧 CRÍTICO: Guardar DB antes de cerrar
+        if (global._gracefulSaveDB) {
+            try { global._gracefulSaveDB() } catch {}
+        }
+        // 🔧 CRÍTICO: Guardar credenciales pendientes antes de cerrar
+        if (global._saveCreds) {
+            try {
+                await global._saveCreds()
+                console.log(chalk.green('✅ Credenciales guardadas.'))
+            } catch (e) {
+                console.error('⚠️ Error guardando credenciales:', e.message)
+            }
+        }
         if (global.client) {
             global.client.ev.removeAllListeners()
-            global.client.ws?.close()
-            global.client.end?.()
+            try { global.client.ws?.close() } catch {}
+            try { global.client.end?.() } catch {}
         }
+        // 🔧 FIX: Esperar a que el WebSocket cierre correctamente
+        await new Promise(r => setTimeout(r, 2000))
     } catch {}
     console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
     process.exit(0)
-})
-process.on('SIGINT', () => {
-    console.log(chalk.yellow('📴 SIGINT recibido. Cerrando limpiamente...'))
-    try {
-        if (global.client) {
-            global.client.ev.removeAllListeners()
-            global.client.ws?.close()
-            global.client.end?.()
-        }
-    } catch {}
-    console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
-    process.exit(0)
-})
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
 // --- 1. CONFIGURACIÓN INICIAL ---
 const __filename = fileURLToPath(import.meta.url)
@@ -467,9 +476,10 @@ async function startBot() {
       // Ignorar errores al cerrar cliente viejo
     }
     global.client = null
-    // 🔧 FIX: Esperar 5s (era 3s) para que el socket anterior se libere y WhatsApp
-    // no detecte una doble conexión (causa principal de 515 en VPS)
-    await new Promise(r => setTimeout(r, 5000))
+    // 🔧 FIX: Esperar 8s para que el socket anterior se libere completamente.
+    // WhatsApp necesita tiempo para registrar el cierre del socket antes de aceptar
+    // una nueva conexión. Sin esto, devuelve 515 (Stream Errored) por doble conexión.
+    await new Promise(r => setTimeout(r, 8000))
   }
 
   await loadDatabaseSafe()
@@ -498,7 +508,7 @@ async function startBot() {
       // Intentar devolver mensaje del store si existe
       return undefined
     },
-    keepAliveIntervalMs: 20000,      // 20s - margen seguro antes del timeout de 30s
+    keepAliveIntervalMs: 25000,      // 25s - margen más amplio para VPS lentos
     maxMsgRetryCount: 3,             // ← ERA 5, menos reintentos = menos presión
     connectTimeoutMs: 60000,         // ← ERA 20s, ahora 60s para VPS lentos
     emitOwnEvents: true,
@@ -528,6 +538,8 @@ async function startBot() {
   global.client = client
   client.public = true
 
+  // 🔧 FIX: Exponer saveCreds globalmente para el shutdown handler
+  global._saveCreds = saveCreds
   client.ev.on("creds.update", saveCreds)
 
   if (!client.authState.creds.registered && LOGIN_METHOD === '2') {
@@ -563,24 +575,34 @@ async function startBot() {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
       console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
       
-      // � FIX: Error 401 NO siempre significa logout real.
-      // "Connection Failure" con 401 puede ser temporal.
-      // Solo purgar sesión después de 3 intentos consecutivos fallidos.
+      // 🔧 FIX v2: Error 401 NO siempre significa logout real.
+      // "Connection Failure" con 401 puede ser temporal (tokens desactualizados).
+      // Estrategia: 1) Reintentar tal cual, 2) Restaurar backup, 3) Purgar solo si nada funciona.
       if (reason === DisconnectReason.loggedOut) {
         disconnectTracker.consecutive401++
         const errorMsg = String(lastDisconnect?.error?.message || lastDisconnect?.error || '')
         const isRealLogout = errorMsg.toLowerCase().includes('logged out')
         
-        if (isRealLogout || disconnectTracker.consecutive401 >= 3) {
+        if (isRealLogout || disconnectTracker.consecutive401 >= 5) {
           log.warn(`⚠️ Sesión cerrada confirmada (intento ${disconnectTracker.consecutive401}). Se requiere nueva vinculación.`)
           purgeSession()
           disconnectTracker.consecutive401 = 0
           disconnectTracker.consecutiveBadSession = 0
           LOGIN_METHOD = await uPLoader()
           startBot()
+        } else if (disconnectTracker.consecutive401 === 3) {
+          // 🔧 FIX: En el intento 3, intentar restaurar backup de sesión
+          log.warn(`⚠️ Error 401 (intento 3/5). Intentando restaurar backup de sesión...`)
+          const restored = restoreSession()
+          if (restored) {
+            log.info('♻️ Backup restaurado. Reconectando en 15s...')
+          } else {
+            log.warn('⚠️ Sin backup disponible. Reintentando con sesión actual...')
+          }
+          delayedReconnect(15000, `Error 401 - restaurando backup`)
         } else {
-          log.warn(`⚠️ Error 401 (intento ${disconnectTracker.consecutive401}/3). Puede ser temporal. Reintentando en 10s...`)
-          delayedReconnect(10000, `Error 401 - intento ${disconnectTracker.consecutive401}/3`)
+          log.warn(`⚠️ Error 401 (intento ${disconnectTracker.consecutive401}/5). Puede ser temporal. Reintentando en 15s...`)
+          delayedReconnect(15000, `Error 401 - intento ${disconnectTracker.consecutive401}/5`)
         }
       }
       // badSession (500) - Intentar reconectar antes de borrar
@@ -624,14 +646,17 @@ async function startBot() {
       // ERROR 515: Stream Errored (Muy común en VPS) - CON BACKOFF EXPONENCIAL
       else if (reason === 515) {
         disconnectTracker.consecutive515++
-        // Backoff exponencial: 15s, 30s, 60s, 120s, 240s, max 5min
-        const backoff515 = Math.min(15000 * Math.pow(2, disconnectTracker.consecutive515 - 1), 300000)
+        // 🔧 FIX v2: Guardar credenciales antes de reconectar (previene 401 post-515)
+        if (global._saveCreds) {
+          try { await global._saveCreds() } catch {}
+        }
+        // Backoff exponencial más conservador: 20s, 40s, 80s, 160s, max 5min
+        const backoff515 = Math.min(20000 * Math.pow(2, disconnectTracker.consecutive515 - 1), 300000)
         console.log(chalk.yellow(`⚠️ Error 515: Stream Errored (intento ${disconnectTracker.consecutive515}). Esperando ${Math.round(backoff515 / 1000)}s...`))
         
-        // Después de 8 intentos consecutivos, esperar 15 minutos
-        if (disconnectTracker.consecutive515 >= 8) {
+        // Después de 6 intentos consecutivos, esperar 15 minutos
+        if (disconnectTracker.consecutive515 >= 6) {
           console.log(chalk.red('🛑 Demasiados 515 consecutivos. Esperando 15 minutos antes de reintentar.'))
-          // Backup de sesión por seguridad
           backupSession()
           disconnectTracker._reconnectTimer = setTimeout(() => {
             disconnectTracker._reconnectTimer = null

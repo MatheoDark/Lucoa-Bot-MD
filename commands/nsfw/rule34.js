@@ -138,10 +138,13 @@ export default {
                     if (mediaType === 'video') {
                         // Re-codificar MP4 para asegurar compatibilidad con WhatsApp móvil
                         try {
-                            const buffer = await convertToMp4(fileUrl, post.file_name)
+                            const { buffer, hasAudio } = await convertToMp4(fileUrl, post.file_name)
+                            const isGif = !hasAudio
+                            if (isGif) console.log(`[R34] ID ${post.id}: MP4 sin audio → enviando como GIF`)
                             await client.sendMessage(m.chat, {
                                 video: buffer,
                                 mimetype: 'video/mp4',
+                                ...(isGif ? { gifPlayback: true } : {}),
                                 caption: `🔥 *ID:* ${post.id}`
                             }, { quoted: m })
                         } catch (convErr) {
@@ -156,10 +159,13 @@ export default {
                     } else if (mediaType === 'webm') {
                         // Convertir WebM a MP4 con ffmpeg para que funcione en móvil
                         try {
-                            const buffer = await convertToMp4(fileUrl, post.file_name)
+                            const { buffer, hasAudio } = await convertToMp4(fileUrl, post.file_name)
+                            const isGif = !hasAudio
+                            if (isGif) console.log(`[R34] ID ${post.id}: WebM sin audio → enviando como GIF`)
                             await client.sendMessage(m.chat, {
                                 video: buffer,
                                 mimetype: 'video/mp4',
+                                ...(isGif ? { gifPlayback: true } : {}),
                                 caption: `🔥 *ID:* ${post.id}`
                             }, { quoted: m })
                         } catch (convErr) {
@@ -175,7 +181,7 @@ export default {
                         // WhatsApp NO soporta GIFs nativos — siempre se envían como MP4 con gifPlayback: true
                         // Baileys no convierte formatos, así que hay que convertir GIF → MP4 con ffmpeg
                         try {
-                            const buffer = await convertToMp4(fileUrl, post.file_name)
+                            const { buffer } = await convertToMp4(fileUrl, post.file_name)
                             await client.sendMessage(m.chat, {
                                 video: buffer,
                                 gifPlayback: true,
@@ -309,15 +315,28 @@ async function convertToMp4(url, originalName = '') {
     try {
         // Descargar el archivo
         const res = await fetch(url)
-        const buffer = Buffer.from(await res.arrayBuffer())
-        writeFileSync(inputPath, buffer)
+        const dlBuffer = Buffer.from(await res.arrayBuffer())
+        writeFileSync(inputPath, dlBuffer)
+        
+        // Detectar si el archivo tiene audio con ffprobe
+        let hasAudio = false
+        if (inputExt !== 'gif') {
+            try {
+                const probeOut = execSync(
+                    `ffprobe -v quiet -select_streams a -show_entries stream=codec_type -of csv=p=0 "${inputPath}"`,
+                    { timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
+                ).toString().trim()
+                hasAudio = probeOut.includes('audio')
+            } catch { hasAudio = false }
+        }
         
         // Convertir con ffmpeg - compatible con WhatsApp móvil:
         // - yuv420p: formato de pixel requerido por WhatsApp
         // - scale filter: asegura dimensiones pares (requisito H.264)
-        // - an: sin audio si es GIF (no tiene)
+        // - an: sin audio si es GIF o si el archivo no tiene audio
         // - ignore_loop 0: para GIFs, lee todos los frames sin loop infinito
-        const audioFlags = inputExt === 'gif' ? '-an' : '-c:a aac -b:a 128k'
+        const noAudio = inputExt === 'gif' || !hasAudio
+        const audioFlags = noAudio ? '-an' : '-c:a aac -b:a 128k'
         const inputFlags = inputExt === 'gif' ? '-ignore_loop 0' : ''
         const cmd = `ffmpeg -y ${inputFlags} -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 28 ${audioFlags} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -movflags +faststart -t 120 "${outputPath}"`
         
@@ -327,7 +346,7 @@ async function convertToMp4(url, originalName = '') {
         })
         
         const mp4Buffer = readFileSync(outputPath)
-        return mp4Buffer
+        return { buffer: mp4Buffer, hasAudio }
     } finally {
         // Limpiar archivos temporales
         try { unlinkSync(inputPath) } catch {}
