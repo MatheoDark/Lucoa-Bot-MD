@@ -13,6 +13,7 @@ import gradient from 'gradient-string'
 import loadCommandsAndPlugins from './lib/system/commandLoader.js'
 import initDB from './lib/system/initDB.js'
 import { resolveLidToRealJid } from './lib/utils.js'
+import { getCachedGroupMetadata } from './lib/groupCache.js'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURACIÓN GLOBAL
@@ -358,7 +359,8 @@ export default async (client, m) => {
     let groupAdmins = []
 
     if (isGroup) {
-      metadata = await client.groupMetadata(from).catch(() => null)
+      // 🔧 FIX: Usar cache centralizado en vez de llamar API en cada comando
+      metadata = await getCachedGroupMetadata(client, from)
       groupName = metadata?.subject || ''
       groupAdmins = await getResolvedGroupAdmins(metadata, client, chatId)
     }

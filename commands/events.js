@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import moment from 'moment-timezone'
+import { getCachedGroupMetadata } from '../lib/groupCache.js'
 
 function extractPhoneNumber(participant) {
   const jid = participant?.phoneNumber || participant
@@ -10,7 +11,9 @@ function extractPhoneNumber(participant) {
 export default async (client, m) => {
   client.ev.on('group-participants.update', async (anu) => {
     try {
-      const metadata = await client.groupMetadata(anu.id)
+      // 🔧 FIX: Usar cache centralizado en vez de llamar API directamente
+      const metadata = await getCachedGroupMetadata(client, anu.id)
+      if (!metadata) return
       const chat = global.db.data.chats?.[anu.id] || {}
       
       const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'

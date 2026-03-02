@@ -1,3 +1,5 @@
+import { getCachedGroupMetadata } from '../lib/groupCache.js'
+
 const linkRegex = /(https?:\/\/)?(chat\.whatsapp\.com\/[0-9A-Za-z]{20,24}|whatsapp\.com\/channel\/[0-9A-Za-z]{20,24})/i
 
 const allowedLinks = [
@@ -14,7 +16,8 @@ const joinCommands = [
 export async function before(m, { client }) {
   if (!m.isGroup || !m.text) return
 
-  const groupMetadata = await client.groupMetadata(m.chat).catch(() => null)
+  // 🔧 FIX: Usar cache en vez de llamar a la API en cada mensaje
+  const groupMetadata = await getCachedGroupMetadata(client, m.chat)
   if (!groupMetadata) return
 
   const participants = groupMetadata.participants || []

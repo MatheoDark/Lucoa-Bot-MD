@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url'
 import path from "path"
 import fs from "fs"
 import chalk from "chalk"
+import { invalidateGroupCache } from './lib/groupCache.js'
 
 // 🔥 SISTEMA ANTI-CRASH (VITAL PARA TU VPS)
 // Esto evita que el bot muera si Rule34 o YouTube fallan
@@ -380,6 +381,7 @@ const disconnectTracker = {
   consecutiveBadSession: 0,  // Contador de badSession para no borrar sesión de inmediato
   consecutive401: 0,  // Contador de 401 para no borrar sesión al primer intento
   consecutive515: 0,  // 🔧 FIX: Contador de 515 para backoff exponencial
+  consecutive408: 0,  // 🔧 FIX: Contador de 408 (timedOut) para backoff exponencial
   consecutiveOther: 0, // Contador de otros errores consecutivos
   _reconnectTimer: null // Timer de reconexión activo (evitar duplicados)
 }
@@ -476,10 +478,10 @@ async function startBot() {
       // Ignorar errores al cerrar cliente viejo
     }
     global.client = null
-    // 🔧 FIX: Esperar 8s para que el socket anterior se libere completamente.
+    // 🔧 FIX: Esperar 12s para que el socket anterior se libere completamente.
     // WhatsApp necesita tiempo para registrar el cierre del socket antes de aceptar
-    // una nueva conexión. Sin esto, devuelve 515 (Stream Errored) por doble conexión.
-    await new Promise(r => setTimeout(r, 8000))
+    // una nueva conexión. Sin esto, devuelve 515/408 por doble conexión.
+    await new Promise(r => setTimeout(r, 12000))
   }
 
   await loadDatabaseSafe()
@@ -508,9 +510,10 @@ async function startBot() {
       // Intentar devolver mensaje del store si existe
       return undefined
     },
-    keepAliveIntervalMs: 25000,      // 25s - margen más amplio para VPS lentos
+    keepAliveIntervalMs: 45000,      // 45s - margen amplio para VPS lentos (evita 408)
     maxMsgRetryCount: 3,             // ← ERA 5, menos reintentos = menos presión
-    connectTimeoutMs: 60000,         // ← ERA 20s, ahora 60s para VPS lentos
+    connectTimeoutMs: 90000,         // ← 90s para VPS lentos (evita 408 al conectar)
+    defaultQueryTimeoutMs: 60000,    // ← timeout de queries individuales
     emitOwnEvents: true,
     fireInitQueries: true,
     // 🔧 NUEVO: Ignorar broadcasts de estado (reduce carga en el stream)
@@ -526,11 +529,15 @@ async function startBot() {
   // Actualizar cache de metadatos cuando llegan
   client.ev.on('groups.update', (updates) => {
     for (const update of updates) {
-      if (update.id) groupMetadataCache.delete(update.id)
+      if (update.id) {
+        groupMetadataCache.delete(update.id)
+        invalidateGroupCache(update.id) // Cache centralizado
+      }
     }
   })
   client.ev.on('group-participants.update', ({ id }) => {
     groupMetadataCache.delete(id)
+    invalidateGroupCache(id) // Cache centralizado
   })
 
   patchSendMessage(client)
@@ -668,6 +675,31 @@ async function startBot() {
         
         delayedReconnect(backoff515, `Error 515 - Stream Errored (intento ${disconnectTracker.consecutive515})`)
       } 
+      // ERROR 408: Timed Out (conexión perdida / keepalive sin respuesta)
+      else if (reason === 408 || reason === DisconnectReason.timedOut) {
+        disconnectTracker.consecutive408++
+        // Guardar credenciales antes de reconectar
+        if (global._saveCreds) {
+          try { await global._saveCreds() } catch {}
+        }
+        // Backoff exponencial: 30s, 60s, 120s, 240s, max 5min
+        const backoff408 = Math.min(30000 * Math.pow(2, disconnectTracker.consecutive408 - 1), 300000)
+        console.log(chalk.yellow(`⚠️ Error 408: Timed Out (intento ${disconnectTracker.consecutive408}). Esperando ${Math.round(backoff408 / 1000)}s...`))
+        
+        // Después de 6 intentos consecutivos, esperar 15 minutos
+        if (disconnectTracker.consecutive408 >= 6) {
+          console.log(chalk.red('🛑 Demasiados 408 consecutivos. Esperando 15 minutos antes de reintentar.'))
+          backupSession()
+          disconnectTracker._reconnectTimer = setTimeout(() => {
+            disconnectTracker._reconnectTimer = null
+            disconnectTracker.consecutive408 = 0
+            startBot()
+          }, 900000) // 15 minutos
+          return
+        }
+        
+        delayedReconnect(backoff408, `Error 408 - Timed Out (intento ${disconnectTracker.consecutive408})`)
+      }
       // OTROS ERRORES - con backoff para evitar loops
       else {
         disconnectTracker.consecutiveOther++
@@ -683,15 +715,17 @@ async function startBot() {
       disconnectTracker.consecutive401 = 0
       disconnectTracker.consecutiveOther = 0
       
-      // Solo resetear contadores de stream después de estar estable 5 minutos
+      // Solo resetear contadores de stream/timeout después de estar estable 5 minutos
       if (disconnectTracker._stableTimer) clearTimeout(disconnectTracker._stableTimer)
       disconnectTracker._stableTimer = setTimeout(() => {
         const had515 = disconnectTracker.consecutive515 > 0
         const had428 = disconnectTracker.consecutive428 > 0
+        const had408 = disconnectTracker.consecutive408 > 0
         disconnectTracker.consecutive515 = 0
         disconnectTracker.consecutive428 = 0
+        disconnectTracker.consecutive408 = 0
         disconnectTracker.count = 0
-        if (had515 || had428) {
+        if (had515 || had428 || had408) {
           console.log(chalk.green('✅ Conexión estable por 5min. Contadores de errores reseteados.'))
         }
       }, 300000) // 5 minutos
