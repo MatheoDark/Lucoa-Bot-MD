@@ -91,12 +91,19 @@ export default {
             // Filtrar por tipo si el usuario lo especificó
             let filtered = posts.filter(p => p.file_url)
             if (filterType === 'video') {
-                const videoFiltered = filtered.filter(p => {
+                // Preferir MP4/GIF sobre WebM (WhatsApp no reproduce WebM en móvil)
+                const mp4Filtered = filtered.filter(p => {
                     const t = getMediaType(p)
                     return t === 'video' || t === 'gif'
                 })
-                if (videoFiltered.length > 0) filtered = videoFiltered
-                else m.reply('⚠️ No encontré videos, enviando imágenes...')
+                if (mp4Filtered.length > 0) {
+                    filtered = mp4Filtered
+                } else {
+                    // Si solo hay WebM, usarlos como fallback
+                    const webmFiltered = filtered.filter(p => getMediaType(p) === 'webm')
+                    if (webmFiltered.length > 0) filtered = webmFiltered
+                    else m.reply('⚠️ No encontré videos, enviando imágenes...')
+                }
             } else if (filterType === 'image') {
                 const imgFiltered = filtered.filter(p => getMediaType(p) === 'image')
                 if (imgFiltered.length > 0) filtered = imgFiltered
@@ -130,11 +137,19 @@ export default {
                             mimetype: 'video/mp4',
                             caption: `🔥 *ID:* ${post.id}`
                         }, { quoted: m })
+                    } else if (mediaType === 'webm') {
+                        // WebM no se reproduce en WhatsApp móvil, enviar como documento
+                        await client.sendMessage(m.chat, {
+                            document: { url: fileUrl },
+                            mimetype: 'video/webm',
+                            fileName: `r34_${post.id}.webm`,
+                            caption: `🔥 *ID:* ${post.id} (WebM - abrir con reproductor)`
+                        }, { quoted: m })
                     } else if (mediaType === 'gif') {
+                        // Enviar como video normal para que se pueda descargar
                         await client.sendMessage(m.chat, {
                             video: { url: fileUrl },
                             mimetype: 'video/mp4',
-                            gifPlayback: true,
                             caption: `🔥 *ID:* ${post.id}`
                         }, { quoted: m })
                     } else {
@@ -210,7 +225,8 @@ function getMediaType(post) {
     const finalExt = ext || urlExt
     
     if (!finalExt) return 'unknown'
-    if (['mp4', 'webm', 'mov', 'avi'].includes(finalExt)) return 'video'
+    if (['mp4', 'mov', 'avi'].includes(finalExt)) return 'video'
+    if (finalExt === 'webm') return 'webm'
     if (finalExt === 'gif') return 'gif'
     return 'image'
 }
