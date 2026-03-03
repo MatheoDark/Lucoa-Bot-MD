@@ -371,46 +371,20 @@ export function patchInteractive(client) {
 
 let LOGIN_METHOD = null
 
-// ✅ Control de desconexiones frecuentes (anti-spam) - MEJORADO v2
+// ✅ Control de desconexiones frecuentes (anti-spam) - MEJORADO v3
 const disconnectTracker = {
   lastDisconnect: 0,
   count: 0,
-  maxDisconnectsPerMinute: 3,
-  cooldownMs: 30000, // 30 segundos entre desconexiones
+  maxDisconnectsPerMinute: 4,
+  cooldownMs: 10000, // 🔧 FIX v3: 10s cooldown (era 30s, causaba cascadas de espera)
   consecutive428: 0,  // Contador de 428 consecutivos para backoff
   consecutiveBadSession: 0,  // Contador de badSession para no borrar sesión de inmediato
   consecutive401: 0,  // Contador de 401 para no borrar sesión al primer intento
-  consecutive515: 0,  // 🔧 FIX: Contador de 515 para backoff exponencial
-  consecutive408: 0,  // 🔧 FIX: Contador de 408 (timedOut) para backoff exponencial
+  consecutive515: 0,  // Contador de 515 para backoff exponencial
+  consecutive408: 0,  // Contador de 408 (timedOut) para backoff exponencial
   consecutiveOther: 0, // Contador de otros errores consecutivos
-  _reconnectTimer: null // Timer de reconexión activo (evitar duplicados)
-}
-
-function shouldReconnect() {
-  const now = Date.now()
-  const timeSinceLastDisconnect = now - disconnectTracker.lastDisconnect
-  
-  // Si pasó más de 1 minuto, resetear counter
-  if (timeSinceLastDisconnect > 60000) {
-    disconnectTracker.count = 0
-  }
-  
-  // Si tuvo 3+ desconexiones en menos de 1 minuto, esperar más
-  if (disconnectTracker.count >= disconnectTracker.maxDisconnectsPerMinute) {
-    console.error(`🛑 Demasiadas desconexiones (${disconnectTracker.count}). Esperando 60s antes de reintentar...`)
-    return false
-  }
-  
-  // Si se desconectó hace muy poco, esperar 30s
-  if (timeSinceLastDisconnect < disconnectTracker.cooldownMs) {
-    const waitTime = Math.round((disconnectTracker.cooldownMs - timeSinceLastDisconnect) / 1000)
-    console.log(`⏳ Esperando ${waitTime}s antes de reintentar (cooldown de desconexión)...`)
-    return false
-  }
-  
-  disconnectTracker.lastDisconnect = now
-  disconnectTracker.count++
-  return true
+  _reconnectTimer: null, // Timer de reconexión activo (evitar duplicados)
+  _lastReasonCode: 0 // 🔧 FIX v3: Código del último error para ajustar cleanup delay
 }
 
 async function delayedReconnect(delayMs, reason = '') {
@@ -420,21 +394,33 @@ async function delayedReconnect(delayMs, reason = '') {
     disconnectTracker._reconnectTimer = null
   }
 
-  if (!shouldReconnect()) {
-    const waitMs = Math.max(disconnectTracker.cooldownMs, delayMs)
-    console.log(chalk.gray(`⏳ Cooldown activo. Reintentando en ${Math.round(waitMs / 1000)}s...`))
-    disconnectTracker._reconnectTimer = setTimeout(() => {
-      disconnectTracker._reconnectTimer = null
-      delayedReconnect(delayMs, reason)
-    }, waitMs)
-    return
-  }
+  // 🔧 FIX v3: shouldReconnect ya NO bloquea, solo ajusta el delay si necesita cooldown
+  const finalDelay = (() => {
+    const now = Date.now()
+    const timeSinceLastDisconnect = now - disconnectTracker.lastDisconnect
+    
+    // Si pasó más de 1 minuto, resetear counter
+    if (timeSinceLastDisconnect > 60000) {
+      disconnectTracker.count = 0
+    }
+    
+    // Si tuvo muchas desconexiones rápidas, forzar un delay mayor
+    if (disconnectTracker.count >= disconnectTracker.maxDisconnectsPerMinute) {
+      console.log(chalk.red(`🛑 Demasiadas desconexiones rápidas (${disconnectTracker.count}). Extendiendo espera a 60s.`))
+      disconnectTracker.count = 0
+      return Math.max(delayMs, 60000)
+    }
+    
+    disconnectTracker.lastDisconnect = now
+    disconnectTracker.count++
+    return delayMs
+  })()
   
-  console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(delayMs / 1000)}s... (${reason})`))
+  console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(finalDelay / 1000)}s... (${reason})`))
   disconnectTracker._reconnectTimer = setTimeout(() => {
     disconnectTracker._reconnectTimer = null
     startBot()
-  }, delayMs)
+  }, finalDelay)
 }
 
 // 🧹 Limpieza automática de carpeta tmp
@@ -478,10 +464,12 @@ async function startBot() {
       // Ignorar errores al cerrar cliente viejo
     }
     global.client = null
-    // 🔧 FIX: Esperar 12s para que el socket anterior se libere completamente.
-    // WhatsApp necesita tiempo para registrar el cierre del socket antes de aceptar
-    // una nueva conexión. Sin esto, devuelve 515/408 por doble conexión.
-    await new Promise(r => setTimeout(r, 12000))
+    // 🔧 FIX v3: Delay dinámico según el tipo de error.
+    // 401/408 = socket ya muerto, 3s basta. 515/428 = necesita más para que WA libere.
+    const lastReason = disconnectTracker._lastReasonCode
+    const cleanupDelay = (lastReason === 401 || lastReason === 408) ? 3000 : 12000
+    console.log(chalk.gray(`⏳ Limpiando socket anterior (${cleanupDelay / 1000}s)...`))
+    await new Promise(r => setTimeout(r, cleanupDelay))
   }
 
   await loadDatabaseSafe()
@@ -582,34 +570,42 @@ async function startBot() {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
       console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
       
-      // 🔧 FIX v2: Error 401 NO siempre significa logout real.
-      // "Connection Failure" con 401 puede ser temporal (tokens desactualizados).
-      // Estrategia: 1) Reintentar tal cual, 2) Restaurar backup, 3) Purgar solo si nada funciona.
+      // 🔧 FIX v3: Error 401 NO siempre significa logout real.
+      // "Connection Failure" con 401 puede ser temporal (tokens desactualizados en servidor).
+      // Estrategia: reconexión rápida con backoff progresivo. Solo purgar si es logout real.
       if (reason === DisconnectReason.loggedOut) {
         disconnectTracker.consecutive401++
+        disconnectTracker._lastReasonCode = 401
         const errorMsg = String(lastDisconnect?.error?.message || lastDisconnect?.error || '')
         const isRealLogout = errorMsg.toLowerCase().includes('logged out')
         
-        if (isRealLogout || disconnectTracker.consecutive401 >= 5) {
+        // Guardar credenciales inmediatamente para no perderlas
+        if (global._saveCreds) {
+          try { await global._saveCreds() } catch {}
+        }
+        
+        if (isRealLogout || disconnectTracker.consecutive401 >= 7) {
           log.warn(`⚠️ Sesión cerrada confirmada (intento ${disconnectTracker.consecutive401}). Se requiere nueva vinculación.`)
           purgeSession()
           disconnectTracker.consecutive401 = 0
           disconnectTracker.consecutiveBadSession = 0
           LOGIN_METHOD = await uPLoader()
           startBot()
-        } else if (disconnectTracker.consecutive401 === 3) {
-          // 🔧 FIX: En el intento 3, intentar restaurar backup de sesión
-          log.warn(`⚠️ Error 401 (intento 3/5). Intentando restaurar backup de sesión...`)
+        } else if (disconnectTracker.consecutive401 === 5) {
+          // 🔧 FIX: En el intento 5, intentar restaurar backup de sesión
+          log.warn(`⚠️ Error 401 (intento 5/7). Intentando restaurar backup de sesión...`)
           const restored = restoreSession()
           if (restored) {
-            log.info('♻️ Backup restaurado. Reconectando en 15s...')
+            log.info('♻️ Backup restaurado. Reconectando en 10s...')
           } else {
             log.warn('⚠️ Sin backup disponible. Reintentando con sesión actual...')
           }
-          delayedReconnect(15000, `Error 401 - restaurando backup`)
+          delayedReconnect(10000, `Error 401 - restaurando backup`)
         } else {
-          log.warn(`⚠️ Error 401 (intento ${disconnectTracker.consecutive401}/5). Puede ser temporal. Reintentando en 15s...`)
-          delayedReconnect(15000, `Error 401 - intento ${disconnectTracker.consecutive401}/5`)
+          // 🔧 FIX v3: Backoff progresivo rápido: 5s, 8s, 12s, 18s...
+          const delay401 = Math.min(5000 * Math.pow(1.5, disconnectTracker.consecutive401 - 1), 30000)
+          log.warn(`⚠️ Error 401 (intento ${disconnectTracker.consecutive401}/7). Puede ser temporal. Reintentando en ${Math.round(delay401 / 1000)}s...`)
+          delayedReconnect(delay401, `Error 401 - intento ${disconnectTracker.consecutive401}/7`)
         }
       }
       // badSession (500) - Intentar reconectar antes de borrar
@@ -634,6 +630,7 @@ async function startBot() {
       // ERROR 428: Connection Terminated (Rate limit de WhatsApp)
       else if (reason === 428) {
         disconnectTracker.consecutive428++
+        disconnectTracker._lastReasonCode = 428
         // Backoff agresivo: 5min, 10min, 15min... max 30min
         const backoff428 = Math.min(300000 * disconnectTracker.consecutive428, 1800000)
         console.log(chalk.yellow(`⚠️ Error 428: Rate limit. Esperando ${Math.round(backoff428 / 1000 / 60)}min (intento ${disconnectTracker.consecutive428})`))
@@ -653,6 +650,7 @@ async function startBot() {
       // ERROR 515: Stream Errored (Muy común en VPS) - CON BACKOFF EXPONENCIAL
       else if (reason === 515) {
         disconnectTracker.consecutive515++
+        disconnectTracker._lastReasonCode = 515
         // 🔧 FIX v2: Guardar credenciales antes de reconectar (previene 401 post-515)
         if (global._saveCreds) {
           try { await global._saveCreds() } catch {}
@@ -678,6 +676,7 @@ async function startBot() {
       // ERROR 408: Timed Out (conexión perdida / keepalive sin respuesta)
       else if (reason === 408 || reason === DisconnectReason.timedOut) {
         disconnectTracker.consecutive408++
+        disconnectTracker._lastReasonCode = 408
         // Guardar credenciales antes de reconectar
         if (global._saveCreds) {
           try { await global._saveCreds() } catch {}
@@ -703,6 +702,7 @@ async function startBot() {
       // OTROS ERRORES - con backoff para evitar loops
       else {
         disconnectTracker.consecutiveOther++
+        disconnectTracker._lastReasonCode = reason
         const otherBackoff = Math.min(10000 * disconnectTracker.consecutiveOther, 120000)
         console.log(chalk.yellow(`⚠️ Desconexión detectada (${reason}). Reconectando en ${Math.round(otherBackoff / 1000)}s...`))
         delayedReconnect(otherBackoff, `Error ${reason}`)
@@ -714,6 +714,11 @@ async function startBot() {
       disconnectTracker.consecutiveBadSession = 0
       disconnectTracker.consecutive401 = 0
       disconnectTracker.consecutiveOther = 0
+      
+      disconnectTracker._lastReasonCode = 0
+      
+      // 🔧 FIX v3: Guardar backup de sesión al conectar exitosamente
+      backupSession()
       
       // Solo resetear contadores de stream/timeout después de estar estable 5 minutos
       if (disconnectTracker._stableTimer) clearTimeout(disconnectTracker._stableTimer)
