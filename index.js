@@ -254,7 +254,7 @@ async function loadBots() {
     
     // Reset counter si fue exitoso
     botLoadState.retryCount = 0
-    setTimeout(loadBots, 5 * 60 * 1000) // Cada 5 minutos en vez de 60s
+    setTimeout(loadBots, 15 * 60 * 1000) // 🔧 FIX v6: Cada 15 min (era 5 min, causaba handshakes excesivos)
     
   } catch (err) {
     console.error(`⚠️ Error en loadBots:`, err.message)
@@ -272,43 +272,57 @@ async function loadBots() {
   }
 }
 
-// Anti Rate-Limit Mejorado v2
+// Anti Rate-Limit v3 — Cola inteligente con throttle por grupo
 const queue = []
 let running = false
-const DELAY = 2000 // ✅ 2s entre mensajes (era 1.5s, causaba presión en el stream)
-const MAX_QUEUE = 100 // Límite de cola para evitar acumulación infinita
+const DELAY_TEXT = 2500     // 2.5s entre mensajes de texto
+const DELAY_MEDIA = 4000    // 4s entre mensajes con media (imagen/video/audio)
+const MAX_QUEUE = 50        // 🔧 Reducido de 100 a 50 para evitar acumulación
+const groupLastSend = new Map() // Throttle por grupo
+const MIN_GROUP_INTERVAL = 3000 // Mínimo 3s entre mensajes al mismo grupo
 
-function enqueue(task) { 
-  // 🔧 FIX: Evitar que la cola crezca indefinidamente durante desconexiones
+function enqueue(task, jid, hasMedia) { 
   if (queue.length >= MAX_QUEUE) {
     console.warn(`⚠️ Cola de mensajes llena (${MAX_QUEUE}). Descartando mensaje antiguo.`)
-    queue.shift() // Descartar el más antiguo
+    queue.shift()
   }
-  queue.push(task)
+  queue.push({ task, jid, hasMedia })
   run() 
 }
 async function run() {
   if (running) return
   running = true
   while (queue.length) {
-    const job = queue.shift()
+    const { task, jid, hasMedia } = queue.shift()
+    
+    // Throttle por grupo: esperar si se envió muy rápido al mismo grupo
+    if (jid?.endsWith('@g.us')) {
+      const last = groupLastSend.get(jid) || 0
+      const elapsed = Date.now() - last
+      if (elapsed < MIN_GROUP_INTERVAL) {
+        await new Promise(r => setTimeout(r, MIN_GROUP_INTERVAL - elapsed))
+      }
+      groupLastSend.set(jid, Date.now())
+    }
+    
     try { 
-      await job() 
+      await task() 
     }
     catch (e) {
       const errorStr = String(e)
       if (errorStr.includes('rate-overlimit') || errorStr.includes('too many requests')) {
-        console.warn('⚠️ Rate limit detectado, esperando 5s...')
-        await new Promise(r => setTimeout(r, 5000))
-        queue.unshift(job)
+        console.warn('⚠️ Rate limit detectado, esperando 8s...')
+        await new Promise(r => setTimeout(r, 8000))
+        queue.unshift({ task, jid, hasMedia })
       } else if (errorStr.includes('Connection Closed') || errorStr.includes('stream errored')) {
-        // 🔧 FIX: No reintentar envíos si el stream está caído
         console.warn('⚠️ Stream caído, descartando mensaje en cola.')
       } else { 
         console.error('Send error:', e.message || e) 
       }
     }
-    await new Promise(r => setTimeout(r, DELAY))
+    // Delay adaptativo: más lento para media, más rápido para texto
+    const delay = hasMedia ? DELAY_MEDIA : DELAY_TEXT
+    await new Promise(r => setTimeout(r, delay))
   }
   running = false
 }
@@ -317,8 +331,11 @@ export function patchSendMessage(client) {
   if (client._sendMessagePatched) return
   client._sendMessagePatched = true
   const original = client.sendMessage.bind(client)
-  client.sendMessage = (jid, content, options = {}) =>
-    new Promise((resolve) => enqueue(async () => resolve(await original(jid, content, options))))
+  client.sendMessage = (jid, content, options = {}) => {
+    // Detectar si el mensaje tiene media para ajustar el delay
+    const hasMedia = !!(content?.image || content?.video || content?.audio || content?.document || content?.sticker)
+    return new Promise((resolve) => enqueue(async () => resolve(await original(jid, content, options)), jid, hasMedia))
+  }
 }
 
 export function patchInteractive(client) {
@@ -517,20 +534,19 @@ async function startBot() {
   const client = makeWASocket({
     version,
     logger,
-    // 🔧 FIX v5: Usar browser Multi-Device nativo para mejor compatibilidad
     browser: Browsers.ubuntu('Chrome'),
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
-    markOnlineOnConnect: true,       // 🔧 FIX v5: true = WA confirma que estamos vivos
+    markOnlineOnConnect: false,      // 🔧 FIX v6: false = evita conflicto de presencia con teléfono
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
-    retryRequestDelayMs: 2000,
+    retryRequestDelayMs: 500,        // 🔧 FIX v6: 500ms (más cercano al default de Baileys)
     getMessage: async (key) => {
       return undefined
     },
-    keepAliveIntervalMs: 25000,      // 🔧 FIX v5: 25s (default Baileys). Mantiene socket activo.
+    keepAliveIntervalMs: 30000,      // 🔧 FIX v6: 30s = default Baileys. Ventana de 35s antes de "lost".
     maxMsgRetryCount: 3,
-    connectTimeoutMs: 120000,        // 🔧 FIX v5: 2min para VPS lentos
-    defaultQueryTimeoutMs: 90000,    // 🔧 FIX v5: 90s para queries
+    connectTimeoutMs: 60000,         // 🔧 FIX v6: 60s (suficiente para VPS)
+    defaultQueryTimeoutMs: 60000,    // 🔧 FIX v6: 60s default Baileys
     emitOwnEvents: true,
     fireInitQueries: true,
     shouldIgnoreJid: (jid) => jid?.endsWith('@broadcast') || jid === 'status@broadcast',

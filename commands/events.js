@@ -2,6 +2,24 @@ import chalk from 'chalk'
 import moment from 'moment-timezone'
 import { getCachedGroupMetadata } from '../lib/groupCache.js'
 
+// 🔧 FIX v6: Cache de fotos de perfil para no llamar API en cada evento
+const ppCache = new Map()
+const PP_CACHE_TTL = 60 * 60 * 1000 // 1 hora
+const PP_DEFAULT = 'https://i.ibb.co/9Hc0y97/default-group.png'
+
+async function getCachedProfilePic(client, jid) {
+  const cached = ppCache.get(jid)
+  if (cached && Date.now() - cached.ts < PP_CACHE_TTL) return cached.url
+  try {
+    const url = await client.profilePictureUrl(jid, 'image')
+    ppCache.set(jid, { url, ts: Date.now() })
+    return url
+  } catch {
+    ppCache.set(jid, { url: PP_DEFAULT, ts: Date.now() })
+    return PP_DEFAULT
+  }
+}
+
 function extractPhoneNumber(participant) {
   const jid = participant?.phoneNumber || participant
   const phone = (typeof jid === 'string' ? jid : '').split('@')[0] || 'Usuario'
@@ -32,8 +50,7 @@ export default async (client, m) => {
       
       for (const p of anu.participants) {
         const { jid, phone } = extractPhoneNumber(p)
-        const pp = await client.profilePictureUrl(jid, 'image')
-          .catch(() => 'https://i.ibb.co/9Hc0y97/default-group.png')
+        const pp = await getCachedProfilePic(client, jid)
 
         // 🟢 TARJETA (Aquí va la única foto)
         const fakeContext = {
