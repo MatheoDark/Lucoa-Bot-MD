@@ -48,10 +48,12 @@ async function gracefulShutdown(signal) {
         // 3. Cerrar conexión de WhatsApp LIMPIAMENTE
         if (global.client) {
             try {
-                // Primero desuscribir eventos para evitar que el close trigger reconexión
+                // Desuscribir eventos para evitar que el close trigger reconexión
                 global.client.ev.removeAllListeners()
-                // Cerrar con end() que envía señal de cierre limpio a WA
-                global.client.end(new Error('shutdown'))
+                // Cerrar WebSocket directamente (más limpio que end())
+                if (global.client.ws?.isOpen) {
+                    global.client.ws.close()
+                }
             } catch {}
         }
         // 4. Esperar 5s para que WA registre el cierre del socket
@@ -465,10 +467,15 @@ async function startBot() {
   if (global.client) {
     try {
       global.client.ev.removeAllListeners()
-      try { global.client.end(new Error('reconnecting')) } catch {}
+      // 🔧 FIX: Solo cerrar ws si aún está abierto. En 401/failure ya está cerrado.
+      // Llamar end() en un socket ya cerrado puede disparar eventos duplicados.
+      if (global.client.ws?.isOpen) {
+        try { global.client.ws.close() } catch {}
+      }
     } catch {}
     global.client = null
-    // 401/408 = socket ya muerto, 2s basta. 515/428 = WA necesita más tiempo.
+    // 401/408 = socket ya muerto por WA, espera mínima.
+    // 515/428 = puede haber socket zombie, esperar más.
     const lastReason = disconnectTracker._lastReasonCode
     const cleanupDelay = (lastReason === 401 || lastReason === 408) ? 2000 : 8000
     await new Promise(r => setTimeout(r, cleanupDelay))
@@ -485,7 +492,20 @@ async function startBot() {
 
   await loadDatabaseSafe()
 
-  const { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
+  let { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
+  
+  // 🔧 FIX: Validar que las credenciales tienen los campos críticos para login.
+  // Si faltan, la sesión está corrupta y Baileys va a crashear con 401.
+  if (state.creds.me && (!state.creds.noiseKey || !state.creds.signedIdentityKey)) {
+    console.log(chalk.red('❌ Credenciales corruptas detectadas (faltan claves de cifrado). Purgando sesión...'))
+    purgeSession()
+    LOGIN_METHOD = await uPLoader()
+    // Recargar credenciales limpias
+    const freshAuth = await useMultiFileAuthState(global.sessionName)
+    state = freshAuth.state
+    saveCreds = freshAuth.saveCreds
+  }
+  
   const { version } = await fetchLatestBaileysVersion()
   const logger = pino({ level: "silent" })
 
