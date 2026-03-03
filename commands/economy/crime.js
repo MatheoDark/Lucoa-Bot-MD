@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 // ═══════════════════════════════════════════════════════════════
 //  🔫 TIPOS DE CRIMEN — Cada uno tiene su propia mecánica
@@ -397,8 +398,10 @@ export default {
 
         const msgExito = pickRandom(crimen.exito)(cantidad.toLocaleString(), monedas, targetName)
 
+        const img = await getRPGImage('crime', crimen.id)
         return client.sendMessage(chatId, {
-          text: `╭─── ⋆🐉⋆ ───\n│ ${crimen.emoji} *${crimen.nombre}*\n├───────────────${aleatorioTag}\n│ ${msgExito}\n│ ⚡ *+${crimen.xpGain} XP*${charMsg}${eventoMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
+          image: { url: img },
+          caption: `╭─── ⋆🐉⋆ ───\n│ ${crimen.emoji} *${crimen.nombre}*\n├───────────────${aleatorioTag}\n│ ${msgExito}\n│ ⚡ *+${crimen.xpGain} XP*${charMsg}${eventoMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
           mentions: [targetId],
         }, { quoted: m })
 
@@ -430,8 +433,10 @@ export default {
         let penalidades = `\n│ ⚡ *-${crimen.xpLoss} XP*`
         if (crimen.healthLoss > 0) penalidades += `\n│ 💔 *-${crimen.healthLoss} HP*`
 
+        const imgFail = await getRPGImage('crime', 'fail')
         return client.sendMessage(chatId, {
-          text: `╭─── ⋆🐉⋆ ───\n│ 🚔 *${crimen.nombre} — FALLIDO*\n├───────────────${aleatorioTag}\n│ ${msgFallo}${penalidades}${eventoMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
+          image: { url: imgFail },
+          caption: `╭─── ⋆🐉⋆ ───\n│ 🚔 *${crimen.nombre} — FALLIDO*\n├───────────────${aleatorioTag}\n│ ${msgFallo}${penalidades}${eventoMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
           mentions: [targetId],
         }, { quoted: m })
       }
@@ -458,8 +463,10 @@ export default {
 
       const msgExito = pickRandom(crimen.exito)(cantidad.toLocaleString(), monedas, 'alguien')
 
+      const imgSolo = await getRPGImage('crime', crimen.id)
       await client.sendMessage(chatId, {
-        text: `╭─── ⋆🐉⋆ ───\n│ ${crimen.emoji} *${crimen.nombre}*\n├───────────────\n│ ${msgExito}\n│ ⚡ *+${crimen.xpGain} XP*${eventoMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
+        image: { url: imgSolo },
+        caption: `╭─── ⋆🐉⋆ ───\n│ ${crimen.emoji} *${crimen.nombre}*\n├───────────────\n│ ${msgExito}\n│ ⚡ *+${crimen.xpGain} XP*${eventoMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
       }, { quoted: m })
     } else {
       const multPercent = crimen.multMin + (Math.random() * (crimen.multMax - crimen.multMin))
@@ -487,8 +494,10 @@ export default {
       let penalidades = `\n│ ⚡ *-${crimen.xpLoss} XP*`
       if (crimen.healthLoss > 0) penalidades += `\n│ 💔 *-${crimen.healthLoss} HP*`
 
+      const imgSoloFail = await getRPGImage('crime', 'fail')
       await client.sendMessage(chatId, {
-        text: `╭─── ⋆🐉⋆ ───\n│ 🚔 *${crimen.nombre} — FALLIDO*\n├───────────────\n│ ${msgFallo}${penalidades}${eventoMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
+        image: { url: imgSoloFail },
+        caption: `╭─── ⋆🐉⋆ ───\n│ 🚔 *${crimen.nombre} — FALLIDO*\n├───────────────\n│ ${msgFallo}${penalidades}${eventoMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
       }, { quoted: m })
     }
   },

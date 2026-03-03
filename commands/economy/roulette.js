@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 export default {
   command: ['rt', 'roulette', 'ruleta'],
@@ -95,7 +96,8 @@ export default {
     // Pierdes solo lo apostado, aunque hayas acertado el color (mala suerte extremas)
     if (resultColor === 'orange') {
       user.coins -= amount
-      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA ESPECIAL*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *ORANGE*\n│ 😵 ¡Color maldito! La bola rebotó mal\n│ 💸 Perdiste *${amount.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───`, m)
+      const imgOrange = await getRPGImage('roulette', 'orange')
+      await client.sendMessage(m.chat, { image: { url: imgOrange }, caption: `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA ESPECIAL*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *ORANGE*\n│ 😵 ¡Color maldito! La bola rebotó mal\n│ 💸 Perdiste *${amount.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───` }, { quoted: m })
       return
     }
 
@@ -104,7 +106,8 @@ export default {
     if (resultColor === 'white') {
       let totalPerdido = user.coins
       user.coins = 0 
-      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA FATAL*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *WHITE*\n│ ☠️ ¡Desastre Total! La casa se queda con todo\n│ 💸 Perdiste: *${totalPerdido.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───`, m)
+      const imgWhite = await getRPGImage('roulette', 'white')
+      await client.sendMessage(m.chat, { image: { url: imgWhite }, caption: `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA FATAL*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *WHITE*\n│ ☠️ ¡Desastre Total! La casa se queda con todo\n│ 💸 Perdiste: *${totalPerdido.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───` }, { quoted: m })
       return
     }
 
@@ -119,11 +122,13 @@ export default {
 
       user.coins += netWin // Sumamos la ganancia neta
       
-      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *${resultColor.toUpperCase()}*\n│ ✨ ¡Ganaste *${profit.toLocaleString()} ${currency}*!\n╰─── ⋆✨⋆ ───`, m)
+      const imgWin = await getRPGImage('roulette', 'win')
+      await client.sendMessage(m.chat, { image: { url: imgWin }, caption: `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *${resultColor.toUpperCase()}*\n│ ✨ ¡Ganaste *${profit.toLocaleString()} ${currency}*!\n╰─── ⋆✨⋆ ───` }, { quoted: m })
     } else {
       // PERDER
       user.coins -= amount
-      await client.reply(m.chat, `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *${resultColor.toUpperCase()}*\n│ 💸 Perdiste *${amount.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───`, m)
+      const imgLose = await getRPGImage('roulette', 'lose')
+      await client.sendMessage(m.chat, { image: { url: imgLose }, caption: `╭─── ⋆🐉⋆ ───\n│ 🎰 *RULETA*\n├───────────────\n│ Cayó en ${colorEmojis[resultColor]} *${resultColor.toUpperCase()}*\n│ 💸 Perdiste *${amount.toLocaleString()} ${currency}*\n╰─── ⋆✨⋆ ───` }, { quoted: m })
     }
   }
 }

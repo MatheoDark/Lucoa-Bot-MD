@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 // ═══════════════════════════════════════════
 //  🎰 TRAGAMONEDAS - Gira los rodillos
@@ -112,6 +113,8 @@ export default {
 │ 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*
 ╰─── ⋆✨⋆ ───`
 
-    await client.sendMessage(m.chat, { text: msg }, { quoted: m })
+    const imgType = ganancia > 0 ? 'jackpot' : 'slots'
+    const img = await getRPGImage(imgType, combo)
+    await client.sendMessage(m.chat, { image: { url: img }, caption: msg }, { quoted: m })
   }
 }

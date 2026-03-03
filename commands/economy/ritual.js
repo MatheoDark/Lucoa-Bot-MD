@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 export default {
   command: ['ritual'],
@@ -61,7 +62,8 @@ export default {
     if (bonusMsg) msg += bonusMsg
     msg += '\n╰─── ⋆✨⋆ ───'
 
-    await client.reply(m.chat, msg, m)
+    const img = await getRPGImage('ritual', 'magic')
+    await client.sendMessage(m.chat, { image: { url: img }, caption: msg }, { quoted: m })
   },
 };
 

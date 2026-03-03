@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from "../../lib/utils.js"
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 const CASTIGOS_FAIL = [
   {
@@ -112,8 +113,10 @@ export default {
 
       if (typeof global.markDBDirty === 'function') global.markDBDirty()
 
+      const imgFail = await getRPGImage('steal', 'fail')
       return client.sendMessage(chatId, {
-          text: `╭─── ⋆🐉⋆ ───\n│ ${castigo.msg(`@${targetId.split('@')[0]}`, multa, monedas)}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
+          image: { url: imgFail },
+          caption: `╭─── ⋆🐉⋆ ───\n│ ${castigo.msg(`@${targetId.split('@')[0]}`, multa, monedas)}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
           mentions: [senderId, targetId],
         }, { quoted: m }
       )
@@ -152,8 +155,10 @@ export default {
 
     if (typeof global.markDBDirty === 'function') global.markDBDirty()
 
+    const imgSuccess = await getRPGImage('steal', 'success')
     await client.sendMessage(chatId, {
-        text: `╭─── ⋆🐉⋆ ───\n│ 🥷 *¡ROBO EXITOSO!*\n├───────────────\n│ Le robaste *¥${cantidadRobada.toLocaleString()} ${monedas}*\n│ a *@${targetId.split('@')[0]}* (◕ᴗ◕✿)${charMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
+        image: { url: imgSuccess },
+        caption: `╭─── ⋆🐉⋆ ───\n│ 🥷 *¡ROBO EXITOSO!*\n├───────────────\n│ Le robaste *¥${cantidadRobada.toLocaleString()} ${monedas}*\n│ a *@${targetId.split('@')[0]}* (◕ᴗ◕✿)${charMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
         mentions: [targetId],
       }, { quoted: m }
     )

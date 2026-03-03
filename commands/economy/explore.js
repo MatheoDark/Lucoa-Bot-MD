@@ -3,6 +3,7 @@ import { getExploreBonus, getTrapReduction, getXpBonus, tryDoubleReward } from '
 import { getClassBonus } from './class.js'
 import { getPrestigeMultiplier } from './prestige.js'
 import { updateMissionProgress } from './missions.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 // ═══════════════════════════════════════════
 //  🗺️ EXPLORAR - Aventura aleatoria
@@ -198,6 +199,7 @@ export default {
 │ 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*
 ╰─── ⋆✨⋆ ───`
 
-    await client.sendMessage(m.chat, { text: msg }, { quoted: m })
+    const img = await getRPGImage('explore', exploracion.zona)
+    await client.sendMessage(m.chat, { image: { url: img }, caption: msg }, { quoted: m })
   }
 }

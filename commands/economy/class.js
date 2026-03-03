@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 // ═══════════════════════════════════════════════════════════════════════
 //  🏛️ SISTEMA DE CLASES — Elige tu camino al alcanzar nivel 10
@@ -155,7 +156,8 @@ ${claseElegida.bonos.map(b => `│  ✦ ${b}`).join('\n')}
 │ ${user.class !== subCmd ? '' : `📊 XP restante: *${user.exp.toLocaleString()}*`}
 ╰─── ⋆✨⋆ ───`
 
-      return client.sendMessage(m.chat, { text: msg }, { quoted: m })
+      const imgClass = await getRPGImage(`class_${subCmd}`, subCmd)
+      return client.sendMessage(m.chat, { image: { url: imgClass }, caption: msg }, { quoted: m })
     }
 
     // ══════════════════════════════
@@ -181,7 +183,8 @@ ${c.bonos.map(b => `│  ✦ ${b}`).join('\n')}
 │ ${esActual ? '✅ *Esta es tu clase actual*' : `❀ Para elegirla: *${usedPrefix}${command} ${claseId}*`}
 ╰─── ⋆✨⋆ ───`
 
-      return client.sendMessage(m.chat, { text: txt }, { quoted: m })
+      const imgInfo = await getRPGImage(`class_${claseId}`, claseId)
+      return client.sendMessage(m.chat, { image: { url: imgInfo }, caption: txt }, { quoted: m })
     }
 
     // ══════════════════════════════
@@ -213,7 +216,8 @@ ${c.bonos.map(b => `│  ✦ ${b}`).join('\n')}
 │ mercader, asesino, apostador
 ╰─── ⋆✨⋆ ───`
 
-    await client.sendMessage(m.chat, { text: txt }, { quoted: m })
+    const imgSelect = await getRPGImage('class_select', 'classes')
+    await client.sendMessage(m.chat, { image: { url: imgSelect }, caption: txt }, { quoted: m })
   }
 }
 

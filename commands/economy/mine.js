@@ -2,6 +2,7 @@ import { resolveLidToRealJid } from '../../lib/utils.js'
 import { getWorkBonus, getXpBonus, tryDoubleReward } from './skills.js'
 import { getPrestigeMultiplier } from './prestige.js'
 import { updateMissionProgress } from './missions.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 export default {
   command: ['mine'],
@@ -64,7 +65,8 @@ export default {
     if (doubleResult.doubled) msg += '\n│ 🔮 *¡AURA MÍSTICA! Recompensa duplicada*'
     msg += '\n╰─── ⋆✨⋆ ───'
 
-    await client.reply(m.chat, msg, m)
+    const img = await getRPGImage('mine', narration)
+    await client.sendMessage(m.chat, { image: { url: img }, caption: msg }, { quoted: m })
   }
 };
 

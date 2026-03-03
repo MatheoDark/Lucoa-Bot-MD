@@ -1,5 +1,6 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
 import { getClassName, getClassEmoji } from './class.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 // ═══════════════════════════════════════════════════════════════════════
 //  🌟 PRESTIGE — Reinicia tu nivel a cambio de bonos permanentes
@@ -101,7 +102,8 @@ export default {
 │ ⭐ Prestige: ${progressBar(user.prestige, MAX_PRESTIGE)} *${user.prestige}/${MAX_PRESTIGE}*
 ╰─── ⋆✨⋆ ───`
 
-      return client.sendMessage(m.chat, { text: msg }, { quoted: m })
+      const imgPrestige = await getRPGImage('prestige', `prestige_${user.prestige}`)
+      return client.sendMessage(m.chat, { image: { url: imgPrestige }, caption: msg }, { quoted: m })
     }
 
     // ══════════════════════════════
@@ -139,7 +141,8 @@ ${user.prestige < MAX_PRESTIGE ? `│ 🆙 Siguiente: *+${bonusSiguiente}%* mone
 │ ${puedePrestige ? `🔥 *¡LISTO!* Usa *${usedPrefix}${command} confirmar*` : `🔒 *Aún no cumples los requisitos*`}
 ╰─── ⋆✨⋆ ───`
 
-    await client.sendMessage(m.chat, { text: txt }, { quoted: m })
+    const imgView = await getRPGImage('prestige', `view_${user.prestige}`)
+    await client.sendMessage(m.chat, { image: { url: imgView }, caption: txt }, { quoted: m })
   }
 }
 

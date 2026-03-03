@@ -2,6 +2,7 @@ import { resolveLidToRealJid } from '../../lib/utils.js'
 import { getExploreBonus, getXpBonus, tryDoubleReward } from './skills.js'
 import { getPrestigeMultiplier } from './prestige.js'
 import { updateMissionProgress } from './missions.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 // ═══════════════════════════════════════════
 //  🎣 PESCA - Atrapa peces de distinta rareza
@@ -146,6 +147,7 @@ export default {
 │ 🐟 Peces totales: *${user.totalFish}*${bonusMsg}${doubleResult.doubled ? '\n│ 🔮 *¡AURA MÍSTICA! Duplicado*' : ''}
 ╰─── ⋆✨⋆ ───`
 
-    await client.sendMessage(m.chat, { text: msg }, { quoted: m })
+    const img = await getRPGImage('fish', pez.nombre)
+    await client.sendMessage(m.chat, { image: { url: img }, caption: msg }, { quoted: m })
   }
 }

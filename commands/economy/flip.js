@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 export default {
   command: ['cf', 'flip', 'coinflip'],
@@ -92,7 +93,8 @@ export default {
       mensaje += `*${resultado.toUpperCase()}* 💀\n│\n│ ❌ Perdiste *¥${cantidadFormatted} ${monedas}* (╥﹏╥)\n╰─── ⋆✨⋆ ───`
     }
 
-    await client.reply(m.chat, mensaje, m)
+    const img = await getRPGImage('coinflip', resultado)
+    await client.sendMessage(m.chat, { image: { url: img }, caption: mensaje }, { quoted: m })
   }
 }
 

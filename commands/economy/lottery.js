@@ -1,4 +1,5 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 // ═══════════════════════════════════════════
 //  🎟️ LOTERÍA - Compra boletos y gana jackpot
@@ -165,7 +166,8 @@ ${boletosStr}
 │ 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*
 ╰─── ⋆✨⋆ ───`
 
-      return client.sendMessage(m.chat, { text: msg }, { quoted: m })
+      const imgLottery = await getRPGImage(mejorAciertos >= 4 ? 'jackpot' : 'lottery', `aciertos_${mejorAciertos}`)
+      return client.sendMessage(m.chat, { image: { url: imgLottery }, caption: msg }, { quoted: m })
     }
 
     return m.reply(`🐲 Subcomando no reconocido (◕︿◕)\n│ Usa *#loteria* para ver info\n│ Usa *#loteria jugar [cantidad]* para comprar boletos`)

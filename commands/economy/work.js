@@ -3,6 +3,7 @@ import { getWorkBonus, getXpBonus, tryDoubleReward } from './skills.js'
 import { getClassBonus } from './class.js'
 import { getPrestigeMultiplier } from './prestige.js'
 import { updateMissionProgress } from './missions.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 export default {
   command: ['work', 'w', 'trabajar', 'chambear'],
@@ -83,8 +84,10 @@ export default {
     let msg = `🔧 ${trabajo} y ganaste *¥${reward.toLocaleString()} ${currency}* y *${exp} XP* (◕ᴗ◕✿)`
     if (critMsg || doubleMsg) msg += critMsg + doubleMsg
 
+    const img = await getRPGImage('work', trabajo)
     await client.sendMessage(m.chat, {
-      text: msg,
+      image: { url: img },
+      caption: msg,
     }, { quoted: m })
   }
 }
