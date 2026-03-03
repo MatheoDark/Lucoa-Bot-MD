@@ -1,4 +1,8 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getWorkBonus, getXpBonus, tryDoubleReward } from './skills.js'
+import { getClassBonus } from './class.js'
+import { getPrestigeMultiplier } from './prestige.js'
+import { updateMissionProgress } from './missions.js'
 
 export default {
   command: ['work', 'w', 'trabajar', 'chambear'],
@@ -38,21 +42,49 @@ export default {
       return m.reply(`🐲 Estás cansado/a. Debes esperar ⏱️ *${msToTime(tiempoRestante)}* para volver a trabajar (◞‸◟)`)
     }
 
-    // 5. Recompensa
-    // Gana entre 2000 y 15000 monedas
-    const reward = Math.floor(Math.random() * 13000) + 2000 
-    const exp = Math.floor(Math.random() * 800) + 100 // También gana algo de experiencia
+    // 5. Recompensa (con bonos de skills, clase y prestige)
+    let reward = Math.floor(Math.random() * 13000) + 2000 
+    let exp = Math.floor(Math.random() * 800) + 100
+
+    // Aplicar bonos
+    const skillBonus = getWorkBonus(user)
+    const classBonus = 1 + (getClassBonus(user, 'workBonus') || 0)
+    const prestigeMult = getPrestigeMultiplier(user)
+    const xpMult = getXpBonus(user)
+    const critChance = getClassBonus(user, 'critChance') || 0
+
+    reward = Math.floor(reward * skillBonus * classBonus * prestigeMult)
+    exp = Math.floor(exp * xpMult * prestigeMult)
+
+    // Habilidad de clase Guerrero: Golpe Crítico
+    let critMsg = ''
+    if (critChance > 0 && Math.random() < critChance) {
+      reward *= 3
+      critMsg = '\n💥 *¡GOLPE CRÍTICO!* Monedas x3'
+    }
+
+    // Aura Mística (skill): chance de duplicar
+    const doubleResult = tryDoubleReward(user, reward)
+    reward = doubleResult.amount
+    const doubleMsg = doubleResult.doubled ? '\n🔮 *¡AURA MÍSTICA! Recompensa duplicada*' : ''
 
     // 6. Guardar Datos
     user.coins = (user.coins || 0) + reward
     user.exp = (user.exp || 0) + exp
     user.workCooldown = Date.now()
 
-    // 7. Responder
+    // 7. Actualizar misiones
+    updateMissionProgress(user, 'work')
+    updateMissionProgress(user, 'commands')
+
+    // 8. Responder
     const trabajo = pickRandom(listaTrabajos)
     
+    let msg = `🔧 ${trabajo} y ganaste *¥${reward.toLocaleString()} ${currency}* y *${exp} XP* (◕ᴗ◕✿)`
+    if (critMsg || doubleMsg) msg += critMsg + doubleMsg
+
     await client.sendMessage(m.chat, {
-      text: `� ${trabajo} y ganaste *¥${reward.toLocaleString()} ${currency}* y *${exp} XP* (◕ᴗ◕✿)`,
+      text: msg,
     }, { quoted: m })
   }
 }

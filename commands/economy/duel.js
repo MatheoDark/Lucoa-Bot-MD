@@ -1,4 +1,6 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { updateMissionProgress } from './missions.js'
+import { getRPGImage } from '../../lib/rpgImages.js'
 
 // ═══════════════════════════════════════════
 //  ⚔️ DUELO - Desafía a otro jugador
@@ -97,8 +99,14 @@ export default {
       narración += `\n│ 📊 *${perdedorNombre}:* ${global.db.data.users[perdedor].duelWins || 0}W / ${global.db.data.users[perdedor].duelLosses}L`
       narración += '\n╰─── ⋆✨⋆ ───'
 
+      // Progreso de misiones
+      try { updateMissionProgress(global.db.data.users[ganador], 'duel', 1) } catch(e) {}
+      try { updateMissionProgress(global.db.data.users[perdedor], 'duel', 1) } catch(e) {}
+
+      const resultImg = await getRPGImage('duel_result', `duel-${ganadorNombre}`)
       return client.sendMessage(m.chat, { 
-        text: narración, 
+        image: { url: resultImg },
+        caption: narración, 
         mentions: [duelo.retadorId, duelo.rivalId] 
       }, { quoted: m })
     }
@@ -177,6 +185,11 @@ export default {
 │ ❀ *${usedPrefix}${command} rechazar* para huir 🏃
 ╰─── ⋆✨⋆ ───`
 
-    await client.sendMessage(m.chat, { text: msg, mentions: [rivalId, userId] }, { quoted: m })
+    const challengeImg = await getRPGImage('duel', `challenge-${userName}`)
+    await client.sendMessage(m.chat, { 
+      image: { url: challengeImg },
+      caption: msg, 
+      mentions: [rivalId, userId] 
+    }, { quoted: m })
   }
 }

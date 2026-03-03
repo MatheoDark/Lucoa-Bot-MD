@@ -1,4 +1,6 @@
 import { resolveLidToRealJid } from "../../lib/utils.js"
+import { getClassName, getClassEmoji } from './class.js'
+import { getPrestigeTitle } from './prestige.js'
 
 export default {
   command: ['profile', 'perfil'],
@@ -66,12 +68,23 @@ export default {
     const sortedLevel = Object.entries(globalUsers).sort((a, b) => (b[1].level || 0) - (a[1].level || 0))
     const rank = sortedLevel.findIndex(x => x[0] === userId) + 1
 
-    // 8. Construir Mensaje
+    // 8. Datos RPG
+    const clase = getClassName(user)
+    const claseEmoji = getClassEmoji(user)
+    const prestigeTitle = getPrestigeTitle(user)
+    const prestige = user.prestige || 0
+    const arenaWins = user.arenaWins || 0
+    const arenaStreak = user.arenaBestStreak || 0
+    const totalSkills = user.skills ? Object.values(user.skills).reduce((a, b) => a + b, 0) : 0
+
+    // 9. Construir Mensaje
     const profileText = `╭─── ⋆🐉⋆ ───
 │  *𝐏𝐄𝐑𝐅𝐈𝐋 𝐃𝐄 𝐔𝐒𝐔𝐀𝐑𝐈𝐎*
 ├───────────────
 │ 👤 *Nombre ›* ${name}
 │ 🏅 *Rango ›* #${rank} (Top Global)
+│ ${claseEmoji} *Clase ›* ${clase}
+│ ${prestige > 0 ? `⭐ *Prestige ›* ${prestige} ${prestigeTitle}` : '⭐ *Prestige ›* 0'}
 │
 │ ── 🌸 *Info Personal* ──
 │ 🎂 Cumpleaños › *${birth}*
@@ -89,6 +102,10 @@ export default {
 │ ❀ Exp › *${exp.toLocaleString()}*
 │ 🐲 Harem › *${harem}*
 │ 📝 Comandos › *${comandos.toLocaleString()}*
+│
+│ ── ⚔️ *RPG* ──
+│ 🌳 Skills › *${totalSkills}/50* puntos
+│ 🏟️ Arena › *${arenaWins} victorias* (racha: ${arenaStreak})
 ╰─── ⋆✨⋆ ───
 
 > _${desc}_`

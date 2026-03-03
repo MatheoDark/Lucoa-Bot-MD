@@ -1,4 +1,7 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getExploreBonus, getXpBonus, tryDoubleReward } from './skills.js'
+import { getPrestigeMultiplier } from './prestige.js'
+import { updateMissionProgress } from './missions.js'
 
 // ═══════════════════════════════════════════
 //  🎣 PESCA - Atrapa peces de distinta rareza
@@ -101,12 +104,26 @@ export default {
 
     const evento = eventos[Math.floor(Math.random() * eventos.length)]
     const pez = getPez()
-    const coins = randomInt(pez.min, pez.max)
-    const exp = randomInt(pez.exp, pez.exp * 2)
+    let coins = randomInt(pez.min, pez.max)
+    let exp = randomInt(pez.exp, pez.exp * 2)
+
+    // Aplicar bonos de skills y prestige
+    const exploreMult = getExploreBonus(user)
+    const xpMult = getXpBonus(user)
+    const prestigeMult = getPrestigeMultiplier(user)
+    coins = Math.floor(coins * exploreMult * prestigeMult)
+    exp = Math.floor(exp * xpMult * prestigeMult)
+
+    const doubleResult = tryDoubleReward(user, coins)
+    coins = doubleResult.amount
 
     user.coins = (user.coins || 0) + coins
     user.exp = (user.exp || 0) + exp
     user.totalFish = (user.totalFish || 0) + 1
+
+    // Actualizar misiones
+    updateMissionProgress(user, 'fish')
+    updateMissionProgress(user, 'commands')
 
     const rarezaBadge = rarezaColor[pez.rareza] || '⚪'
 
@@ -126,7 +143,7 @@ export default {
 │
 │ 💰 +*¥${coins.toLocaleString()} ${monedas}*
 │ ⚡ +*${exp.toLocaleString()} XP*
-│ 🐟 Peces totales: *${user.totalFish}*${bonusMsg}
+│ 🐟 Peces totales: *${user.totalFish}*${bonusMsg}${doubleResult.doubled ? '\n│ 🔮 *¡AURA MÍSTICA! Duplicado*' : ''}
 ╰─── ⋆✨⋆ ───`
 
     await client.sendMessage(m.chat, { text: msg }, { quoted: m })

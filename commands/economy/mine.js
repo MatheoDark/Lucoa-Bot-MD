@@ -1,4 +1,7 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getWorkBonus, getXpBonus, tryDoubleReward } from './skills.js'
+import { getPrestigeMultiplier } from './prestige.js'
+import { updateMissionProgress } from './missions.js'
 
 export default {
   command: ['mine'],
@@ -42,10 +45,23 @@ export default {
       }
     }
 
-    user.coins = (user.coins || 0) + reward
+    user.coins = user.coins || 0
+
+    // Aplicar bonos de skills y prestige
+    const skillMult = getWorkBonus(user)
+    const prestigeMult = getPrestigeMultiplier(user)
+    reward = Math.floor(reward * skillMult * prestigeMult)
+    const doubleResult = tryDoubleReward(user, reward)
+    reward = doubleResult.amount
+    user.coins += reward
+
+    // Actualizar misiones
+    updateMissionProgress(user, 'mine')
+    updateMissionProgress(user, 'commands')
 
     let msg = `╭─── ⋆🐉⋆ ───\n│ ⛏️ *MINERÍA*\n├───────────────\n│ ${narration} *${reward.toLocaleString()} ${monedas}*`
     if (bonusMsg) msg += `\n${bonusMsg}`
+    if (doubleResult.doubled) msg += '\n│ 🔮 *¡AURA MÍSTICA! Recompensa duplicada*'
     msg += '\n╰─── ⋆✨⋆ ───'
 
     await client.reply(m.chat, msg, m)

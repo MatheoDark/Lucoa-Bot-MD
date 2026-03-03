@@ -14,6 +14,7 @@ import loadCommandsAndPlugins from './lib/system/commandLoader.js'
 import initDB from './lib/system/initDB.js'
 import { resolveLidToRealJid } from './lib/utils.js'
 import { getCachedGroupMetadata } from './lib/groupCache.js'
+import { updateMissionProgress } from './commands/economy/missions.js'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIGURACIÓN GLOBAL
@@ -367,6 +368,61 @@ export default async (client, m) => {
 
     const body = extractMessageBody(m.message)
     let usedPrefix = null
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  🎯 RASTREO DE ACTIVIDAD PARA MISIONES DE CHAT
+    //  Trackea mensajes, stickers, media, audio y reacciones
+    //  Esto corre ANTES del chequeo de prefijo para contar todo
+    // ═══════════════════════════════════════════════════════════════════
+    if (isGroup && chatSettings.rpg) {
+      try {
+        const activityUserId = sender
+        const activityUser = global.db.data.users[activityUserId]
+        if (activityUser && activityUser.missions) {
+          const msg = m.message || {}
+          // Contar mensajes de texto
+          if (msg.conversation || msg.extendedTextMessage) {
+            updateMissionProgress(activityUser, 'messages', 1)
+          }
+          // Contar stickers  
+          if (msg.stickerMessage) {
+            updateMissionProgress(activityUser, 'stickers', 1)
+            updateMissionProgress(activityUser, 'messages', 1)
+          }
+          // Contar fotos/videos
+          if (msg.imageMessage || msg.videoMessage) {
+            updateMissionProgress(activityUser, 'media', 1)
+            updateMissionProgress(activityUser, 'messages', 1)
+          }
+          // Contar notas de voz
+          if (msg.audioMessage) {
+            updateMissionProgress(activityUser, 'audio', 1)
+            updateMissionProgress(activityUser, 'messages', 1)
+          }
+          // Contar reacciones
+          if (msg.reactionMessage) {
+            updateMissionProgress(activityUser, 'reactions', 1)
+          }
+          // Trackear grupos distintos donde habla
+          if (msg.conversation || msg.extendedTextMessage || msg.stickerMessage || msg.imageMessage || msg.videoMessage || msg.audioMessage) {
+            if (!activityUser._chatGroupsToday) activityUser._chatGroupsToday = {}
+            const hoy = new Date().toISOString().slice(0, 10)
+            if (!activityUser._chatGroupsToday[hoy]) activityUser._chatGroupsToday[hoy] = new Set()
+            // Sets don't serialize to JSON, use array-like tracking
+            if (!activityUser._activeGroups) activityUser._activeGroups = {}
+            if (!activityUser._activeGroups[hoy]) activityUser._activeGroups[hoy] = []
+            if (!activityUser._activeGroups[hoy].includes(chatId)) {
+              activityUser._activeGroups[hoy].push(chatId)
+              updateMissionProgress(activityUser, 'chatgroups', 1)
+            }
+            // Limpiar días viejos
+            for (const key of Object.keys(activityUser._activeGroups)) {
+              if (key !== hoy) delete activityUser._activeGroups[key]
+            }
+          }
+        }
+      } catch (e) { /* silenciar errores de tracking */ }
+    }
 
     // Hooks .all
     await runPluginHooks('all', client, m, { usedPrefix }, isOwner)

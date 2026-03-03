@@ -1,4 +1,8 @@
 import { resolveLidToRealJid } from '../../lib/utils.js'
+import { getExploreBonus, getTrapReduction, getXpBonus, tryDoubleReward } from './skills.js'
+import { getClassBonus } from './class.js'
+import { getPrestigeMultiplier } from './prestige.js'
+import { updateMissionProgress } from './missions.js'
 
 // ═══════════════════════════════════════════
 //  🗺️ EXPLORAR - Aventura aleatoria
@@ -130,10 +134,35 @@ export default {
       resultado = pickRandom(normales)
     }
 
-    const coins = randomInt(resultado.coinsMin, resultado.coinsMax)
-    const exp = randomInt(resultado.expMin, resultado.expMax)
+    let coins = randomInt(resultado.coinsMin, resultado.coinsMax)
+    let exp = randomInt(resultado.expMin, resultado.expMax)
 
-    // Aplicar - para trampas coins es negativo
+    // Aplicar bonos de skills y prestige
+    const exploreMult = getExploreBonus(user)
+    const trapReduce = getTrapReduction(user)
+    const xpMult = getXpBonus(user)
+    const prestigeMult = getPrestigeMultiplier(user)
+    const legendaryBonus = getClassBonus(user, 'legendaryBonus') || 0
+    const trapDodge = getClassBonus(user, 'trapDodge') || 0
+
+    // Clase Explorador: esquivar trampas
+    if (resultado.tipo === 'trampa' && trapDodge > 0 && Math.random() < trapDodge) {
+      resultado = pickRandom(normales)
+      coins = randomInt(resultado.coinsMin, resultado.coinsMax)
+      exp = randomInt(resultado.expMin, resultado.expMax)
+    }
+
+    if (coins > 0) {
+      coins = Math.floor(coins * exploreMult * prestigeMult)
+    } else {
+      coins = Math.floor(coins * trapReduce) // Reduce pérdidas
+    }
+    exp = Math.floor(exp * xpMult * prestigeMult)
+
+    const doubleResult = coins > 0 ? tryDoubleReward(user, coins) : { doubled: false, amount: coins }
+    coins = doubleResult.amount
+
+    // Aplicar
     if (coins < 0) {
       user.coins = Math.max(0, user.coins + coins) // coins ya es negativo
     } else {
@@ -141,6 +170,10 @@ export default {
     }
     user.exp = (user.exp || 0) + exp
     user.totalExplores = (user.totalExplores || 0) + 1
+
+    // Actualizar misiones
+    updateMissionProgress(user, 'explore')
+    updateMissionProgress(user, 'commands')
 
     const emoji = tipoEmoji[resultado.tipo] || '🗺️'
     const coinsText = coins >= 0 
@@ -160,7 +193,7 @@ export default {
 │
 │ ${coinsText}
 │ ⚡ +*${exp.toLocaleString()} XP*
-│ 🧭 Exploraciones: *${user.totalExplores}*${legendarioMsg}
+│ 🧭 Exploraciones: *${user.totalExplores}*${legendarioMsg}${doubleResult.doubled ? '\n│ 🔮 *¡AURA MÍSTICA! Duplicado*' : ''}
 │
 │ 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*
 ╰─── ⋆✨⋆ ───`
