@@ -91,7 +91,7 @@ export default {
                 )
             }
 
-            // ═══ NIVEL 1: Menú principal con botones de categoría ═══
+            // ═══ NIVEL 1: Menú principal con lista de categorías ═══
             let headerText = `╭─── ⋆🐉⋆ ───────────╮\n`
             headerText += `│  *${botname}* ${kao}\n`
             headerText += `├─────────────────────\n`
@@ -102,16 +102,25 @@ export default {
             headerText += `╰─── ⋆✨⋆ ───────────╯\n\n`
             headerText += `_Selecciona una categoría para ver sus comandos_ 🐉`
 
-            const categoryButtons = Object.entries(catMap)
+            const categoryRows = Object.entries(catMap)
                 .filter(([key]) => myCommands.some(c => c.category === key))
                 .map(([key, label]) => {
                     const count = myCommands.filter(c => c.category === key).length
-                    return [`${label} (${count})`, `${cleanPrefix}menu ${key}`]
+                    return {
+                        title: label,
+                        description: `${count} comandos disponibles`,
+                        id: `${cleanPrefix}menu ${key}`
+                    }
                 })
 
+            const sections = [{
+                title: '📂 Categorías',
+                rows: categoryRows
+            }]
+
             // Gestión de Multimedia (videos optimizados + imágenes)
-            let media = null
-            let tempFile = null
+            // Se envía como mensaje separado antes del menú interactivo
+            let mediaSent = false
             const MEDIA_DIR = path.join(process.cwd(), 'media')
             if (fs.existsSync(MEDIA_DIR)) {
                 try {
@@ -123,38 +132,36 @@ export default {
                         const randomVideo = videos[Math.floor(Math.random() * videos.length)]
                         let buffer = fs.readFileSync(path.join(MEDIA_DIR, randomVideo))
                         buffer = await optimizeVideo(buffer, randomVideo.split('.').pop())
-                        if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp')
-                        tempFile = `./tmp/menu_${Date.now()}.mp4`
-                        fs.writeFileSync(tempFile, buffer)
-                        media = tempFile
+                        await client.sendMessage(m.chat, { video: buffer, gifPlayback: true, caption: headerText }, { quoted: m })
+                        mediaSent = true
                     } else if (images.length > 0) {
                         const randomImage = images[Math.floor(Math.random() * images.length)]
-                        media = path.join(MEDIA_DIR, randomImage)
+                        const imgBuffer = fs.readFileSync(path.join(MEDIA_DIR, randomImage))
+                        await client.sendMessage(m.chat, { image: imgBuffer, caption: headerText }, { quoted: m })
+                        mediaSent = true
                     }
                 } catch (e) {}
             }
 
-            if (!media) {
+            if (!mediaSent) {
                 const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-                const dbBanner = global.db?.data?.settings?.[botId]?.banner
-                media = dbBanner || 'https://i.pinimg.com/736x/2a/39/19/2a39199d63c5a704259b15d21a525d88.jpg'
+                const dbBanner = global.db?.data?.settings?.[botId]?.banner || null
+
+                if (dbBanner) {
+                    await client.sendMessage(m.chat, { image: { url: dbBanner }, caption: headerText }, { quoted: m })
+                } else {
+                    await client.sendMessage(m.chat, { image: { url: 'https://github.com/MatheoDark/Lucoa-Bot-MD/blob/main/media/banner2.jpg?raw=true' }, caption: headerText }, { quoted: m })
+                }
             }
 
-            await client.sendButton(
+            await client.sendList(
                 m.chat,
-                headerText,
-                '🐉 Lucoa Bot · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ',
-                media,
-                categoryButtons,
-                null,
-                null,
+                '🐉 Lucoa Bot',
+                '> _Toca el botón de abajo y selecciona una categoría_ 🐉',
+                '📋 Ver Categorías',
+                sections,
                 m
             )
-
-            // Limpiar archivo temporal si se creó
-            if (tempFile && fs.existsSync(tempFile)) {
-                fs.promises.unlink(tempFile).catch(() => {})
-            }
 
         } catch (e) {
             console.error(e)
