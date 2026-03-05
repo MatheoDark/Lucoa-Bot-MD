@@ -88,6 +88,69 @@ export default {
                 return await client.sendMessage(m.chat, { text: fullText.trim() }, { quoted: m })
             }
 
+            // ═══ Función para obtener media (video/imagen/banner) ═══
+            async function getMenuMedia() {
+                const MEDIA_DIR = path.join(process.cwd(), 'media')
+                let buffer = null
+                let isVideo = false
+
+                if (fs.existsSync(MEDIA_DIR)) {
+                    try {
+                        const files = fs.readdirSync(MEDIA_DIR)
+                        const videos = files.filter(f => /\.(mp4|gif|webm)$/i.test(f))
+                        const images = files.filter(f => /\.(jpg|png|jpeg|webp)$/i.test(f))
+
+                        if (videos.length > 0) {
+                            const randomVideo = videos[Math.floor(Math.random() * videos.length)]
+                            buffer = fs.readFileSync(path.join(MEDIA_DIR, randomVideo))
+                            buffer = await optimizeVideo(buffer, randomVideo.split('.').pop())
+                            isVideo = true
+                        } else if (images.length > 0) {
+                            const randomImage = images[Math.floor(Math.random() * images.length)]
+                            buffer = fs.readFileSync(path.join(MEDIA_DIR, randomImage))
+                        }
+                    } catch (e) {}
+                }
+
+                const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
+                const dbBanner = global.db?.data?.settings?.[botId]?.banner || null
+                const mediaOpts = {}
+
+                if (isVideo && buffer) {
+                    mediaOpts.video = buffer
+                    mediaOpts.gifPlayback = true
+                } else if (buffer) {
+                    mediaOpts.image = buffer
+                } else if (dbBanner) {
+                    mediaOpts.image = { url: dbBanner }
+                } else {
+                    mediaOpts.image = { url: 'https://raw.githubusercontent.com/MatheoDark/Lucoa-Bot-MD/main/media/banner2.jpg' }
+                }
+                return mediaOpts
+            }
+
+            // ═══ Helper para registrar poll en store global ═══
+            function registerPoll(pollResult, optionMap) {
+                if (!pollResult?.key?.id) return
+                const pollEncKey = pollResult.message?.messageContextInfo?.messageSecret
+                    || pollResult.message?.pollCreationMessageV3?.messageSecret
+                    || pollResult.message?.pollCreationMessage?.messageSecret
+                if (!pollEncKey) return
+                global.activePollMenus.set(pollResult.key.id, {
+                    pollEncKey,
+                    pollCreatorJid: client.user.id,
+                    optionMap,
+                    chatJid: m.chat,
+                    createdAt: Date.now()
+                })
+                // Limpiar polls viejos (más de 30 minutos)
+                for (const [id, data] of global.activePollMenus) {
+                    if (Date.now() - data.createdAt > 30 * 60 * 1000) {
+                        global.activePollMenus.delete(id)
+                    }
+                }
+            }
+
             // ═══ NIVEL 2: Comandos de una categoría ═══
             if (selectedCategory && catMap[selectedCategory]) {
                 const cmds = myCommands.filter(c => c.category === selectedCategory)
@@ -104,166 +167,46 @@ export default {
                 })
                 cmdText += `╰──────────⋆✦⋆\n\n> 📊 Total: ${cmds.length} comandos`
 
-                await client.sendMessage(m.chat, { text: cmdText }, { quoted: m })
+                // Enviar con video/media
+                const media = await getMenuMedia()
+                media.caption = cmdText
+                await client.sendMessage(m.chat, media, { quoted: m })
 
-                // Encuesta para volver o ir a otra categoría
+                // Encuesta para volver
                 const volverOptions = [{ name: '↩ Volver al Menú', command: `${cleanPrefix}menu` }]
                 const volverMap = {}
                 for (const opt of volverOptions) {
-                    const hash = crypto.createHash('sha256').update(opt.name).digest('hex')
-                    volverMap[hash] = opt.command
+                    volverMap[crypto.createHash('sha256').update(opt.name).digest('hex')] = opt.command
                 }
                 const volverPoll = await client.sendMessage(m.chat, {
-                    poll: {
-                        name: '🐉 ¿Qué deseas hacer?',
-                        values: volverOptions.map(o => o.name),
-                        selectableCount: 1
-                    }
+                    poll: { name: '🐉 ¿Qué deseas hacer?', values: volverOptions.map(o => o.name), selectableCount: 1 }
                 })
-                if (volverPoll?.key?.id) {
-                    const pollEncKey = volverPoll.message?.messageContextInfo?.messageSecret
-                    if (pollEncKey) {
-                        global.activePollMenus.set(volverPoll.key.id, {
-                            pollEncKey,
-                            pollCreatorJid: client.user.id,
-                            optionMap: volverMap,
-                            chatJid: m.chat,
-                            createdAt: Date.now()
-                        })
-                    }
-                }
+                registerPoll(volverPoll, volverMap)
                 return
             }
 
-            // ═══ NIVEL 1: Menú original con video/imagen + botones de categoría ═══
-            let menuText = `╭─── ⋆🐉⋆ ───────────╮\n`
-            menuText += `│  *${botname}* ${kao}\n`
-            menuText += `├─────────────────────\n`
-            menuText += `│ 👤 *Usuario ›* ${username}\n`
-            menuText += `│ 🐲 *Estado ›* Online\n`
-            menuText += `│ 📚 *Comandos ›* ${myCommands.length}\n`
-            menuText += `│ ✧ *Prefijo ›* ${cleanPrefix}\n`
-            menuText += `╰─── ⋆✨⋆ ───────────╯\n\n`
+            // ═══ NIVEL 1: Encuesta primero, luego video/resumen ═══
 
-            // Ordenamos categorías
-            const categoryKeys = Object.keys(catMap)
-
-            categoryKeys.forEach(tag => {
-                const cmds = myCommands.filter(c => c.category === tag)
-                
-                if (cmds.length > 0) {
-                    menuText += `╭── ${catMap[tag]} ──\n`
-                    
-                    cmds.forEach(cmd => {
-                        let commandLine = `${cleanPrefix}${cmd.name}`
-                        
-                        if (cmd.alias && Array.isArray(cmd.alias) && cmd.alias.length > 0) {
-                            const aliasLimpis = cmd.alias.map(a => `${cleanPrefix}${a.replace(/^\//, '')}`)
-                            commandLine += ` / ${aliasLimpis.join(' / ')}`
-                        }
-
-                        menuText += `│ ❀ ${commandLine}${cmd.desc ? `\n│   ╰ _${cmd.desc}_` : ''}\n`
-                    })
-                    menuText += `╰──────────⋆✦⋆\n\n`
-                }
-            })
-            
-            menuText += `> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`
-
-            // Gestión de Multimedia (TU CÓDIGO ORIGINAL)
-            const MEDIA_DIR = path.join(process.cwd(), 'media')
-            let buffer = null
-            let isVideo = false
-
-            if (fs.existsSync(MEDIA_DIR)) {
-                try {
-                    const files = fs.readdirSync(MEDIA_DIR)
-                    const videos = files.filter(f => /\.(mp4|gif|webm)$/i.test(f))
-                    const images = files.filter(f => /\.(jpg|png|jpeg|webp)$/i.test(f))
-
-                    if (videos.length > 0) {
-                        const randomVideo = videos[Math.floor(Math.random() * videos.length)]
-                        buffer = fs.readFileSync(path.join(MEDIA_DIR, randomVideo))
-                        buffer = await optimizeVideo(buffer, randomVideo.split('.').pop())
-                        isVideo = true
-                    } else if (images.length > 0) {
-                        const randomImage = images[Math.floor(Math.random() * images.length)]
-                        buffer = fs.readFileSync(path.join(MEDIA_DIR, randomImage))
-                    }
-                } catch (e) {}
-            }
-
-            const messageOptions = { caption: menuText.trim() }
-            const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
-            const dbBanner = global.db?.data?.settings?.[botId]?.banner || null
-
-            if (isVideo && buffer) {
-                messageOptions.video = buffer
-                messageOptions.gifPlayback = true
-            } else if (buffer) {
-                messageOptions.image = buffer
-            } else if (dbBanner) {
-                messageOptions.image = { url: dbBanner }
-            } else {
-                messageOptions.image = { url: 'https://raw.githubusercontent.com/MatheoDark/Lucoa-Bot-MD/main/media/banner2.jpg' }
-            }
-
-            // Enviar menú original con video/imagen
-            await client.sendMessage(m.chat, messageOptions, { quoted: m })
-
-            // ═══ Encuesta interactiva de categorías ═══
+            // 1. Encuesta interactiva de categorías
             const activeCategories = Object.entries(catMap)
                 .filter(([key]) => myCommands.some(c => c.category === key))
 
-            // WhatsApp permite máximo 12 opciones en una encuesta
             const pollOptions = activeCategories.slice(0, 11).map(([key, label]) => {
                 const count = myCommands.filter(c => c.category === key).length
                 return { name: `${label} (${count})`, command: `${cleanPrefix}menu ${key}` }
             })
-            // Opción para ver todo el menú (texto completo)
             pollOptions.push({ name: '📖 Ver todo el menú', command: `${cleanPrefix}menu all` })
 
-            // Crear el mapeo optionHash → comando
             const optionMap = {}
             for (const opt of pollOptions) {
-                const hash = crypto.createHash('sha256').update(opt.name).digest('hex')
-                optionMap[hash] = opt.command
+                optionMap[crypto.createHash('sha256').update(opt.name).digest('hex')] = opt.command
             }
 
-            // Enviar la encuesta
+            // 2. Enviar solo la encuesta
             const pollResult = await client.sendMessage(m.chat, {
-                poll: {
-                    name: '🐉 Selecciona una categoría',
-                    values: pollOptions.map(o => o.name),
-                    selectableCount: 1
-                }
+                poll: { name: `🐉 ${botname} ${kao}\n📚 ${myCommands.length} comandos · Prefijo: ${cleanPrefix}\nSelecciona una categoría:`, values: pollOptions.map(o => o.name), selectableCount: 1 }
             }, { quoted: m })
-
-            // Guardar en store global para detectar el voto
-            if (pollResult?.key?.id) {
-                const pollEncKey = pollResult.message?.messageContextInfo?.messageSecret
-                    || pollResult.message?.pollCreationMessageV3?.messageSecret
-                    || pollResult.message?.pollCreationMessage?.messageSecret
-                console.log('[MenuPoll] Poll ID:', pollResult.key.id, 'encKey found:', !!pollEncKey, 'options:', Object.values(optionMap))
-                if (!pollEncKey) {
-                    console.log('[MenuPoll] Full message keys:', JSON.stringify(Object.keys(pollResult.message || {})))
-                }
-                if (pollEncKey) {
-                    global.activePollMenus.set(pollResult.key.id, {
-                        pollEncKey,
-                        pollCreatorJid: client.user.id,
-                        optionMap,
-                        chatJid: m.chat,
-                        createdAt: Date.now()
-                    })
-                    // Limpiar polls viejos (más de 30 minutos)
-                    for (const [id, data] of global.activePollMenus) {
-                        if (Date.now() - data.createdAt > 30 * 60 * 1000) {
-                            global.activePollMenus.delete(id)
-                        }
-                    }
-                }
-            }
+            registerPoll(pollResult, optionMap)
 
         } catch (e) {
             console.error(e)
