@@ -277,14 +277,58 @@ async function loadBots() {
   }
 }
 
-// Anti Rate-Limit v3 — Cola inteligente con throttle por grupo
+// Anti Rate-Limit v5 — ADAPTATIVO: rápido normalmente, frena solo cuando se acerca al límite
 const queue = []
 let running = false
-const DELAY_TEXT = 2500     // 2.5s entre mensajes de texto
-const DELAY_MEDIA = 4000    // 4s entre mensajes con media (imagen/video/audio)
-const MAX_QUEUE = 50        // 🔧 Reducido de 100 a 50 para evitar acumulación
-const groupLastSend = new Map() // Throttle por grupo
-const MIN_GROUP_INTERVAL = 3000 // Mínimo 3s entre mensajes al mismo grupo
+const MAX_QUEUE = 50
+
+// Delays BASE (modo normal — rápido)
+const DELAY_TEXT_NORMAL = 1500    // 1.5s entre textos
+const DELAY_MEDIA_NORMAL = 2500  // 2.5s entre media
+const GROUP_INTERVAL_NORMAL = 2000 // 2s entre msgs al mismo grupo
+
+// Delays CAUTELA (cuando se acerca al límite)
+const DELAY_TEXT_CAUTIOUS = 4000
+const DELAY_MEDIA_CAUTIOUS = 6000
+const GROUP_INTERVAL_CAUTIOUS = 5000
+
+// Delays POST-428 (después de un rate limit real)
+const DELAY_TEXT_RECOVERY = 5000
+const DELAY_MEDIA_RECOVERY = 8000
+const GROUP_INTERVAL_RECOVERY = 6000
+
+const groupLastSend = new Map()
+
+// Tracking adaptativo
+const globalSendTimestamps = []
+const WINDOW = 60000 // Ventana de 1 minuto
+const THRESHOLD_CAUTION = 20  // >20 msg/min → modo cautela
+const THRESHOLD_DANGER = 30   // >30 msg/min → pausar
+let _rateLimitMode = 'normal' // 'normal' | 'cautious' | 'recovery'
+let _recoveryUntil = 0        // Timestamp hasta cuando mantener modo recovery
+
+function getDelays() {
+  // Si estamos en recovery post-428, usar delays conservadores
+  if (_rateLimitMode === 'recovery' && Date.now() < _recoveryUntil) {
+    return { text: DELAY_TEXT_RECOVERY, media: DELAY_MEDIA_RECOVERY, group: GROUP_INTERVAL_RECOVERY }
+  }
+  // Si recovery expiró, volver a normal
+  if (_rateLimitMode === 'recovery' && Date.now() >= _recoveryUntil) {
+    _rateLimitMode = 'normal'
+    console.log('✅ Modo recovery terminado, volviendo a velocidad normal.')
+  }
+  if (_rateLimitMode === 'cautious') {
+    return { text: DELAY_TEXT_CAUTIOUS, media: DELAY_MEDIA_CAUTIOUS, group: GROUP_INTERVAL_CAUTIOUS }
+  }
+  return { text: DELAY_TEXT_NORMAL, media: DELAY_MEDIA_NORMAL, group: GROUP_INTERVAL_NORMAL }
+}
+
+// Llamar cuando ocurre un 428 real (desde connection.update)
+export function activateRecoveryMode(durationMs = 120000) {
+  _rateLimitMode = 'recovery'
+  _recoveryUntil = Date.now() + durationMs
+  console.log(`🛡️ Modo recovery activado por ${Math.round(durationMs / 1000)}s — delays más lentos para evitar otro 428.`)
+}
 
 function enqueue(task, jid, hasMedia) { 
   if (queue.length >= MAX_QUEUE) {
@@ -300,24 +344,45 @@ async function run() {
   while (queue.length) {
     const { task, jid, hasMedia } = queue.shift()
     
-    // Throttle por grupo: esperar si se envió muy rápido al mismo grupo
+    // Limpiar timestamps viejos
+    const now = Date.now()
+    while (globalSendTimestamps.length && globalSendTimestamps[0] < now - WINDOW) {
+      globalSendTimestamps.shift()
+    }
+    
+    // Adaptar modo según volumen
+    const msgsInWindow = globalSendTimestamps.length
+    if (msgsInWindow >= THRESHOLD_DANGER && _rateLimitMode !== 'recovery') {
+      console.warn(`⚠️ ${msgsInWindow} msgs en 1min — pausando 8s para evitar 428...`)
+      await new Promise(r => setTimeout(r, 8000))
+    } else if (msgsInWindow >= THRESHOLD_CAUTION && _rateLimitMode === 'normal') {
+      _rateLimitMode = 'cautious'
+    } else if (msgsInWindow < THRESHOLD_CAUTION && _rateLimitMode === 'cautious') {
+      _rateLimitMode = 'normal'
+    }
+    
+    const delays = getDelays()
+    
+    // Throttle por grupo
     if (jid?.endsWith('@g.us')) {
       const last = groupLastSend.get(jid) || 0
       const elapsed = Date.now() - last
-      if (elapsed < MIN_GROUP_INTERVAL) {
-        await new Promise(r => setTimeout(r, MIN_GROUP_INTERVAL - elapsed))
+      if (elapsed < delays.group) {
+        await new Promise(r => setTimeout(r, delays.group - elapsed))
       }
       groupLastSend.set(jid, Date.now())
     }
     
     try { 
-      await task() 
+      await task()
+      globalSendTimestamps.push(Date.now())
     }
     catch (e) {
       const errorStr = String(e)
       if (errorStr.includes('rate-overlimit') || errorStr.includes('too many requests')) {
-        console.warn('⚠️ Rate limit detectado, esperando 8s...')
-        await new Promise(r => setTimeout(r, 8000))
+        console.warn('⚠️ Rate limit en sendMessage, activando recovery + pausando 15s...')
+        activateRecoveryMode(180000) // 3 minutos en modo lento
+        await new Promise(r => setTimeout(r, 15000))
         queue.unshift({ task, jid, hasMedia })
       } else if (errorStr.includes('Connection Closed') || errorStr.includes('stream errored')) {
         console.warn('⚠️ Stream caído, descartando mensaje en cola.')
@@ -325,9 +390,10 @@ async function run() {
         console.error('Send error:', e.message || e) 
       }
     }
-    // Delay adaptativo: más lento para media, más rápido para texto
-    const delay = hasMedia ? DELAY_MEDIA : DELAY_TEXT
-    await new Promise(r => setTimeout(r, delay))
+    // Delay base + jitter pequeño
+    const baseDelay = hasMedia ? delays.media : delays.text
+    const jitter = Math.floor(Math.random() * 800) // 0-0.8s
+    await new Promise(r => setTimeout(r, baseDelay + jitter))
   }
   running = false
 }
@@ -478,6 +544,21 @@ setInterval(cleanTmpFolder, 10 * 60 * 1000)
 // Limpiar al iniciar
 cleanTmpFolder()
 
+// 🔧 FIX v7: Purgar archivos pre-key acumulados (idea de Ellen-Joe-Bot)
+// Estos archivos se acumulan y generan overhead en cada handshake, contribuyendo a 428.
+function purgePreKeys() {
+  try {
+    const sessionDir = global.sessionName
+    if (!fs.existsSync(sessionDir)) return
+    const files = fs.readdirSync(sessionDir).filter(f => f.startsWith('pre-key-'))
+    for (const file of files) {
+      try { fs.unlinkSync(path.join(sessionDir, file)) } catch {}
+    }
+    if (files.length > 0) console.log(chalk.gray(`🔑 Pre-keys limpiadas: ${files.length} archivo(s)`))
+  } catch {}
+}
+setInterval(purgePreKeys, 10 * 60 * 1000) // Cada 10 minutos
+
 async function startBot() {
   // Limpiar interval de auto-save anterior
   if (disconnectTracker._credsAutoSaveInterval) {
@@ -548,10 +629,10 @@ async function startBot() {
     getMessage: async (key) => {
       return undefined
     },
-    keepAliveIntervalMs: 30000,      // 🔧 FIX v6: 30s = default Baileys. Ventana de 35s antes de "lost".
-    maxMsgRetryCount: 3,
+    keepAliveIntervalMs: 45000,      // 🔧 FIX v7: 45s = menos pings al servidor de WA (reduce tráfico)
+    maxMsgRetryCount: 2,             // 🔧 FIX v7: 2 reintentos (3 genera más tráfico innecesario)
     connectTimeoutMs: 60000,         // 🔧 FIX v6: 60s (suficiente para VPS)
-    defaultQueryTimeoutMs: 60000,    // 🔧 FIX v6: 60s default Baileys
+    defaultQueryTimeoutMs: undefined, // 🔧 FIX v7: undefined = sin timeout (evita reintentos internos que causan 428)
     emitOwnEvents: true,
     fireInitQueries: true,
     shouldIgnoreJid: (jid) => jid?.endsWith('@broadcast') || jid === 'status@broadcast',
@@ -690,17 +771,23 @@ async function startBot() {
       else if (reason === 428) {
         disconnectTracker.consecutive428++
         disconnectTracker._lastReasonCode = 428
-        // Backoff agresivo: 5min, 10min, 15min... max 30min
-        const backoff428 = Math.min(300000 * disconnectTracker.consecutive428, 1800000)
-        console.log(chalk.yellow(`⚠️ Error 428: Rate limit. Esperando ${Math.round(backoff428 / 1000 / 60)}min (intento ${disconnectTracker.consecutive428})`))
+        // Backoff progresivo: 30s, 60s, 2min, 5min, 10min (max)
+        const backoff428Steps = [30000, 60000, 120000, 300000, 600000]
+        const backoff428 = backoff428Steps[Math.min(disconnectTracker.consecutive428 - 1, backoff428Steps.length - 1)]
+        console.log(chalk.yellow(`⚠️ Error 428: Rate limit. Esperando ${Math.round(backoff428 / 1000)}s (intento ${disconnectTracker.consecutive428})`))
         
-        // Después de 5 intentos, esperar 1 hora
-        if (disconnectTracker.consecutive428 >= 5) {
-          console.log(chalk.red('🛑 Demasiados 428 consecutivos. Esperando 1 hora antes de reintentar.'))
+        // Activar modo recovery en la cola de mensajes al reconectar
+        // Duración: escala con los intentos (2min, 3min, 5min...)
+        const recoveryDuration = Math.min(120000 + (disconnectTracker.consecutive428 - 1) * 60000, 600000)
+        activateRecoveryMode(recoveryDuration)
+        
+        // Después de 7 intentos, esperar 30 minutos
+        if (disconnectTracker.consecutive428 >= 7) {
+          console.log(chalk.red('🛑 Demasiados 428 consecutivos. Esperando 30min antes de reintentar.'))
           setTimeout(() => {
             disconnectTracker.consecutive428 = 0
             startBot()
-          }, 3600000)
+          }, 1800000)
           return
         }
         
@@ -835,8 +922,9 @@ async function startBot() {
           await client.updateProfileStatus(`🐉 Lucoa Bot · ⏱ ${uptimeStr} activa · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`)
         } catch {}
       }
-      updateBotStatus()
-      disconnectTracker._statusInterval = setInterval(updateBotStatus, 5 * 60 * 1000)
+      // 🔧 FIX v7: Primer update después de 30s, luego cada 15min (era 5min — demasiadas llamadas API)
+      setTimeout(updateBotStatus, 30000)
+      disconnectTracker._statusInterval = setInterval(updateBotStatus, 15 * 60 * 1000)
     }
   })
 

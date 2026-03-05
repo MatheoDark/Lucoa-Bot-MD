@@ -67,10 +67,10 @@ const EVENTOS = [
 
 // ── TIERS CON COSTOS Y RECOMPENSAS ──
 const TIERS = {
-  facil:      { label: '🟢 Fácil',       costoXP: 300,   coinsMin: 3000,   coinsMax: 12000,  expMin: 200,   expMax: 600,   winChance: 0.75 },
-  medio:      { label: '🟡 Medio',       costoXP: 800,   coinsMin: 8000,   coinsMax: 30000,  expMin: 500,   expMax: 1500,  winChance: 0.55 },
-  dificil:    { label: '🔴 Difícil',     costoXP: 2000,  coinsMin: 20000,  coinsMax: 70000,  expMin: 1200,  expMax: 4000,  winChance: 0.35 },
-  legendario: { label: '🟣 Legendario',  costoXP: 5000,  coinsMin: 50000,  coinsMax: 200000, expMin: 3000,  expMax: 10000, winChance: 0.18 },
+  facil:      { label: '🟢 Fácil',       costoXP: 300,   coinsMin: 8000,   coinsMax: 25000,  expMin: 400,   expMax: 1200,  winChance: 0.75 },
+  medio:      { label: '🟡 Medio',       costoXP: 800,   coinsMin: 18000,  coinsMax: 60000,  expMin: 1000,  expMax: 3000,  winChance: 0.55 },
+  dificil:    { label: '🔴 Difícil',     costoXP: 2000,  coinsMin: 40000,  coinsMax: 140000, expMin: 2500,  expMax: 8000,  winChance: 0.35 },
+  legendario: { label: '🟣 Legendario',  costoXP: 5000,  coinsMin: 100000, coinsMax: 400000, expMin: 6000,  expMax: 20000, winChance: 0.18 },
 }
 
 // ── IMÁGENES DE RESULTADO (dinámicas via rpgImages.js) ──

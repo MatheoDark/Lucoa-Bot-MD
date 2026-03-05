@@ -91,9 +91,9 @@ export default {
 
 // Función de recompensa escalable
 function calcularRecompensa(dia) {
-  const base = 15000
-  const incremento = 8000
-  const maximo = 200000 // Tope de 200k diarios
+  const base = 25000
+  const incremento = 12000
+  const maximo = 350000 // Tope de 350k diarios
   const recompensa = base + (dia - 1) * incremento
   return Math.min(recompensa, maximo)
 }

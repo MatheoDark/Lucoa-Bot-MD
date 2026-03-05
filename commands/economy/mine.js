@@ -25,22 +25,22 @@ export default {
       return m.reply(`🐲 Espera *${msToTime(remaining)}* para minar de nuevo (◕︿◕✿)`)
     }
 
-    user.mineCooldown = Date.now() + 10 * 60000
+    user.mineCooldown = Date.now() + 7 * 60000
 
     let isLegendary = Math.random() < 0.02
     let reward, narration, bonusMsg = ''
 
     if (isLegendary) {
-      reward = Math.floor(Math.random() * 150000) + 100000
+      reward = Math.floor(Math.random() * 250000) + 150000
       narration = '✨ ¡TESORO LEGENDARIO! ✨\n│ '
       bonusMsg = '\n│ 🌟 ¡Recompensa ÉPICA! (≧◡≦)'
     } else {
-      reward = Math.floor(Math.random() * 13000) + 2000
+      reward = Math.floor(Math.random() * 20000) + 5000
       const scenario = pickRandom(escenarios)
       narration = `En ${scenario}, ${pickRandom(mineria)}`
 
-      if (Math.random() < 0.1) {
-        const bonus = Math.floor(Math.random() * 8000) + 2000
+      if (Math.random() < 0.15) {
+        const bonus = Math.floor(Math.random() * 12000) + 3000
         reward += bonus
         bonusMsg = `\n│ ❀ ¡Bonus! +*${bonus.toLocaleString()}* extra`
       }

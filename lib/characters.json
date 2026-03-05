@@ -43,7 +43,7 @@
   },
   {
     "name": "Ellen Joe",
-    "value": 3800000,
+    "value": 1330000,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "ellen_joe"
@@ -176,21 +176,21 @@
   },
   {
     "name": "Miyabi Hoshimi",
-    "value": 2300000,
+    "value": 805000,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "hoshimi_miyabi"
   },
   {
     "name": "Jane Doe",
-    "value": 2250000,
+    "value": 787500,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "jane_doe_(zenless_zone_zero)"
   },
   {
     "name": "Zhu Yuan",
-    "value": 2200000,
+    "value": 770000,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "zhu_yuan"
@@ -260,7 +260,7 @@
   },
   {
     "name": "Gawr Gura",
-    "value": 1600000,
+    "value": 640000,
     "gender": "Mujer",
     "source": "Hololive",
     "keyword": "gawr_gura"
@@ -274,973 +274,973 @@
   },
   {
     "name": "Nezuko Kamado",
-    "value": 1450000,
+    "value": 870000,
     "gender": "Mujer",
     "source": "Kimetsu no Yaiba",
     "keyword": "kamado_nezuko"
   },
   {
     "name": "Shinobu Kocho",
-    "value": 1400000,
+    "value": 840000,
     "gender": "Mujer",
     "source": "Kimetsu no Yaiba",
     "keyword": "kochou_shinobu"
   },
   {
     "name": "Mitsuri Kanroji",
-    "value": 1350000,
+    "value": 810000,
     "gender": "Mujer",
     "source": "Kimetsu no Yaiba",
     "keyword": "kanroji_mitsuri"
   },
   {
     "name": "Kaguya Shinomiya",
-    "value": 1300000,
+    "value": 780000,
     "gender": "Mujer",
     "source": "Kaguya-sama",
     "keyword": "shinomiya_kaguya"
   },
   {
     "name": "Miku Nakano",
-    "value": 1250000,
+    "value": 687500,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_miku"
   },
   {
     "name": "Nino Nakano",
-    "value": 1200000,
+    "value": 660000,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_nino"
   },
   {
     "name": "Mao Mao",
-    "value": 950000,
+    "value": 600000,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "maomao_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Senko San",
-    "value": 450000,
+    "value": 202500,
     "gender": "Mujer",
     "source": "Sewayaki Kitsune no Senko-san",
     "keyword": "senko_(sewayaki_kitsune_no_senko-san)"
   },
   {
     "name": "Erika Amano",
-    "value": 472970,
+    "value": 212836,
     "gender": "Mujer",
     "source": "Kakkou no Iinazuke",
     "keyword": "amano_erika"
   },
   {
     "name": "Hiro Segawa",
-    "value": 462960,
+    "value": 208332,
     "gender": "Mujer",
     "source": "Kakkou no Iinazuke",
     "keyword": "segawa_hiro"
   },
   {
     "name": "Sachi Umino",
-    "value": 819360,
+    "value": 368712,
     "gender": "Mujer",
     "source": "Kakkou no Iinazuke",
     "keyword": "umino_sachi_(kakkou_no_iinazuke)"
   },
   {
     "name": "Nagi Umino",
-    "value": 361780,
+    "value": 162801,
     "gender": "Hombre",
     "source": "Kakkou no Iinazuke",
     "keyword": "umino_nagi"
   },
   {
     "name": "Jinshi",
-    "value": 361970,
+    "value": 350000,
     "gender": "Hombre",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "jinshi_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Xiaolan",
-    "value": 362960,
+    "value": 181480,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "xiaolan_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Lihua",
-    "value": 271960,
+    "value": 135980,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "lihua_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Loulan",
-    "value": 183660,
+    "value": 91830,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "loulan_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Gyokuyou",
-    "value": 261860,
+    "value": 130930,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "gyokuyou_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Pairin",
-    "value": 57260,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "pairin_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Meimei",
-    "value": 261860,
+    "value": 130930,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "meimei_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Lishu",
-    "value": 26380,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "lishu_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Rahan",
-    "value": 268710,
+    "value": 134355,
     "gender": "Hombre",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "rahan_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Gaoshun",
-    "value": 25840,
+    "value": 80000,
     "gender": "Hombre",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "gaoshun_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Ah-Dou",
-    "value": 26380,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Kusuriya no Hitorigoto",
     "keyword": "ah-duo_(kusuriya_no_hitorigoto)"
   },
   {
     "name": "Torako Koshi",
-    "value": 26830,
+    "value": 60000,
     "gender": "Mujer",
     "source": "Shikanoko Nokonoko Koshitantan",
     "keyword": "koshi_torako"
   },
   {
     "name": "Neko Nekoyamada",
-    "value": 361960,
+    "value": 162882,
     "gender": "Mujer",
     "source": "Shikanoko Nokonoko Koshitantan",
     "keyword": "nekoyamada_neko"
   },
   {
     "name": "Noko Shikanoko",
-    "value": 23970,
+    "value": 60000,
     "gender": "Mujer",
     "source": "Shikanoko Nokonoko Koshitantan",
     "keyword": "shikanoko_noko"
   },
   {
     "name": "Meme Bashame",
-    "value": 263960,
+    "value": 118782,
     "gender": "Mujer",
     "source": "Shikanoko Nokonoko Koshitantan",
     "keyword": "bashame_meme"
   },
   {
     "name": "Kiwi Araga",
-    "value": 262960,
+    "value": 105184,
     "gender": "Mujer",
     "source": "Mahou Shoujo ni Akogarate",
     "keyword": "araga_kiwi"
   },
   {
     "name": "Utena Hiiragi",
-    "value": 37190,
+    "value": 60000,
     "gender": "Mujer",
     "source": "Mahou Shoujo ni Akogarate",
     "keyword": "hiiragi_utena"
   },
   {
     "name": "Chika Fujiwara",
-    "value": 361960,
+    "value": 300000,
     "gender": "Mujer",
     "source": "Kaguya-sama",
     "keyword": "fujiwara_chika"
   },
   {
     "name": "Iino Miko",
-    "value": 276390,
+    "value": 165834,
     "gender": "Mujer",
     "source": "Kaguya-sama",
     "keyword": "iino_miko"
   },
   {
     "name": "Yuu Ishigami",
-    "value": 688280,
+    "value": 412968,
     "gender": "Hombre",
     "source": "Kaguya-sama",
     "keyword": "ishigami_yuu"
   },
   {
     "name": "Miyuki Shirogane",
-    "value": 272990,
+    "value": 400000,
     "gender": "Hombre",
     "source": "Kaguya-sama",
     "keyword": "shirogane_miyuki"
   },
   {
     "name": "Moeha Fujiwara",
-    "value": 386260,
+    "value": 231756,
     "gender": "Mujer",
     "source": "Kaguya-sama",
     "keyword": "fujiwara_moeha"
   },
   {
     "name": "Kei Shirogane",
-    "value": 472960,
+    "value": 283776,
     "gender": "Mujer",
     "source": "Kaguya-sama",
     "keyword": "shirogane_kei"
   },
   {
     "name": "Trigger",
-    "value": 271580,
+    "value": 95053,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "trigger_(zenless_zone_zero)"
   },
   {
     "name": "Tsukishiro Yanagi",
-    "value": 372990,
+    "value": 130546,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "tsukishiro_yanagi"
   },
   {
     "name": "Belle",
-    "value": 372870,
+    "value": 130504,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "belle_(zenless_zone_zero)"
   },
   {
     "name": "Burnice White",
-    "value": 273970,
+    "value": 95889,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "burnice_white"
   },
   {
     "name": "Anby Demara",
-    "value": 272930,
+    "value": 95525,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "anby_demara"
   },
   {
     "name": "Astra Yao",
-    "value": 758370,
+    "value": 265429,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "astra_yao"
   },
   {
     "name": "Evelyn Chevalier",
-    "value": 283670,
+    "value": 99284,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "evelyn_chevalier"
   },
   {
     "name": "Caesar King",
-    "value": 281680,
+    "value": 98588,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "caesar_king_(zenless_zone_zero)"
   },
   {
     "name": "Nekomiya Mana",
-    "value": 372960,
+    "value": 130535,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "nekomiya_mana"
   },
   {
     "name": "Ben Bigger",
-    "value": 874970,
+    "value": 306239,
     "gender": "Hombre",
     "source": "Zenless Zone Zero",
     "keyword": "ben_bigger"
   },
   {
     "name": "Vivian Banshee",
-    "value": 272970,
+    "value": 95539,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "vivian_banshee"
   },
   {
     "name": "Qingyi",
-    "value": 261960,
+    "value": 91686,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "qingyi_(zenless_zone_zero)"
   },
   {
     "name": "Corin Wickes",
-    "value": 371960,
+    "value": 130185,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "corin_wickes"
   },
   {
     "name": "Nicole Demara",
-    "value": 629580,
+    "value": 220353,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "nicole_demara"
   },
   {
     "name": "Ju Fufu",
-    "value": 216970,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "ju_fufu"
   },
   {
     "name": "Pulchra Fellini",
-    "value": 583680,
+    "value": 204288,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "pulchra_fellini"
   },
   {
     "name": "Yi Xuan",
-    "value": 293790,
+    "value": 102826,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "yixuan_(zenless_zone_zero)"
   },
   {
     "name": "Venus",
-    "value": 283680,
+    "value": 99288,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "venus_(zenless_zone_zero)"
   },
   {
     "name": "Luciana De Montefio",
-    "value": 273970,
+    "value": 95889,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "luciana_de_montefio"
   },
   {
     "name": "Piper Wheel",
-    "value": 373970,
+    "value": 130889,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "piper_wheel"
   },
   {
     "name": "Lighter",
-    "value": 472970,
+    "value": 165539,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "lighter_(zenless_zone_zero)"
   },
   {
     "name": "Soldier 11",
-    "value": 283760,
+    "value": 99316,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "soldier_11_(zenless_zone_zero)"
   },
   {
     "name": "Sweety",
-    "value": 382760,
+    "value": 133966,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "sweety_(zenless_zone_zero)"
   },
   {
     "name": "Alexandrina Sebastiane",
-    "value": 972980,
+    "value": 340543,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "alexandrina_sebastiane"
   },
   {
     "name": "Soukaku",
-    "value": 368260,
+    "value": 128890,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "soukaku_(zenless_zone_zero)"
   },
   {
     "name": "Wise",
-    "value": 729670,
+    "value": 255384,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "wise_(zenless_zone_zero)"
   },
   {
     "name": "Von Lycaon",
-    "value": 375780,
+    "value": 131523,
     "gender": "Hombre",
     "source": "Zenless Zone Zero",
     "keyword": "von_lycaon"
   },
   {
     "name": "Asaba Harumasa",
-    "value": 855770,
+    "value": 299519,
     "gender": "Hombre",
     "source": "Zenless Zone Zero",
     "keyword": "asaba_harumasa"
   },
   {
     "name": "Billy Kid",
-    "value": 372860,
+    "value": 130500,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "billy_kid"
   },
   {
     "name": "Seth Lowell",
-    "value": 273570,
+    "value": 95749,
     "gender": "Hombre",
     "source": "Zenless Zone Zero",
     "keyword": "seth_lowell"
   },
   {
     "name": "Koleda Belobog",
-    "value": 373960,
+    "value": 130885,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "koleda_belobog"
   },
   {
     "name": "Hugo Vlad",
-    "value": 283680,
+    "value": 99288,
     "gender": "Hombre",
     "source": "Zenless Zone Zero",
     "keyword": "hugo_vlad"
   },
   {
     "name": "Coco",
-    "value": 823770,
+    "value": 288319,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "coco_(zenless_zone_zero)"
   },
   {
     "name": "Orchidea",
-    "value": 738350,
+    "value": 258422,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "orchidea_(zenless_zone_zero)"
   },
   {
     "name": "Alice Thymefield",
-    "value": 273680,
+    "value": 95788,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "alice_thymefield"
   },
   {
     "name": "Ukinami Yuzuha",
-    "value": 462860,
+    "value": 162001,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "ukinami_yuzuha"
   },
   {
     "name": "Twiggy",
-    "value": 263860,
+    "value": 92351,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "twiggy_(zenless_zone_zero)"
   },
   {
     "name": "Pan Yinhu",
-    "value": 663870,
+    "value": 232354,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "pan_yinhu"
   },
   {
     "name": "Pompey",
-    "value": 23770,
+    "value": 80000,
     "gender": "Hombre",
     "source": "Zenless Zone Zero",
     "keyword": "pompey_(zenless_zone_zero)"
   },
   {
     "name": "Orpheus",
-    "value": 736870,
+    "value": 257904,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "orpheus_(zenless_zone_zero)"
   },
   {
     "name": "Rain",
-    "value": 366860,
+    "value": 128400,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "rain_(zenless_zone_zero)"
   },
   {
     "name": "Bangboo",
-    "value": 593680,
+    "value": 207788,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
     "keyword": "bangboo_(zenless_zone_zero)"
   },
   {
     "name": "Kobayashi",
-    "value": 15270,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Kobayashi-san Chi no Dragon Maid",
     "keyword": "kobayashi"
   },
   {
     "name": "Conny",
-    "value": 17280,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Miira no Kaikata",
     "keyword": "coony_(miira_no_kaikata)"
   },
   {
     "name": "Jotaro Kujo",
-    "value": 836700,
+    "value": 600000,
     "gender": "Hombre",
     "source": "JoJo's Bizarre Adventure",
     "keyword": "jotaro_kujo"
   },
   {
     "name": "Star Platinum",
-    "value": 379700,
+    "value": 300000,
     "gender": "Hombre",
     "source": "JoJo's Bizarre Adventure",
     "keyword": "star_platinum"
   },
   {
     "name": "Giorno Giovanna",
-    "value": 273880,
+    "value": 400000,
     "gender": "Hombre",
     "source": "JoJo's Bizarre Adventure",
     "keyword": "giorno_giovanna"
   },
   {
     "name": "Rohan Kishibe",
-    "value": 27390,
+    "value": 200000,
     "gender": "Hombre",
     "source": "JoJo's Bizarre Adventure",
     "keyword": "kishibe_rohan"
   },
   {
     "name": "The World",
-    "value": 293990,
+    "value": 161694,
     "gender": "Hombre",
     "source": "JoJo's Bizarre Adventure",
     "keyword": "the_world"
   },
   {
     "name": "Ichika Nakano",
-    "value": 29380,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_ichika"
   },
   {
     "name": "Yotsuba Nakano",
-    "value": 261860,
+    "value": 144023,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_yotsuba"
   },
   {
     "name": "Itsuki Nakano",
-    "value": 48270,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_itsuki"
   },
   {
     "name": "Fuutarou Uesugi",
-    "value": 26280,
+    "value": 80000,
     "gender": "Hombre",
     "source": "Gotoubun no Hanayome",
     "keyword": "uesugi_fuutarou"
   },
   {
     "name": "Ichika",
-    "value": 282570,
+    "value": 98899,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "ichika_(blue_archive)"
   },
   {
     "name": "Hina",
-    "value": 819900,
+    "value": 286965,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "hina_(blue_archive)"
   },
   {
     "name": "Yuuka",
-    "value": 382980,
+    "value": 134043,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "yuuka_(blue_archive)"
   },
   {
     "name": "Rio Tsukatsuki",
-    "value": 393917,
+    "value": 137870,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "tsukatsuki_rio"
   },
   {
     "name": "Asuna",
-    "value": 193680,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "asuna_(blue_archive)"
   },
   {
     "name": "Karin",
-    "value": 283690,
+    "value": 99291,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "karin_(blue_archive)"
   },
   {
     "name": "Aris",
-    "value": 82630,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "aris_(blue_archive)"
   },
   {
     "name": "Kirino Nakatsukasa",
-    "value": 482930,
+    "value": 169025,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "kirino_(blue_archive)"
   },
   {
     "name": "Shiroko",
-    "value": 129880,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "shiroko_(blue_archive)"
   },
   {
     "name": "Aru",
-    "value": 293790,
+    "value": 102826,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "aru_(blue_archive)"
   },
   {
     "name": "Ui",
-    "value": 190880,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "ui_(blue_archive)"
   },
   {
     "name": "Momoi",
-    "value": 291680,
+    "value": 102088,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "momoi_(blue_archive)"
   },
   {
     "name": "Kisaki",
-    "value": 382680,
+    "value": 133938,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "kisaki_(blue_archive)"
   },
   {
     "name": "Hasumi",
-    "value": 28680,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "hasumi_(blue_archive)"
   },
   {
     "name": "Shalltear Bloodfallen",
-    "value": 292980,
+    "value": 300000,
     "gender": "Mujer",
     "source": "Overlord",
     "keyword": "shalltear_bloodfallen"
   },
   {
     "name": "Arona",
-    "value": 292680,
+    "value": 102438,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "arona_(blue_archive)"
   },
   {
     "name": "Onikata Kayoko",
-    "value": 866290,
+    "value": 303201,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "onikata_kayoko"
   },
   {
     "name": "Noa",
-    "value": 26580,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "noa_(blue_archive)"
   },
   {
     "name": "Nonomi",
-    "value": 292070,
+    "value": 102224,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "nonomi_(blue_archive)"
   },
   {
     "name": "Asuma Toki",
-    "value": 28680,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "asuma_toki"
   },
   {
     "name": "Saori",
-    "value": 648280,
+    "value": 226898,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "saori_(blue_archive)"
   },
   {
     "name": "Nozomi Tachibana",
-    "value": 358260,
+    "value": 125390,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "nozomi_(blue_archive)"
   },
   {
     "name": "Hikari Tachibana",
-    "value": 583980,
+    "value": 204393,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "hikari_(blue_archive)"
   },
   {
     "name": "Neru",
-    "value": 798260,
+    "value": 279391,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "neru_(blue_archive)"
   },
   {
     "name": "Yurizono Seia",
-    "value": 582960,
+    "value": 204036,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "yurizono_seia"
   },
   {
     "name": "Plana",
-    "value": 482970,
+    "value": 169039,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "plana_(blue_archive)"
   },
   {
     "name": "Fuuka",
-    "value": 39780,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "fuuka_(blue_archive)"
   },
   {
     "name": "Mutsuki",
-    "value": 782780,
+    "value": 273973,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "mutsuki_(blue_archive)"
   },
   {
     "name": "Akane",
-    "value": 478270,
+    "value": 167394,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "akane_(blue_archive)"
   },
   {
     "name": "Mari",
-    "value": 13920,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "mari_(blue_archive)"
   },
   {
     "name": "Serika",
-    "value": 487890,
+    "value": 170761,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "serika_(blue_archive)"
   },
   {
     "name": "Shimiko Endo",
-    "value": 496680,
+    "value": 173838,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "shimiko_(blue_archive)"
   },
   {
     "name": "Rin Nanagami",
-    "value": 583980,
+    "value": 204393,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "nanagami_rin"
   },
   {
     "name": "Hakari Hanazono",
-    "value": 397290,
+    "value": 158916,
     "gender": "Mujer",
     "source": "Kimi no Koto ga Daidaidaidaidaisuki na 100-nin no Kanojo",
     "keyword": "hanazono_hakari"
   },
   {
     "name": "Shizuka Yoshimoto",
-    "value": 472970,
+    "value": 189188,
     "gender": "Mujer",
     "source": "Kimi no Koto ga Daidaidaidaidaisuki na 100-nin no Kanojo",
     "keyword": "yoshimoto_shizuka"
   },
   {
     "name": "Karane Inda",
-    "value": 539890,
+    "value": 215956,
     "gender": "Mujer",
     "source": "Kimi no Koto ga Daidaidaidaidaisuki na 100-nin no Kanojo",
     "keyword": "inda_karane"
   },
   {
     "name": "Rin Kagamine",
-    "value": 378780,
+    "value": 189390,
     "gender": "Mujer",
     "source": "Vocaloid",
     "keyword": "kagamine_rin"
   },
   {
     "name": "Kaito",
-    "value": 793770,
+    "value": 396885,
     "gender": "Hombre",
     "source": "Vocaloid",
     "keyword": "kaito_(vocaloid)"
   },
   {
     "name": "Luka Megurine",
-    "value": 368780,
+    "value": 184390,
     "gender": "Mujer",
     "source": "Vocaloid",
     "keyword": "megurine_luka"
   },
   {
     "name": "Akita Neru",
-    "value": 12870,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Vocaloid",
     "keyword": "akita_neru"
   },
   {
     "name": "Len Kagamine",
-    "value": 37610,
+    "value": 80000,
     "gender": "Hombre",
     "source": "Vocaloid",
     "keyword": "kagamine_len"
   },
   {
     "name": "Oliver",
-    "value": 39580,
+    "value": 80000,
     "gender": "Hombre",
     "source": "Vocaloid",
     "keyword": "oliver_(vocaloid)"
   },
   {
     "name": "Flower",
-    "value": 384970,
+    "value": 192485,
     "gender": "Mujer",
     "source": "Vocaloid",
     "keyword": "flower_(vocaloid)"
   },
   {
     "name": "Gumi",
-    "value": 28170,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Vocaloid",
     "keyword": "gumi"
   },
   {
     "name": "Kaoruko Waguri",
-    "value": 10000,
+    "value": 30000,
     "gender": "Mujer",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "waguri_kaoruko"
   },
   {
     "name": "Subaru Hoshina",
-    "value": 7000,
+    "value": 30000,
     "gender": "Mujer",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "hoshina_subaru"
   },
   {
     "name": "Rintarou Tsumugi",
-    "value": 9000,
+    "value": 30000,
     "gender": "Hombre",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "tsumugi_rintarou"
   },
   {
     "name": "Madoka Yuzuhara",
-    "value": 5000,
+    "value": 30000,
     "gender": "Mujer",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "yuzuhara_madoka"
   },
   {
     "name": "Saku Natsusawa",
-    "value": 2500,
+    "value": 30000,
     "gender": "Hombre",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "natsusawa_saku"
   },
   {
     "name": "Shouhei Usami",
-    "value": 3000,
+    "value": 30000,
     "gender": "Hombre",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "usami_shouhei"
   },
   {
     "name": "Ayato Yorita",
-    "value": 2000,
+    "value": 30000,
     "gender": "Hombre",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "yorita_ayato"
@@ -1254,14 +1254,14 @@
   },
   {
     "name": "Kasumi Miwa",
-    "value": 28160,
+    "value": 150000,
     "gender": "Mujer",
     "source": "Jujutsu Kaisen",
     "keyword": "miwa_kasumi"
   },
   {
     "name": "Choso",
-    "value": 197290,
+    "value": 350000,
     "gender": "Hombre",
     "source": "Jujutsu Kaisen",
     "keyword": "choso_(jujutsu_kaisen)"
@@ -1275,7 +1275,7 @@
   },
   {
     "name": "Mei Mei",
-    "value": 264570,
+    "value": 300000,
     "gender": "Mujer",
     "source": "Jujutsu Kaisen",
     "keyword": "mei_mei_(jujutsu_kaisen)"
@@ -1289,7 +1289,7 @@
   },
   {
     "name": "Nobara Kugisaki",
-    "value": 76680,
+    "value": 500000,
     "gender": "Mujer",
     "source": "Jujutsu Kaisen",
     "keyword": "kugisaki_nobara"
@@ -1303,7 +1303,7 @@
   },
   {
     "name": "Nanami Kento",
-    "value": 276200,
+    "value": 400000,
     "gender": "Hombre",
     "source": "Jujutsu Kaisen",
     "keyword": "nanami_kento"
@@ -1317,14 +1317,14 @@
   },
   {
     "name": "Ram",
-    "value": 37570,
+    "value": 200000,
     "gender": "Mujer",
     "source": "Re:Zero",
     "keyword": "ram_(re:zero)"
   },
   {
     "name": "Pack",
-    "value": 81683,
+    "value": 150000,
     "gender": "Desconocido",
     "source": "Re:Zero",
     "keyword": "pack_(re:zero)"
@@ -1338,28 +1338,28 @@
   },
   {
     "name": "Subaru Natsuki",
-    "value": 39397,
+    "value": 300000,
     "gender": "Hombre",
     "source": "Re:Zero",
     "keyword": "subaru_natsuki_(re:zero)"
   },
   {
     "name": "Satella",
-    "value": 268370,
+    "value": 350000,
     "gender": "Mujer",
     "source": "Re:Zero",
     "keyword": "satella_(re:zero)"
   },
   {
     "name": "Shalltear Bloodfallen",
-    "value": 292980,
+    "value": 300000,
     "gender": "Mujer",
     "source": "Overlord",
     "keyword": "shalltear_bloodfallen"
   },
   {
     "name": "Sailor Moon",
-    "value": 883900,
+    "value": 500000,
     "gender": "Mujer",
     "source": "Sailor Moon",
     "keyword": "sailor_moon"
@@ -1387,77 +1387,77 @@
   },
   {
     "name": "Sailor Venus",
-    "value": 382680,
+    "value": 210474,
     "gender": "Mujer",
     "source": "Sailor Moon",
     "keyword": "sailor_venus"
   },
   {
     "name": "Sailor Mars",
-    "value": 282990,
+    "value": 155644,
     "gender": "Mujer",
     "source": "Sailor Moon",
     "keyword": "sailor_mars"
   },
   {
     "name": "Sailor Mercury",
-    "value": 92910,
+    "value": 120000,
     "gender": "Mujer",
     "source": "Sailor Moon",
     "keyword": "sailor_mercury"
   },
   {
     "name": "Kanna Kamui",
-    "value": 386180,
+    "value": 300000,
     "gender": "Mujer",
     "source": "Kobayashi-san Chi no Dragon Maid",
     "keyword": "kanna_kamui"
   },
   {
     "name": "Elma",
-    "value": 38290,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Kobayashi-san Chi no Dragon Maid",
     "keyword": "elma"
   },
   {
     "name": "Ilulu",
-    "value": 29890,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Kobayashi-san Chi no Dragon Maid",
     "keyword": "ilulu"
   },
   {
     "name": "Quetzalcoatl",
-    "value": 28190,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Kobayashi-san Chi no Dragon Maid",
     "keyword": "quetzalcoatl"
   },
   {
     "name": "Tohru",
-    "value": 296700,
+    "value": 250000,
     "gender": "Mujer",
     "source": "Kobayashi-san Chi no Dragon Maid",
     "keyword": "tohru"
   },
   {
     "name": "Jolyne Kujo",
-    "value": 378200,
+    "value": 400000,
     "gender": "Mujer",
     "source": "JoJo's Bizarre Adventure",
     "keyword": "jolyne_kujo"
   },
   {
     "name": "Dio Brando",
-    "value": 382700,
+    "value": 500000,
     "gender": "Hombre",
     "source": "JoJo's Bizarre Adventure",
     "keyword": "dio_brando"
   },
   {
     "name": "Bruno Bucciarati ",
-    "value": 57850,
+    "value": 100000,
     "gender": "Hombre",
     "source": "JoJo's Bizarre Adventure",
     "keyword": "bruno_bucciarati "
@@ -1471,359 +1471,1507 @@
   },
   {
     "name": "Nijika Ijichi",
-    "value": 50000,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Bocchi The Rock",
     "keyword": "ijichi_nijika"
   },
   {
     "name": "Kikuri Hiroi",
-    "value": 45000,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Bocchi The Rock",
     "keyword": "hiroi_kikuri"
   },
   {
     "name": "Seika Ijichi",
-    "value": 30000,
+    "value": 80000,
     "gender": "Mujer",
     "source": "Bocchi The Rock",
     "keyword": "ijichi_seika"
   },
   {
     "name": "Alisa Mikhailovna Kujou",
-    "value": 400000,
+    "value": 180000,
     "gender": "Mujer",
     "source": "Tokidoki Bosotto Russia-go de Dereru Tonari no Alya-san",
     "keyword": "alisa_mikhailovna_kujou"
   },
   {
     "name": "Mariya Mikhailovna Kujou",
-    "value": 285700,
+    "value": 128565,
     "gender": "Mujer",
     "source": "Tokidoki Bosotto Russia-go de Dereru Tonari no Alya-san",
     "keyword": "mariya_mikhailovna_kujou"
   },
   {
     "name": "Ayano Kimishima",
-    "value": 285700,
+    "value": 128565,
     "gender": "Mujer",
     "source": "Tokidoki Bosotto Russia-go de Dereru Tonari no Alya-san",
     "keyword": "kimishima_ayano"
   },
   {
     "name": "Retzel",
-    "value": 396000,
+    "value": 138600,
     "gender": "Mujer",
     "source": "Prima Doll",
     "keyword": "retzel_(prima_doll)"
   },
   {
     "name": "Haizakura",
-    "value": 396000,
+    "value": 138600,
     "gender": "Mujer",
     "source": "Prima Doll",
     "keyword": "haizakura_(prima_doll)"
   },
   {
     "name": "Karasuba",
-    "value": 173960,
+    "value": 60885,
     "gender": "Mujer",
     "source": "Prima Doll",
     "keyword": "karasuba_(prima_doll)"
   },
   {
     "name": "Gekka",
-    "value": 396000,
+    "value": 138600,
     "gender": "Mujer",
     "source": "Prima Doll",
     "keyword": "gekka_(prima_doll)"
   },
   {
     "name": "Varesa",
-    "value": 396000,
+    "value": 158400,
     "gender": "Mujer",
     "source": "Genshin Impact",
     "keyword": "varesa_(genshin_impact)"
   },
   {
     "name": "Reze",
-    "value": 292970,
+    "value": 350000,
     "gender": "Mujer",
     "source": "Chainsaw Man",
     "keyword": "reze_(chainsaw_man)"
   },
   {
     "name": "Himeno",
-    "value": 193790,
+    "value": 300000,
     "gender": "Mujer",
     "source": "Chainsaw Man",
     "keyword": "himeno_(chainsaw_man)"
   },
   {
     "name": "Angel Devil",
-    "value": 50890,
+    "value": 200000,
     "gender": "Hombre",
     "source": "Chainsaw Man",
     "keyword": "angel_devil_(chainsaw_man)"
   },
   {
     "name": "Wiz",
-    "value": 292720,
+    "value": 200000,
     "gender": "Mujer",
     "source": "Kono Subarashii Sekai ni Shukufuku wo!",
     "keyword": "wiz_(konosuba)"
   },
   {
     "name": "Lucoa",
-    "value": 396510,
+    "value": 218080,
     "gender": "Mujer",
     "source": "Kono Subarashii Sekai ni Shukufuku wo!",
     "keyword": "megumin"
   },
   {
     "name": "Yunyun",
-    "value": 261880,
+    "value": 180000,
     "gender": "Mujer",
     "source": "Kono Subarashii Sekai ni Shukufuku wo!",
     "keyword": "yunyun_(konosuba)"
   },
   {
     "name": "Aqua",
-    "value": 396760,
+    "value": 250000,
     "gender": "Mujer",
     "source": "Kono Subarashii Sekai ni Shukufuku wo!",
     "keyword": "aqua_(konosuba)"
   },
   {
     "name": "Mita",
-    "value": 196290,
+    "value": 180000,
     "gender": "Mujer",
     "source": "MiSide",
     "keyword": "mita_(miside)"
   },
   {
     "name": "Cool Mita",
-    "value": 286180,
+    "value": 200000,
     "gender": "Mujer",
     "source": "MiSide",
     "keyword": "cool_mita_(miside)"
   },
   {
     "name": "Chara",
-    "value": 392790,
+    "value": 250000,
     "gender": "Desconocido",
     "source": "Undertale",
     "keyword": "chara"
   },
   {
     "name": "Kumi Katayama",
-    "value": 2000,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Persona",
     "keyword": "katayama_kumi"
   },
   {
     "name": "Hatsune Miku",
-    "value": 500000,
+    "value": 400000,
     "gender": "Mujer",
     "source": "Vocaloid",
     "keyword": "hatsune_miku"
   },
   {
     "name": "Sumi Sakurasawa",
-    "value": 2300,
+    "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "sakurasawa_sumi"
   },
   {
     "name": "Aquamarine Hoshino",
-    "value": 1900,
+    "value": 500000,
     "gender": "Hombre",
     "source": "Oshi no Ko",
     "keyword": "hoshino_aquamarine"
   },
   {
     "name": "Ruby Hoshino",
-    "value": 1000,
+    "value": 400000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "hoshino_ruby"
   },
   {
     "name": "Kana Arima",
-    "value": 15000,
+    "value": 250000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "arima_kana"
   },
   {
     "name": "Akane Kurokawa",
-    "value": 23000,
+    "value": 300000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "kurokawa_akane"
   },
   {
     "name": "Mem-Cho",
-    "value": 2200,
+    "value": 200000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "mem-cho"
   },
   {
     "name": "Gorou Amamiya",
-    "value": 2800,
+    "value": 50000,
     "gender": "Hombre",
     "source": "Oshi no Ko",
     "keyword": "amamiya_gorou"
   },
   {
     "name": "Frill Shiranui",
-    "value": 2400,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "shiranui_frill"
   },
   {
     "name": "Miyako Saitou",
-    "value": 2600,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "saitou_miyako"
   },
   {
     "name": "Ichigo Saitou",
-    "value": 10000,
+    "value": 50000,
     "gender": "Hombre",
     "source": "Oshi no Ko",
     "keyword": "saitou_ichigo"
   },
   {
     "name": "Chocola",
-    "value": 900,
+    "value": 40000,
     "gender": "Mujer",
     "source": "Nekopara",
     "keyword": "chocola"
   },
   {
     "name": "Vanilla",
-    "value": 100,
+    "value": 40000,
     "gender": "Mujer",
     "source": "Nekopara",
     "keyword": "vanilla"
   },
   {
     "name": "Cinnamon",
-    "value": 10000,
+    "value": 40000,
     "gender": "Mujer",
     "source": "Nekopara",
     "keyword": "cinnamon_(nekopara) "
   },
   {
     "name": "Coconut",
-    "value": 23000,
+    "value": 40000,
     "gender": "Mujer",
     "source": "Nekopara",
     "keyword": "coconut_(nekopara) "
   },
   {
     "name": "Maple",
-    "value": 8900,
+    "value": 40000,
     "gender": "Mujer",
     "source": "Nekopara",
     "keyword": "maple_(nekopara)"
   },
   {
     "name": "Cacao",
-    "value": 400,
+    "value": 40000,
     "gender": "Mujer",
     "source": "Nekopara",
     "keyword": "cacao_(nekopara) "
   },
   {
     "name": "Chizuru Mizuhara",
-    "value": 9000,
+    "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "mizuhara_chizuru"
   },
   {
     "name": "Kazuya Kinoshita",
-    "value": 6700,
+    "value": 30000,
     "gender": "Hombre",
     "source": "Kanojo, Okarishimasu",
     "keyword": "kinoshita_kazuya"
   },
   {
     "name": "Ruka Sarashina",
-    "value": 8000,
+    "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "sarashina_ruka"
   },
   {
     "name": "Mami Nanami",
-    "value": 7500,
+    "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "nanami_mami"
   },
   {
     "name": "Mini Yaemori",
-    "value": 7000,
+    "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "yaemori_mini"
   },
   {
     "name": "Mahiru Shiina",
-    "value": 25000,
+    "value": 60000,
     "gender": "Mujer",
     "source": "Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken",
     "keyword": "shiina_mahiru_(otonari_no_tenshi-sama)"
   },
   {
     "name": "Sylpha Langlis",
-    "value": 20000,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Tensei shitara Dainana Ouji Datta node, Kimama ni Majutsu wo Kiwamemasu",
     "keyword": "sylpha_(dai_nana_oji)"
   },
   {
     "name": "Tina Sprout",
-    "value": 40000,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Black Bullet",
     "keyword": "tina_sprout"
   },
   {
     "name": "Ahiara Enju",
-    "value": 10000,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Black Bullet",
     "keyword": "aihara_enju"
   },
   {
     "name": "Nagisa Kubo",
-    "value": 8500,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Kubo-san wa Mob wo Yurusanai",
     "keyword": "kubo_nagisa"
   },
   {
     "name": "Latifa Fleuranza",
-    "value": 20000,
+    "value": 50000,
     "gender": "Mujer",
     "source": "Amagami Brilliant Park",
     "keyword": "latifa_fleuranza"
   },
   {
     "name": "Konjiki No Yami",
-    "value": 50000,
+    "value": 80000,
     "gender": "Mujer",
     "source": "To LOVE-Ru",
     "keyword": "konjiki_no_yami"
+  },
+  {
+    "name": "Tanjiro Kamado",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Demon Slayer",
+    "keyword": "tanjiro_kamado"
+  },
+  {
+    "name": "Nezuko Kamado",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Demon Slayer",
+    "keyword": "nezuko_kamado"
+  },
+  {
+    "name": "Zenitsu Agatsuma",
+    "value": 1800000,
+    "gender": "Hombre",
+    "source": "Demon Slayer",
+    "keyword": "zenitsu_agatsuma"
+  },
+  {
+    "name": "Inosuke Hashibira",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Demon Slayer",
+    "keyword": "inosuke_hashibira"
+  },
+  {
+    "name": "Kyojuro Rengoku",
+    "value": 3000000,
+    "gender": "Hombre",
+    "source": "Demon Slayer",
+    "keyword": "kyojuro_rengoku"
+  },
+  {
+    "name": "Giyu Tomioka",
+    "value": 2200000,
+    "gender": "Hombre",
+    "source": "Demon Slayer",
+    "keyword": "giyu_tomioka"
+  },
+  {
+    "name": "Shinobu Kocho",
+    "value": 2800000,
+    "gender": "Mujer",
+    "source": "Demon Slayer",
+    "keyword": "shinobu_kocho"
+  },
+  {
+    "name": "Mitsuri Kanroji",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Demon Slayer",
+    "keyword": "mitsuri_kanroji"
+  },
+  {
+    "name": "Muzan Kibutsuji",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Demon Slayer",
+    "keyword": "muzan_kibutsuji"
+  },
+  {
+    "name": "Kanao Tsuyuri",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Demon Slayer",
+    "keyword": "kanao_tsuyuri"
+  },
+  {
+    "name": "Muichiro Tokito",
+    "value": 1600000,
+    "gender": "Hombre",
+    "source": "Demon Slayer",
+    "keyword": "muichiro_tokito"
+  },
+  {
+    "name": "Tengen Uzui",
+    "value": 1400000,
+    "gender": "Hombre",
+    "source": "Demon Slayer",
+    "keyword": "tengen_uzui"
+  },
+  {
+    "name": "Eren Yeager",
+    "value": 3000000,
+    "gender": "Hombre",
+    "source": "Attack on Titan",
+    "keyword": "eren_yeager"
+  },
+  {
+    "name": "Mikasa Ackerman",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Attack on Titan",
+    "keyword": "mikasa_ackerman"
+  },
+  {
+    "name": "Levi Ackerman",
+    "value": 5000000,
+    "gender": "Hombre",
+    "source": "Attack on Titan",
+    "keyword": "levi_ackerman"
+  },
+  {
+    "name": "Historia Reiss",
+    "value": 2000000,
+    "gender": "Mujer",
+    "source": "Attack on Titan",
+    "keyword": "historia_reiss"
+  },
+  {
+    "name": "Armin Arlert",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Attack on Titan",
+    "keyword": "armin_arlert"
+  },
+  {
+    "name": "Erwin Smith",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Attack on Titan",
+    "keyword": "erwin_smith"
+  },
+  {
+    "name": "Hange Zoe",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Attack on Titan",
+    "keyword": "hange_zoe"
+  },
+  {
+    "name": "Annie Leonhart",
+    "value": 2200000,
+    "gender": "Mujer",
+    "source": "Attack on Titan",
+    "keyword": "annie_leonhart"
+  },
+  {
+    "name": "Reiner Braun",
+    "value": 1200000,
+    "gender": "Hombre",
+    "source": "Attack on Titan",
+    "keyword": "reiner_braun"
+  },
+  {
+    "name": "Sasha Braus",
+    "value": 1500000,
+    "gender": "Mujer",
+    "source": "Attack on Titan",
+    "keyword": "sasha_braus"
+  },
+  {
+    "name": "Izuku Midoriya",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "My Hero Academia",
+    "keyword": "izuku_midoriya"
+  },
+  {
+    "name": "Katsuki Bakugo",
+    "value": 2800000,
+    "gender": "Hombre",
+    "source": "My Hero Academia",
+    "keyword": "katsuki_bakugo"
+  },
+  {
+    "name": "Shoto Todoroki",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "My Hero Academia",
+    "keyword": "shoto_todoroki"
+  },
+  {
+    "name": "Ochaco Uraraka",
+    "value": 2000000,
+    "gender": "Mujer",
+    "source": "My Hero Academia",
+    "keyword": "ochaco_uraraka"
+  },
+  {
+    "name": "All Might",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "My Hero Academia",
+    "keyword": "all_might"
+  },
+  {
+    "name": "Tsuyu Asui",
+    "value": 1500000,
+    "gender": "Mujer",
+    "source": "My Hero Academia",
+    "keyword": "tsuyu_asui"
+  },
+  {
+    "name": "Momo Yaoyorozu",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "My Hero Academia",
+    "keyword": "momo_yaoyorozu"
+  },
+  {
+    "name": "Himiko Toga",
+    "value": 2200000,
+    "gender": "Mujer",
+    "source": "My Hero Academia",
+    "keyword": "himiko_toga"
+  },
+  {
+    "name": "Dabi",
+    "value": 1800000,
+    "gender": "Hombre",
+    "source": "My Hero Academia",
+    "keyword": "dabi"
+  },
+  {
+    "name": "Hawks",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "My Hero Academia",
+    "keyword": "hawks"
+  },
+  {
+    "name": "Sung Jinwoo",
+    "value": 4500000,
+    "gender": "Hombre",
+    "source": "Solo Leveling",
+    "keyword": "sung_jinwoo"
+  },
+  {
+    "name": "Cha Hae-In",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Solo Leveling",
+    "keyword": "cha_hae-in"
+  },
+  {
+    "name": "Yoo Jinho",
+    "value": 800000,
+    "gender": "Hombre",
+    "source": "Solo Leveling",
+    "keyword": "yoo_jinho"
+  },
+  {
+    "name": "Go Gunhee",
+    "value": 1200000,
+    "gender": "Hombre",
+    "source": "Solo Leveling",
+    "keyword": "go_gunhee"
+  },
+  {
+    "name": "Choi Jong-In",
+    "value": 1000000,
+    "gender": "Hombre",
+    "source": "Solo Leveling",
+    "keyword": "choi_jong-in"
+  },
+  {
+    "name": "Okarun",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Dandadan",
+    "keyword": "okarun"
+  },
+  {
+    "name": "Momo Ayase",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Dandadan",
+    "keyword": "momo_ayase"
+  },
+  {
+    "name": "Aira Shiratori",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Dandadan",
+    "keyword": "aira_shiratori"
+  },
+  {
+    "name": "Jiji",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Dandadan",
+    "keyword": "jiji_dandadan"
+  },
+  {
+    "name": "Ken Kaneki",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "Tokyo Ghoul",
+    "keyword": "ken_kaneki"
+  },
+  {
+    "name": "Touka Kirishima",
+    "value": 2800000,
+    "gender": "Mujer",
+    "source": "Tokyo Ghoul",
+    "keyword": "touka_kirishima"
+  },
+  {
+    "name": "Rize Kamishiro",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Tokyo Ghoul",
+    "keyword": "rize_kamishiro"
+  },
+  {
+    "name": "Shuu Tsukiyama",
+    "value": 1200000,
+    "gender": "Hombre",
+    "source": "Tokyo Ghoul",
+    "keyword": "shuu_tsukiyama"
+  },
+  {
+    "name": "Hideyoshi Nagachika",
+    "value": 1000000,
+    "gender": "Hombre",
+    "source": "Tokyo Ghoul",
+    "keyword": "hideyoshi_nagachika"
+  },
+  {
+    "name": "Light Yagami",
+    "value": 4000000,
+    "gender": "Hombre",
+    "source": "Death Note",
+    "keyword": "light_yagami"
+  },
+  {
+    "name": "L Lawliet",
+    "value": 4500000,
+    "gender": "Hombre",
+    "source": "Death Note",
+    "keyword": "l_lawliet"
+  },
+  {
+    "name": "Misa Amane",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Death Note",
+    "keyword": "misa_amane"
+  },
+  {
+    "name": "Near",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Death Note",
+    "keyword": "near_death_note"
+  },
+  {
+    "name": "Ryuk",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Death Note",
+    "keyword": "ryuk"
+  },
+  {
+    "name": "Edward Elric",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "Fullmetal Alchemist",
+    "keyword": "edward_elric"
+  },
+  {
+    "name": "Alphonse Elric",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Fullmetal Alchemist",
+    "keyword": "alphonse_elric"
+  },
+  {
+    "name": "Roy Mustang",
+    "value": 3000000,
+    "gender": "Hombre",
+    "source": "Fullmetal Alchemist",
+    "keyword": "roy_mustang"
+  },
+  {
+    "name": "Riza Hawkeye",
+    "value": 2200000,
+    "gender": "Mujer",
+    "source": "Fullmetal Alchemist",
+    "keyword": "riza_hawkeye"
+  },
+  {
+    "name": "Winry Rockbell",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Fullmetal Alchemist",
+    "keyword": "winry_rockbell"
+  },
+  {
+    "name": "Kirito",
+    "value": 3000000,
+    "gender": "Hombre",
+    "source": "Sword Art Online",
+    "keyword": "kirito"
+  },
+  {
+    "name": "Asuna Yuuki",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Sword Art Online",
+    "keyword": "asuna_yuuki"
+  },
+  {
+    "name": "Sinon",
+    "value": 2000000,
+    "gender": "Mujer",
+    "source": "Sword Art Online",
+    "keyword": "sinon"
+  },
+  {
+    "name": "Leafa",
+    "value": 1500000,
+    "gender": "Mujer",
+    "source": "Sword Art Online",
+    "keyword": "leafa"
+  },
+  {
+    "name": "Alice Zuberg",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Sword Art Online",
+    "keyword": "alice_zuberg"
+  },
+  {
+    "name": "Saber",
+    "value": 4000000,
+    "gender": "Mujer",
+    "source": "Fate",
+    "keyword": "saber_fate"
+  },
+  {
+    "name": "Rin Tohsaka",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Fate",
+    "keyword": "rin_tohsaka"
+  },
+  {
+    "name": "Shirou Emiya",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Fate",
+    "keyword": "shirou_emiya"
+  },
+  {
+    "name": "Gilgamesh",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "Fate",
+    "keyword": "gilgamesh_fate"
+  },
+  {
+    "name": "Sakura Matou",
+    "value": 2200000,
+    "gender": "Mujer",
+    "source": "Fate",
+    "keyword": "sakura_matou"
+  },
+  {
+    "name": "Rider Medusa",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Fate",
+    "keyword": "rider_medusa"
+  },
+  {
+    "name": "Shinji Ikari",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Evangelion",
+    "keyword": "shinji_ikari"
+  },
+  {
+    "name": "Rei Ayanami",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Evangelion",
+    "keyword": "rei_ayanami"
+  },
+  {
+    "name": "Asuka Langley",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Evangelion",
+    "keyword": "asuka_langley"
+  },
+  {
+    "name": "Kaworu Nagisa",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Evangelion",
+    "keyword": "kaworu_nagisa"
+  },
+  {
+    "name": "Misato Katsuragi",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Evangelion",
+    "keyword": "misato_katsuragi"
+  },
+  {
+    "name": "Okabe Rintaro",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Steins;Gate",
+    "keyword": "okabe_rintaro"
+  },
+  {
+    "name": "Kurisu Makise",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Steins;Gate",
+    "keyword": "kurisu_makise"
+  },
+  {
+    "name": "Mayuri Shiina",
+    "value": 2000000,
+    "gender": "Mujer",
+    "source": "Steins;Gate",
+    "keyword": "mayuri_shiina"
+  },
+  {
+    "name": "Suzuha Amane",
+    "value": 1500000,
+    "gender": "Mujer",
+    "source": "Steins;Gate",
+    "keyword": "suzuha_amane"
+  },
+  {
+    "name": "Taiga Aisaka",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Toradora",
+    "keyword": "taiga_aisaka"
+  },
+  {
+    "name": "Ryuuji Takasu",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Toradora",
+    "keyword": "ryuuji_takasu"
+  },
+  {
+    "name": "Minori Kushieda",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Toradora",
+    "keyword": "minori_kushieda"
+  },
+  {
+    "name": "Ami Kawashima",
+    "value": 1500000,
+    "gender": "Mujer",
+    "source": "Toradora",
+    "keyword": "ami_kawashima"
+  },
+  {
+    "name": "Kousei Arima",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Your Lie in April",
+    "keyword": "kousei_arima"
+  },
+  {
+    "name": "Kaori Miyazono",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Your Lie in April",
+    "keyword": "kaori_miyazono"
+  },
+  {
+    "name": "Tsubaki Sawabe",
+    "value": 1200000,
+    "gender": "Mujer",
+    "source": "Your Lie in April",
+    "keyword": "tsubaki_sawabe"
+  },
+  {
+    "name": "Chisato Nishikigi",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Lycoris Recoil",
+    "keyword": "chisato_nishikigi"
+  },
+  {
+    "name": "Takina Inoue",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Lycoris Recoil",
+    "keyword": "takina_inoue"
+  },
+  {
+    "name": "Kurumi Saiki",
+    "value": 1200000,
+    "gender": "Mujer",
+    "source": "Lycoris Recoil",
+    "keyword": "kurumi_saiki"
+  },
+  {
+    "name": "Rudeus Greyrat",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Mushoku Tensei",
+    "keyword": "rudeus_greyrat"
+  },
+  {
+    "name": "Eris Boreas Greyrat",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Mushoku Tensei",
+    "keyword": "eris_boreas_greyrat"
+  },
+  {
+    "name": "Roxy Migurdia",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Mushoku Tensei",
+    "keyword": "roxy_migurdia"
+  },
+  {
+    "name": "Sylphiette",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Mushoku Tensei",
+    "keyword": "sylphiette"
+  },
+  {
+    "name": "Naofumi Iwatani",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Shield Hero",
+    "keyword": "naofumi_iwatani"
+  },
+  {
+    "name": "Raphtalia",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Shield Hero",
+    "keyword": "raphtalia"
+  },
+  {
+    "name": "Filo",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Shield Hero",
+    "keyword": "filo_shield_hero"
+  },
+  {
+    "name": "Thorfinn",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Vinland Saga",
+    "keyword": "thorfinn"
+  },
+  {
+    "name": "Askeladd",
+    "value": 3000000,
+    "gender": "Hombre",
+    "source": "Vinland Saga",
+    "keyword": "askeladd"
+  },
+  {
+    "name": "Canute",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Vinland Saga",
+    "keyword": "canute_vinland"
+  },
+  {
+    "name": "Thorkell",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Vinland Saga",
+    "keyword": "thorkell"
+  },
+  {
+    "name": "Gon Freecss",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Hunter x Hunter",
+    "keyword": "gon_freecss"
+  },
+  {
+    "name": "Killua Zoldyck",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "Hunter x Hunter",
+    "keyword": "killua_zoldyck"
+  },
+  {
+    "name": "Hisoka Morow",
+    "value": 3000000,
+    "gender": "Hombre",
+    "source": "Hunter x Hunter",
+    "keyword": "hisoka_morow"
+  },
+  {
+    "name": "Kurapika",
+    "value": 2800000,
+    "gender": "Hombre",
+    "source": "Hunter x Hunter",
+    "keyword": "kurapika"
+  },
+  {
+    "name": "Leorio Paradinight",
+    "value": 1200000,
+    "gender": "Hombre",
+    "source": "Hunter x Hunter",
+    "keyword": "leorio_paradinight"
+  },
+  {
+    "name": "Shigeo Kageyama",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Mob Psycho 100",
+    "keyword": "shigeo_kageyama"
+  },
+  {
+    "name": "Arataka Reigen",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Mob Psycho 100",
+    "keyword": "arataka_reigen"
+  },
+  {
+    "name": "Teruki Hanazawa",
+    "value": 1200000,
+    "gender": "Hombre",
+    "source": "Mob Psycho 100",
+    "keyword": "teruki_hanazawa"
+  },
+  {
+    "name": "Ritsu Kageyama",
+    "value": 1000000,
+    "gender": "Hombre",
+    "source": "Mob Psycho 100",
+    "keyword": "ritsu_kageyama"
+  },
+  {
+    "name": "Asta",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Black Clover",
+    "keyword": "asta_black_clover"
+  },
+  {
+    "name": "Yuno",
+    "value": 2200000,
+    "gender": "Hombre",
+    "source": "Black Clover",
+    "keyword": "yuno_black_clover"
+  },
+  {
+    "name": "Noelle Silva",
+    "value": 2800000,
+    "gender": "Mujer",
+    "source": "Black Clover",
+    "keyword": "noelle_silva"
+  },
+  {
+    "name": "Yami Sukehiro",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Black Clover",
+    "keyword": "yami_sukehiro"
+  },
+  {
+    "name": "Mimosa Vermillion",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Black Clover",
+    "keyword": "mimosa_vermillion"
+  },
+  {
+    "name": "Ichigo Kurosaki",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "Bleach",
+    "keyword": "ichigo_kurosaki"
+  },
+  {
+    "name": "Rukia Kuchiki",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Bleach",
+    "keyword": "rukia_kuchiki"
+  },
+  {
+    "name": "Orihime Inoue",
+    "value": 2200000,
+    "gender": "Mujer",
+    "source": "Bleach",
+    "keyword": "orihime_inoue"
+  },
+  {
+    "name": "Sosuke Aizen",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "Bleach",
+    "keyword": "sosuke_aizen"
+  },
+  {
+    "name": "Toshiro Hitsugaya",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Bleach",
+    "keyword": "toshiro_hitsugaya"
+  },
+  {
+    "name": "Byakuya Kuchiki",
+    "value": 2200000,
+    "gender": "Hombre",
+    "source": "Bleach",
+    "keyword": "byakuya_kuchiki"
+  },
+  {
+    "name": "Yoruichi Shihouin",
+    "value": 2800000,
+    "gender": "Mujer",
+    "source": "Bleach",
+    "keyword": "yoruichi_shihouin"
+  },
+  {
+    "name": "Takemichi Hanagaki",
+    "value": 1800000,
+    "gender": "Hombre",
+    "source": "Tokyo Revengers",
+    "keyword": "takemichi_hanagaki"
+  },
+  {
+    "name": "Manjiro Sano",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "Tokyo Revengers",
+    "keyword": "manjiro_sano"
+  },
+  {
+    "name": "Ken Ryuguji",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Tokyo Revengers",
+    "keyword": "ken_ryuguji"
+  },
+  {
+    "name": "Hinata Tachibana",
+    "value": 1500000,
+    "gender": "Mujer",
+    "source": "Tokyo Revengers",
+    "keyword": "hinata_tachibana"
+  },
+  {
+    "name": "Chifuyu Matsuno",
+    "value": 1800000,
+    "gender": "Hombre",
+    "source": "Tokyo Revengers",
+    "keyword": "chifuyu_matsuno"
+  },
+  {
+    "name": "Shoyo Hinata",
+    "value": 2200000,
+    "gender": "Hombre",
+    "source": "Haikyuu",
+    "keyword": "shoyo_hinata"
+  },
+  {
+    "name": "Tobio Kageyama",
+    "value": 2200000,
+    "gender": "Hombre",
+    "source": "Haikyuu",
+    "keyword": "tobio_kageyama"
+  },
+  {
+    "name": "Kei Tsukishima",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Haikyuu",
+    "keyword": "kei_tsukishima"
+  },
+  {
+    "name": "Tetsuro Kuroo",
+    "value": 1800000,
+    "gender": "Hombre",
+    "source": "Haikyuu",
+    "keyword": "tetsuro_kuroo"
+  },
+  {
+    "name": "Kenma Kozume",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Haikyuu",
+    "keyword": "kenma_kozume"
+  },
+  {
+    "name": "Koshi Sugawara",
+    "value": 1200000,
+    "gender": "Hombre",
+    "source": "Haikyuu",
+    "keyword": "koshi_sugawara"
+  },
+  {
+    "name": "Shinra Kusakabe",
+    "value": 2200000,
+    "gender": "Hombre",
+    "source": "Fire Force",
+    "keyword": "shinra_kusakabe"
+  },
+  {
+    "name": "Tamaki Kotatsu",
+    "value": 2000000,
+    "gender": "Mujer",
+    "source": "Fire Force",
+    "keyword": "tamaki_kotatsu"
+  },
+  {
+    "name": "Maki Oze",
+    "value": 2200000,
+    "gender": "Mujer",
+    "source": "Fire Force",
+    "keyword": "maki_oze"
+  },
+  {
+    "name": "Arthur Boyle",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Fire Force",
+    "keyword": "arthur_boyle"
+  },
+  {
+    "name": "Natsu Dragneel",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Fairy Tail",
+    "keyword": "natsu_dragneel"
+  },
+  {
+    "name": "Lucy Heartfilia",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Fairy Tail",
+    "keyword": "lucy_heartfilia"
+  },
+  {
+    "name": "Erza Scarlet",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Fairy Tail",
+    "keyword": "erza_scarlet"
+  },
+  {
+    "name": "Gray Fullbuster",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Fairy Tail",
+    "keyword": "gray_fullbuster"
+  },
+  {
+    "name": "Juvia Lockser",
+    "value": 2200000,
+    "gender": "Mujer",
+    "source": "Fairy Tail",
+    "keyword": "juvia_lockser"
+  },
+  {
+    "name": "Wendy Marvell",
+    "value": 1800000,
+    "gender": "Mujer",
+    "source": "Fairy Tail",
+    "keyword": "wendy_marvell"
+  },
+  {
+    "name": "Gojo Satoru",
+    "value": 5000000,
+    "gender": "Hombre",
+    "source": "Chainsaw Man",
+    "keyword": "gojo_satoru_csm"
+  },
+  {
+    "name": "Denji",
+    "value": 3000000,
+    "gender": "Hombre",
+    "source": "Chainsaw Man",
+    "keyword": "denji"
+  },
+  {
+    "name": "Makima",
+    "value": 4000000,
+    "gender": "Mujer",
+    "source": "Chainsaw Man",
+    "keyword": "makima"
+  },
+  {
+    "name": "Power",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Chainsaw Man",
+    "keyword": "power_csm"
+  },
+  {
+    "name": "Aki Hayakawa",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Chainsaw Man",
+    "keyword": "aki_hayakawa"
+  },
+  {
+    "name": "Reze",
+    "value": 2800000,
+    "gender": "Mujer",
+    "source": "Chainsaw Man",
+    "keyword": "reze"
+  },
+  {
+    "name": "Asa Mitaka",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Chainsaw Man",
+    "keyword": "asa_mitaka"
+  },
+  {
+    "name": "Subaru Natsuki",
+    "value": 1800000,
+    "gender": "Hombre",
+    "source": "Re:Zero",
+    "keyword": "subaru_natsuki"
+  },
+  {
+    "name": "Emilia",
+    "value": 3500000,
+    "gender": "Mujer",
+    "source": "Re:Zero",
+    "keyword": "emilia_rezero"
+  },
+  {
+    "name": "Rem",
+    "value": 4000000,
+    "gender": "Mujer",
+    "source": "Re:Zero",
+    "keyword": "rem_rezero"
+  },
+  {
+    "name": "Ram",
+    "value": 2000000,
+    "gender": "Mujer",
+    "source": "Re:Zero",
+    "keyword": "ram_rezero"
+  },
+  {
+    "name": "Echidna",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Re:Zero",
+    "keyword": "echidna_rezero"
+  },
+  {
+    "name": "Kazuma Sato",
+    "value": 1500000,
+    "gender": "Hombre",
+    "source": "Konosuba",
+    "keyword": "kazuma_sato"
+  },
+  {
+    "name": "Aqua",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Konosuba",
+    "keyword": "aqua_konosuba"
+  },
+  {
+    "name": "Megumin",
+    "value": 4000000,
+    "gender": "Mujer",
+    "source": "Konosuba",
+    "keyword": "megumin"
+  },
+  {
+    "name": "Darkness",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Konosuba",
+    "keyword": "darkness_konosuba"
+  },
+  {
+    "name": "Rimuru Tempest",
+    "value": 3500000,
+    "gender": "Hombre",
+    "source": "Slime Isekai",
+    "keyword": "rimuru_tempest"
+  },
+  {
+    "name": "Shuna",
+    "value": 2500000,
+    "gender": "Mujer",
+    "source": "Slime Isekai",
+    "keyword": "shuna_slime"
+  },
+  {
+    "name": "Shion",
+    "value": 2200000,
+    "gender": "Mujer",
+    "source": "Slime Isekai",
+    "keyword": "shion_slime"
+  },
+  {
+    "name": "Milim Nava",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Slime Isekai",
+    "keyword": "milim_nava"
+  },
+  {
+    "name": "Frieren",
+    "value": 4500000,
+    "gender": "Mujer",
+    "source": "Frieren",
+    "keyword": "frieren"
+  },
+  {
+    "name": "Fern",
+    "value": 3000000,
+    "gender": "Mujer",
+    "source": "Frieren",
+    "keyword": "fern_frieren"
+  },
+  {
+    "name": "Stark",
+    "value": 2500000,
+    "gender": "Hombre",
+    "source": "Frieren",
+    "keyword": "stark_frieren"
+  },
+  {
+    "name": "Himmel",
+    "value": 2000000,
+    "gender": "Hombre",
+    "source": "Frieren",
+    "keyword": "himmel_frieren"
+  },
+  {
+    "name": "Ubel",
+    "value": 2800000,
+    "gender": "Mujer",
+    "source": "Frieren",
+    "keyword": "ubel_frieren"
   }
 ]

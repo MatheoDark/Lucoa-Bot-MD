@@ -4,6 +4,9 @@ import { getClassBonus } from './class.js'
 import { getPrestigeMultiplier } from './prestige.js'
 import { updateMissionProgress } from './missions.js'
 import { getRPGImage } from '../../lib/rpgImages.js'
+import { readFileSync } from 'fs'
+
+const allCharacters = JSON.parse(readFileSync(new URL('../../lib/characters.json', import.meta.url)))
 
 // ═══════════════════════════════════════════
 //  🗺️ EXPLORAR - Aventura aleatoria
@@ -19,61 +22,61 @@ const exploraciones = [
   {
     zona: '🏚️ Mansión Abandonada',
     resultados: [
-      { tipo: 'tesoro', texto: 'Encontraste un cofre escondido bajo el piso de madera podrida', coinsMin: 5000, coinsMax: 20000, expMin: 200, expMax: 800 },
-      { tipo: 'tesoro', texto: 'Descubriste una caja fuerte abierta con monedas antiguas', coinsMin: 8000, coinsMax: 25000, expMin: 300, expMax: 1000 },
-      { tipo: 'pelea', texto: 'Un fantasma protege el lugar. ¡Lo derrotaste y tomaste su tesoro!', coinsMin: 10000, coinsMax: 30000, expMin: 500, expMax: 1500 },
-      { tipo: 'trampa', texto: 'Pisaste una trampa oculta y perdiste parte de tu dinero', coinsMin: -3000, coinsMax: -1000, expMin: 50, expMax: 100 },
-      { tipo: 'nada', texto: 'La mansión estaba vacía... solo encontraste polvo y telarañas', coinsMin: 100, coinsMax: 500, expMin: 50, expMax: 150 },
+      { tipo: 'tesoro', texto: 'Encontraste un cofre escondido bajo el piso de madera podrida', coinsMin: 10000, coinsMax: 40000, expMin: 400, expMax: 1600 },
+      { tipo: 'tesoro', texto: 'Descubriste una caja fuerte abierta con monedas antiguas', coinsMin: 15000, coinsMax: 50000, expMin: 600, expMax: 2000 },
+      { tipo: 'pelea', texto: 'Un fantasma protege el lugar. ¡Lo derrotaste y tomaste su tesoro!', coinsMin: 20000, coinsMax: 60000, expMin: 1000, expMax: 3000 },
+      { tipo: 'trampa', texto: 'Pisaste una trampa oculta y perdiste parte de tu dinero', coinsMin: -5000, coinsMax: -1500, expMin: 100, expMax: 200 },
+      { tipo: 'nada', texto: 'La mansión estaba vacía... solo encontraste polvo y telarañas', coinsMin: 500, coinsMax: 2000, expMin: 100, expMax: 300 },
     ]
   },
   {
     zona: '🌋 Volcán Activo',
     resultados: [
-      { tipo: 'tesoro', texto: 'Encontraste rubíes incrustados en la roca volcánica', coinsMin: 12000, coinsMax: 35000, expMin: 400, expMax: 1200 },
-      { tipo: 'pelea', texto: 'Un golem de lava apareció. Tras una batalla épica, lo venciste', coinsMin: 15000, coinsMax: 40000, expMin: 600, expMax: 2000 },
-      { tipo: 'trampa', texto: 'El suelo se derrumbó y casi caes a la lava. Perdiste suministros', coinsMin: -5000, coinsMax: -2000, expMin: 100, expMax: 200 },
-      { tipo: 'tesoro', texto: 'Descubriste una veta de obsidiana que vale una fortuna', coinsMin: 10000, coinsMax: 28000, expMin: 350, expMax: 1100 },
-      { tipo: 'legendario', texto: '¡En el interior del volcán hallaste el Diamante de Fuego!', coinsMin: 30000, coinsMax: 80000, expMin: 2000, expMax: 5000 },
+      { tipo: 'tesoro', texto: 'Encontraste rubíes incrustados en la roca volcánica', coinsMin: 25000, coinsMax: 70000, expMin: 800, expMax: 2400 },
+      { tipo: 'pelea', texto: 'Un golem de lava apareció. Tras una batalla épica, lo venciste', coinsMin: 30000, coinsMax: 80000, expMin: 1200, expMax: 4000 },
+      { tipo: 'trampa', texto: 'El suelo se derrumbó y casi caes a la lava. Perdiste suministros', coinsMin: -8000, coinsMax: -3000, expMin: 200, expMax: 400 },
+      { tipo: 'tesoro', texto: 'Descubriste una veta de obsidiana que vale una fortuna', coinsMin: 20000, coinsMax: 55000, expMin: 700, expMax: 2200 },
+      { tipo: 'legendario', texto: '¡En el interior del volcán hallaste el Diamante de Fuego!', coinsMin: 60000, coinsMax: 160000, expMin: 4000, expMax: 10000 },
     ]
   },
   {
     zona: '🏛️ Ruinas Antiguas',
     resultados: [
-      { tipo: 'tesoro', texto: 'Descifraste un jeroglífico que reveló un compartimento secreto', coinsMin: 8000, coinsMax: 22000, expMin: 500, expMax: 1500 },
-      { tipo: 'tesoro', texto: 'Encontraste un sarcófago con joyas del faraón', coinsMin: 15000, coinsMax: 35000, expMin: 600, expMax: 1800 },
-      { tipo: 'pelea', texto: 'Una momia guardiana despertó. ¡La venciste con astucia!', coinsMin: 12000, coinsMax: 30000, expMin: 500, expMax: 1500 },
-      { tipo: 'trampa', texto: 'Activaste una trampa de dardos envenenados', coinsMin: -4000, coinsMax: -1500, expMin: 80, expMax: 200 },
-      { tipo: 'nada', texto: 'Las ruinas ya habían sido saqueadas por otros aventureros', coinsMin: 200, coinsMax: 800, expMin: 100, expMax: 300 },
+      { tipo: 'tesoro', texto: 'Descifraste un jeroglífico que reveló un compartimento secreto', coinsMin: 15000, coinsMax: 45000, expMin: 1000, expMax: 3000 },
+      { tipo: 'tesoro', texto: 'Encontraste un sarcófago con joyas del faraón', coinsMin: 30000, coinsMax: 70000, expMin: 1200, expMax: 3600 },
+      { tipo: 'pelea', texto: 'Una momia guardiana despertó. ¡La venciste con astucia!', coinsMin: 25000, coinsMax: 60000, expMin: 1000, expMax: 3000 },
+      { tipo: 'trampa', texto: 'Activaste una trampa de dardos envenenados', coinsMin: -6000, coinsMax: -2000, expMin: 150, expMax: 400 },
+      { tipo: 'nada', texto: 'Las ruinas ya habían sido saqueadas por otros aventureros', coinsMin: 800, coinsMax: 3000, expMin: 200, expMax: 600 },
     ]
   },
   {
     zona: '🌊 Cueva Submarina',
     resultados: [
-      { tipo: 'tesoro', texto: 'Buceaste hasta un galeón hundido y encontraste doblones de oro', coinsMin: 10000, coinsMax: 30000, expMin: 400, expMax: 1200 },
-      { tipo: 'pelea', texto: 'Un kraken bebé atacó, pero lo ahuyentaste y tomaste su tesoro', coinsMin: 18000, coinsMax: 45000, expMin: 800, expMax: 2500 },
-      { tipo: 'tesoro', texto: 'Las sirenas te guiaron hasta una perla negra legendaria', coinsMin: 15000, coinsMax: 40000, expMin: 500, expMax: 1500 },
-      { tipo: 'trampa', texto: 'La corriente submarina te arrastró y perdiste tu bolsa de monedas', coinsMin: -6000, coinsMax: -2000, expMin: 50, expMax: 150 },
-      { tipo: 'legendario', texto: '¡Encontraste la Corona de Poseidón en el fondo del océano!', coinsMin: 40000, coinsMax: 100000, expMin: 3000, expMax: 8000 },
+      { tipo: 'tesoro', texto: 'Buceaste hasta un galeón hundido y encontraste doblones de oro', coinsMin: 20000, coinsMax: 60000, expMin: 800, expMax: 2500 },
+      { tipo: 'pelea', texto: 'Un kraken bebé atacó, pero lo ahuyentaste y tomaste su tesoro', coinsMin: 35000, coinsMax: 90000, expMin: 1600, expMax: 5000 },
+      { tipo: 'tesoro', texto: 'Las sirenas te guiaron hasta una perla negra legendaria', coinsMin: 30000, coinsMax: 80000, expMin: 1000, expMax: 3000 },
+      { tipo: 'trampa', texto: 'La corriente submarina te arrastró y perdiste tu bolsa de monedas', coinsMin: -10000, coinsMax: -3000, expMin: 100, expMax: 300 },
+      { tipo: 'legendario', texto: '¡Encontraste la Corona de Poseidón en el fondo del océano!', coinsMin: 80000, coinsMax: 200000, expMin: 6000, expMax: 16000 },
     ]
   },
   {
     zona: '🌌 Portal Dimensional',
     resultados: [
-      { tipo: 'tesoro', texto: 'Viajaste a una dimensión donde llueven cristales de energía', coinsMin: 12000, coinsMax: 35000, expMin: 500, expMax: 1500 },
-      { tipo: 'pelea', texto: 'Un guardián interdimensional probó tu valor. ¡Ganaste!', coinsMin: 20000, coinsMax: 50000, expMin: 1000, expMax: 3000 },
-      { tipo: 'trampa', texto: 'El portal se cerró antes de tiempo y perdiste parte de tu inventario', coinsMin: -7000, coinsMax: -3000, expMin: 100, expMax: 300 },
-      { tipo: 'tesoro', texto: 'En la otra dimensión, el dinero crece en los árboles', coinsMin: 8000, coinsMax: 25000, expMin: 400, expMax: 1200 },
-      { tipo: 'legendario', texto: '¡¡El Oráculo Cósmico te concedió una fortuna dimensional!!', coinsMin: 50000, coinsMax: 150000, expMin: 5000, expMax: 12000 },
+      { tipo: 'tesoro', texto: 'Viajaste a una dimensión donde llueven cristales de energía', coinsMin: 25000, coinsMax: 70000, expMin: 1000, expMax: 3000 },
+      { tipo: 'pelea', texto: 'Un guardián interdimensional probó tu valor. ¡Ganaste!', coinsMin: 40000, coinsMax: 100000, expMin: 2000, expMax: 6000 },
+      { tipo: 'trampa', texto: 'El portal se cerró antes de tiempo y perdiste parte de tu inventario', coinsMin: -12000, coinsMax: -5000, expMin: 200, expMax: 600 },
+      { tipo: 'tesoro', texto: 'En la otra dimensión, el dinero crece en los árboles', coinsMin: 16000, coinsMax: 50000, expMin: 800, expMax: 2500 },
+      { tipo: 'legendario', texto: '¡¡El Oráculo Cósmico te concedió una fortuna dimensional!!', coinsMin: 100000, coinsMax: 300000, expMin: 10000, expMax: 25000 },
     ]
   },
   {
     zona: '🏔️ Montaña del Dragón',
     resultados: [
-      { tipo: 'tesoro', texto: 'Escalaste hasta una cueva con monedas de escamas de dragón', coinsMin: 9000, coinsMax: 28000, expMin: 400, expMax: 1200 },
-      { tipo: 'pelea', texto: 'Un dragonete te atacó pero lo amansaste. Te regaló su tesoro', coinsMin: 15000, coinsMax: 40000, expMin: 700, expMax: 2000 },
-      { tipo: 'trampa', texto: 'Una avalancha te tomó por sorpresa y perdiste tu equipaje', coinsMin: -5000, coinsMax: -2000, expMin: 80, expMax: 250 },
-      { tipo: 'nada', texto: 'La cumbre estaba vacía. Solo nubes y viento frío', coinsMin: 300, coinsMax: 1000, expMin: 150, expMax: 400 },
-      { tipo: 'legendario', texto: '¡¡El Gran Dragón Ancestral te premió con su tesoro milenario!!', coinsMin: 45000, coinsMax: 120000, expMin: 4000, expMax: 10000 },
+      { tipo: 'tesoro', texto: 'Escalaste hasta una cueva con monedas de escamas de dragón', coinsMin: 18000, coinsMax: 55000, expMin: 800, expMax: 2500 },
+      { tipo: 'pelea', texto: 'Un dragonete te atacó pero lo amansaste. Te regaló su tesoro', coinsMin: 30000, coinsMax: 80000, expMin: 1400, expMax: 4000 },
+      { tipo: 'trampa', texto: 'Una avalancha te tomó por sorpresa y perdiste tu equipaje', coinsMin: -8000, coinsMax: -3000, expMin: 150, expMax: 500 },
+      { tipo: 'nada', texto: 'La cumbre estaba vacía. Solo nubes y viento frío', coinsMin: 1000, coinsMax: 4000, expMin: 300, expMax: 800 },
+      { tipo: 'legendario', texto: '¡¡El Gran Dragón Ancestral te premió con su tesoro milenario!!', coinsMin: 90000, coinsMax: 250000, expMin: 8000, expMax: 20000 },
     ]
   }
 ]
@@ -115,7 +118,7 @@ export default {
       return m.reply(`🗺️ Aún estás descansando de tu última aventura.\n> Espera *${mins}m ${secs}s*`)
     }
 
-    user.exploreCooldown = Date.now() + 15 * 60 * 1000
+    user.exploreCooldown = Date.now() + 10 * 60 * 1000
 
     // Elegir exploración y resultado
     const exploracion = pickRandom(exploraciones)
@@ -176,6 +179,25 @@ export default {
     updateMissionProgress(user, 'explore')
     updateMissionProgress(user, 'commands')
 
+    // 🐉 Chance de encontrar un personaje gacha durante la exploración
+    let charDropMsg = ''
+    const charDropChance = resultado.tipo === 'legendario' ? 0.30 : resultado.tipo === 'pelea' ? 0.10 : 0.03
+    if (coins > 0 && Math.random() < charDropChance) {
+      const chatData = global.db.data.chats[m.chat] || {}
+      if (!chatData.users) chatData.users = {}
+      if (!chatData.users[userId]) chatData.users[userId] = { characters: [] }
+      if (!chatData.users[userId].characters) chatData.users[userId].characters = []
+      
+      const randomChar = allCharacters[Math.floor(Math.random() * allCharacters.length)]
+      const newChar = {
+        ...randomChar,
+        obtainedAt: Date.now(),
+        origin: 'explore'
+      }
+      chatData.users[userId].characters.push(newChar)
+      charDropMsg = `\n│\n│ 🐉 *¡PERSONAJE ENCONTRADO!*\n│ ❀ *${randomChar.name}* (${randomChar.source})\n│ ❀ Valor: *¥${(randomChar.value || 0).toLocaleString()}*`
+    }
+
     const emoji = tipoEmoji[resultado.tipo] || '🗺️'
     const coinsText = coins >= 0 
       ? `💰 +*¥${coins.toLocaleString()} ${monedas}*`
@@ -194,7 +216,7 @@ export default {
 │
 │ ${coinsText}
 │ ⚡ +*${exp.toLocaleString()} XP*
-│ 🧭 Exploraciones: *${user.totalExplores}*${legendarioMsg}${doubleResult.doubled ? '\n│ 🔮 *¡AURA MÍSTICA! Duplicado*' : ''}
+│ 🧭 Exploraciones: *${user.totalExplores}*${legendarioMsg}${charDropMsg}${doubleResult.doubled ? '\n│ 🔮 *¡AURA MÍSTICA! Duplicado*' : ''}
 │
 │ 👛 Saldo: *¥${user.coins.toLocaleString()} ${monedas}*
 ╰─── ⋆✨⋆ ───`

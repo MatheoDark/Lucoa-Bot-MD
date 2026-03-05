@@ -29,7 +29,7 @@ export default {
     let currency = botSettings.currency || 'monedas'
 
     // 5. Cooldown
-    let cooldown = 10 * 60 * 1000 // 10 minutos
+    let cooldown = 7 * 60 * 1000 // 7 minutos
     let tiempoRestante = (user.lastProsti || 0) + cooldown - Date.now()
 
     if (tiempoRestante > 0) {
@@ -65,8 +65,8 @@ export default {
 
     if (exito) {
       // --- GANAR ---
-      let xpGanado = Math.floor(Math.random() * (8000 - 1000 + 1)) + 1000
-      let coinsGanados = Math.floor(Math.random() * (12000 - 2000 + 1)) + 2000
+      let xpGanado = Math.floor(Math.random() * (15000 - 3000 + 1)) + 3000
+      let coinsGanados = Math.floor(Math.random() * (25000 - 5000 + 1)) + 5000
       
       let texto = pickRandom(aventurasExito)
           .replace('{cliente}', clienteTag)

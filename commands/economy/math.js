@@ -100,13 +100,15 @@ async function run({ client, m, args, command, usedPrefix }) {
     if (Math.abs(respNum - respCorrecta) < 0.01) {
         
         // --- GANADOR ---
-        const expGanada = Math.floor(Math.random() * 50) + 20; // 20 a 70 EXP
+        const expGanada = Math.floor(Math.random() * 400) + 100; // 100 a 500 EXP
+        const coinsGanadas = Math.floor(Math.random() * 8000) + 2000; // 2000 a 10000 coins
         user.exp = (user.exp || 0) + expGanada;
+        user.coins = (user.coins || 0) + coinsGanadas;
 
         cleanupGame(chatId)
 
         return client.sendMessage(chatId, { 
-            text: `╭─── ⋆🐉⋆ ───\n│ ✅ *¡CORRECTO!*\n├───────────────\n│ 🧠 Respuesta: *${juego.respuesta}*\n│ ✨ Ganaste: *${expGanada} EXP*\n╰─── ⋆✨⋆ ───`,
+            text: `╭─── ⋆🐉⋆ ───\n│ ✅ *¡CORRECTO!*\n├───────────────\n│ 🧠 Respuesta: *${juego.respuesta}*\n│ ✨ Ganaste: *${expGanada} EXP* + *¥${coinsGanadas.toLocaleString()}*\n╰─── ⋆✨⋆ ───`,
             mentions: [userId]
         }, { quoted: m });
 

@@ -15,34 +15,34 @@ const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)]
 // ── PLANTILLAS DE MISIONES ──
 const MISIONES_POOL = [
   // ── Economía y RPG ──
-  { id: 'work3',       desc: 'Trabaja 3 veces',                 tipo: 'work',       meta: 3,  rewardCoins: 8000,   rewardExp: 500,   emoji: '🔨' },
-  { id: 'mine2',       desc: 'Mina 2 veces',                    tipo: 'mine',       meta: 2,  rewardCoins: 6000,   rewardExp: 400,   emoji: '⛏️' },
-  { id: 'fish3',       desc: 'Pesca 3 veces',                   tipo: 'fish',       meta: 3,  rewardCoins: 7000,   rewardExp: 450,   emoji: '🎣' },
-  { id: 'explore2',    desc: 'Explora 2 veces',                 tipo: 'explore',    meta: 2,  rewardCoins: 10000,  rewardExp: 600,   emoji: '🗺️' },
-  { id: 'arena1',      desc: 'Lucha en la arena 1 vez',         tipo: 'arena',      meta: 1,  rewardCoins: 12000,  rewardExp: 800,   emoji: '⚔️' },
-  { id: 'arena2',      desc: 'Gana 2 peleas en la arena',       tipo: 'arenaWin',   meta: 2,  rewardCoins: 25000,  rewardExp: 1500,  emoji: '🏆' },
-  { id: 'duel1',       desc: 'Desafía a alguien a un duelo',    tipo: 'duel',       meta: 1,  rewardCoins: 8000,   rewardExp: 500,   emoji: '🤺' },
-  { id: 'slots5',      desc: 'Juega slots 5 veces',             tipo: 'slots',      meta: 5,  rewardCoins: 5000,   rewardExp: 300,   emoji: '🎰' },
-  { id: 'skill1',      desc: 'Mejora 1 habilidad',              tipo: 'skill',      meta: 1,  rewardCoins: 15000,  rewardExp: 1000,  emoji: '🌳' },
-  { id: 'daily1',      desc: 'Reclama tu daily',                tipo: 'daily',      meta: 1,  rewardCoins: 3000,   rewardExp: 200,   emoji: '📅' },
-  { id: 'crime2',      desc: 'Comete 2 crímenes',               tipo: 'crime',      meta: 2,  rewardCoins: 9000,   rewardExp: 550,   emoji: '🦹' },
-  { id: 'gacha3',      desc: 'Haz 3 rolls de gacha',            tipo: 'gacha',      meta: 3,  rewardCoins: 7000,   rewardExp: 400,   emoji: '🎲' },
-  { id: 'commands15',  desc: 'Usa 15 comandos',                 tipo: 'commands',   meta: 15, rewardCoins: 5000,   rewardExp: 350,   emoji: '📝' },
-  { id: 'steal1',      desc: 'Intenta robar a alguien',         tipo: 'steal',      meta: 1,  rewardCoins: 6000,   rewardExp: 400,   emoji: '🗡️' },
-  { id: 'flip3',       desc: 'Juega coinflip 3 veces',          tipo: 'flip',       meta: 3,  rewardCoins: 4000,   rewardExp: 250,   emoji: '🪙' },
+  { id: 'work3',       desc: 'Trabaja 3 veces',                 tipo: 'work',       meta: 3,  rewardCoins: 18000,  rewardExp: 1000,  emoji: '🔨' },
+  { id: 'mine2',       desc: 'Mina 2 veces',                    tipo: 'mine',       meta: 2,  rewardCoins: 14000,  rewardExp: 800,   emoji: '⛏️' },
+  { id: 'fish3',       desc: 'Pesca 3 veces',                   tipo: 'fish',       meta: 3,  rewardCoins: 16000,  rewardExp: 900,   emoji: '🎣' },
+  { id: 'explore2',    desc: 'Explora 2 veces',                 tipo: 'explore',    meta: 2,  rewardCoins: 22000,  rewardExp: 1200,  emoji: '🗺️' },
+  { id: 'arena1',      desc: 'Lucha en la arena 1 vez',         tipo: 'arena',      meta: 1,  rewardCoins: 25000,  rewardExp: 1600,  emoji: '⚔️' },
+  { id: 'arena2',      desc: 'Gana 2 peleas en la arena',       tipo: 'arenaWin',   meta: 2,  rewardCoins: 50000,  rewardExp: 3000,  emoji: '🏆' },
+  { id: 'duel1',       desc: 'Desafía a alguien a un duelo',    tipo: 'duel',       meta: 1,  rewardCoins: 18000,  rewardExp: 1000,  emoji: '🤺' },
+  { id: 'slots5',      desc: 'Juega slots 5 veces',             tipo: 'slots',      meta: 5,  rewardCoins: 12000,  rewardExp: 600,   emoji: '🎰' },
+  { id: 'skill1',      desc: 'Mejora 1 habilidad',              tipo: 'skill',      meta: 1,  rewardCoins: 30000,  rewardExp: 2000,  emoji: '🌳' },
+  { id: 'daily1',      desc: 'Reclama tu daily',                tipo: 'daily',      meta: 1,  rewardCoins: 8000,   rewardExp: 400,   emoji: '📅' },
+  { id: 'crime2',      desc: 'Comete 2 crímenes',               tipo: 'crime',      meta: 2,  rewardCoins: 20000,  rewardExp: 1100,  emoji: '🦹' },
+  { id: 'gacha3',      desc: 'Haz 3 rolls de gacha',            tipo: 'gacha',      meta: 3,  rewardCoins: 16000,  rewardExp: 800,   emoji: '🎲' },
+  { id: 'commands15',  desc: 'Usa 15 comandos',                 tipo: 'commands',   meta: 15, rewardCoins: 12000,  rewardExp: 700,   emoji: '📝' },
+  { id: 'steal1',      desc: 'Intenta robar a alguien',         tipo: 'steal',      meta: 1,  rewardCoins: 14000,  rewardExp: 800,   emoji: '🗡️' },
+  { id: 'flip3',       desc: 'Juega coinflip 3 veces',          tipo: 'flip',       meta: 3,  rewardCoins: 10000,  rewardExp: 500,   emoji: '🪙' },
 
-  // ── ACTIVIDAD DE GRUPO (nuevas misiones de chat) ──
-  { id: 'msg20',       desc: 'Envía 20 mensajes en el grupo',   tipo: 'messages',   meta: 20, rewardCoins: 4000,   rewardExp: 300,   emoji: '💬' },
-  { id: 'msg50',       desc: 'Envía 50 mensajes en el grupo',   tipo: 'messages',   meta: 50, rewardCoins: 8000,   rewardExp: 600,   emoji: '💬' },
-  { id: 'sticker5',    desc: 'Envía 5 stickers',                tipo: 'stickers',   meta: 5,  rewardCoins: 3500,   rewardExp: 250,   emoji: '🎨' },
-  { id: 'sticker15',   desc: 'Envía 15 stickers',               tipo: 'stickers',   meta: 15, rewardCoins: 7000,   rewardExp: 450,   emoji: '🎨' },
-  { id: 'media5',      desc: 'Envía 5 fotos o videos',          tipo: 'media',      meta: 5,  rewardCoins: 5000,   rewardExp: 350,   emoji: '📷' },
-  { id: 'audio3',      desc: 'Envía 3 notas de voz',            tipo: 'audio',      meta: 3,  rewardCoins: 4500,   rewardExp: 300,   emoji: '🎙️' },
-  { id: 'react10',     desc: 'Reacciona a 10 mensajes',         tipo: 'reactions',  meta: 10, rewardCoins: 3000,   rewardExp: 200,   emoji: '❤️' },
-  { id: 'chatactive3', desc: 'Habla en 3 grupos distintos',     tipo: 'chatgroups', meta: 3,  rewardCoins: 6000,   rewardExp: 400,   emoji: '🌐' },
+  // ── ACTIVIDAD DE GRUPO (misiones de chat) ──
+  { id: 'msg20',       desc: 'Envía 20 mensajes en el grupo',   tipo: 'messages',   meta: 20, rewardCoins: 10000,  rewardExp: 600,   emoji: '💬' },
+  { id: 'msg50',       desc: 'Envía 50 mensajes en el grupo',   tipo: 'messages',   meta: 50, rewardCoins: 18000,  rewardExp: 1200,  emoji: '💬' },
+  { id: 'sticker5',    desc: 'Envía 5 stickers',                tipo: 'stickers',   meta: 5,  rewardCoins: 8000,   rewardExp: 500,   emoji: '🎨' },
+  { id: 'sticker15',   desc: 'Envía 15 stickers',               tipo: 'stickers',   meta: 15, rewardCoins: 16000,  rewardExp: 900,   emoji: '🎨' },
+  { id: 'media5',      desc: 'Envía 5 fotos o videos',          tipo: 'media',      meta: 5,  rewardCoins: 12000,  rewardExp: 700,   emoji: '📷' },
+  { id: 'audio3',      desc: 'Envía 3 notas de voz',            tipo: 'audio',      meta: 3,  rewardCoins: 10000,  rewardExp: 600,   emoji: '🎙️' },
+  { id: 'react10',     desc: 'Reacciona a 10 mensajes',         tipo: 'reactions',  meta: 10, rewardCoins: 8000,   rewardExp: 400,   emoji: '❤️' },
+  { id: 'chatactive3', desc: 'Habla en 3 grupos distintos',     tipo: 'chatgroups', meta: 3,  rewardCoins: 14000,  rewardExp: 800,   emoji: '🌐' },
 ]
 
-const MEGA_REWARD = { coins: 30000, exp: 3000, emoji: '🎁' }
+const MEGA_REWARD = { coins: 60000, exp: 6000, emoji: '🎁' }
 
 function getDailyKey() {
   const now = new Date()

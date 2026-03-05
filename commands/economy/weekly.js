@@ -41,8 +41,8 @@ export default {
       )
 
     user.lastWeekly = Date.now()
-    const coins = pickRandom([15000, 25000, 40000, 60000])
-    const exp = Math.floor(Math.random() * 3000) + 500
+    const coins = pickRandom([35000, 55000, 80000, 120000, 150000])
+    const exp = Math.floor(Math.random() * 6000) + 1500
     const currency = db.settings[botId]?.currency || 'Monedas'
     
     // Aumentamos los valores en la DB global

@@ -35,7 +35,7 @@ export default {
     const currency = settings.currency || 'monedas'
 
     // 4. Cooldown (Tiempo de espera)
-    const cooldown = 10 * 60 * 1000 // 10 minutos
+    const cooldown = 5 * 60 * 1000 // 5 minutos
     user.workCooldown = user.workCooldown || 0
     const tiempoRestante = user.workCooldown + cooldown - Date.now()
 
@@ -44,8 +44,20 @@ export default {
     }
 
     // 5. Recompensa (con bonos de skills, clase y prestige)
-    let reward = Math.floor(Math.random() * 13000) + 2000 
-    let exp = Math.floor(Math.random() * 800) + 100
+    let reward = Math.floor(Math.random() * 20000) + 5000 
+    let exp = Math.floor(Math.random() * 1500) + 300
+
+    // Sistema de racha de trabajo
+    user.workStreak = user.workStreak || 0
+    user.lastWorkTime = user.lastWorkTime || 0
+    const timeSinceWork = Date.now() - user.lastWorkTime
+    if (timeSinceWork < 30 * 60 * 1000) { // Si trabajó en los últimos 30 min
+      user.workStreak = Math.min((user.workStreak || 0) + 1, 10)
+    } else {
+      user.workStreak = 1
+    }
+    user.lastWorkTime = Date.now()
+    const streakBonus = 1 + (user.workStreak - 1) * 0.08 // +8% por racha, máx +72% en racha 10
 
     // Aplicar bonos
     const skillBonus = getWorkBonus(user)
@@ -54,7 +66,7 @@ export default {
     const xpMult = getXpBonus(user)
     const critChance = getClassBonus(user, 'critChance') || 0
 
-    reward = Math.floor(reward * skillBonus * classBonus * prestigeMult)
+    reward = Math.floor(reward * skillBonus * classBonus * prestigeMult * streakBonus)
     exp = Math.floor(exp * xpMult * prestigeMult)
 
     // Habilidad de clase Guerrero: Golpe Crítico
@@ -82,6 +94,7 @@ export default {
     const trabajo = pickRandom(listaTrabajos)
     
     let msg = `🔧 ${trabajo} y ganaste *¥${reward.toLocaleString()} ${currency}* y *${exp} XP* (◕ᴗ◕✿)`
+    if (user.workStreak > 1) msg += `\n🔥 Racha x${user.workStreak} (+${Math.round((streakBonus - 1) * 100)}% bonus)`
     if (critMsg || doubleMsg) msg += critMsg + doubleMsg
 
     const img = await getRPGImage('work', trabajo)

@@ -22,8 +22,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `💻 Lucoa bloqueó tu conexión con su barrera digital 🐉 Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.10, multMax: 0.20,
-    ganMin: 3000, ganMax: 18000,
-    xpGain: 150, xpLoss: 80,
+    ganMin: 8000, ganMax: 35000,
+    xpGain: 300, xpLoss: 80,
     healthLoss: 0,
   },
   {
@@ -44,8 +44,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `🏦 Tu cómplice te delató a cambio de inmunidad. Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.12, multMax: 0.25,
-    ganMin: 5000, ganMax: 25000,
-    xpGain: 250, xpLoss: 120,
+    ganMin: 12000, ganMax: 50000,
+    xpGain: 500, xpLoss: 120,
     healthLoss: 15,
   },
   {
@@ -65,8 +65,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `📦 Lucoa olió tu cargamento sospechoso a kilómetros 🐉 Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.08, multMax: 0.18,
-    ganMin: 4000, ganMax: 20000,
-    xpGain: 200, xpLoss: 100,
+    ganMin: 10000, ganMax: 40000,
+    xpGain: 400, xpLoss: 100,
     healthLoss: 5,
   },
   {
@@ -87,8 +87,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `🎭 Lucoa detectó tu estafa y te obligó a devolver todo~ 🐉 Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.10, multMax: 0.22,
-    ganMin: 3500, ganMax: 22000,
-    xpGain: 180, xpLoss: 90,
+    ganMin: 9000, ganMax: 45000,
+    xpGain: 360, xpLoss: 90,
     healthLoss: 0,
   },
   {
@@ -108,8 +108,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `💎 Lucoa reconoció las joyas como suyas y te hizo devolverlas 🐉 Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.15, multMax: 0.28,
-    ganMin: 6000, ganMax: 30000,
-    xpGain: 300, xpLoss: 150,
+    ganMin: 15000, ganMax: 60000,
+    xpGain: 600, xpLoss: 150,
     healthLoss: 10,
   },
   {
@@ -129,8 +129,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `🎰 Lucoa era la dueña del casino y te atrapó haciendo trampa 🐉 Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.12, multMax: 0.24,
-    ganMin: 4000, ganMax: 28000,
-    xpGain: 220, xpLoss: 110,
+    ganMin: 10000, ganMax: 55000,
+    xpGain: 440, xpLoss: 110,
     healthLoss: 20,
   },
   {
@@ -150,8 +150,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `🔪 La víctima era un policía encubierto... Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.10, multMax: 0.20,
-    ganMin: 2000, ganMax: 15000,
-    xpGain: 130, xpLoss: 70,
+    ganMin: 6000, ganMax: 30000,
+    xpGain: 260, xpLoss: 70,
     healthLoss: 25,
   },
   {
@@ -171,8 +171,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `🌐 Lucoa hackeó tu hackeo con magia antigua 🐉 Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.14, multMax: 0.26,
-    ganMin: 5000, ganMax: 32000,
-    xpGain: 280, xpLoss: 140,
+    ganMin: 12000, ganMax: 65000,
+    xpGain: 560, xpLoss: 140,
     healthLoss: 0,
   },
   {
@@ -192,8 +192,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `🕵️ Lucoa te delató porque olvidaste pagarle su tajada 🐉 Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.11, multMax: 0.21,
-    ganMin: 4500, ganMax: 24000,
-    xpGain: 230, xpLoss: 100,
+    ganMin: 11000, ganMax: 48000,
+    xpGain: 460, xpLoss: 100,
     healthLoss: 8,
   },
   {
@@ -213,8 +213,8 @@ const TIPOS_CRIMEN = [
       (c, mon) => `🖨️ Lucoa reconoció la tinta barata que usaste 🐉 Multa: *-¥${c} ${mon}*`,
     ],
     multMin: 0.09, multMax: 0.19,
-    ganMin: 3000, ganMax: 19000,
-    xpGain: 170, xpLoss: 85,
+    ganMin: 8000, ganMax: 38000,
+    xpGain: 340, xpLoss: 85,
     healthLoss: 0,
   },
 ]
@@ -315,28 +315,34 @@ export default {
       targetData = global.db.data.users[targetId]
       if (!targetData) return m.reply('🐲 Ese usuario no tiene cuenta registrada (◕︿◕)')
       targetName = targetData.name || targetId.split('@')[0]
-    } else {
-      // ═══ VÍCTIMA ALEATORIA DEL GRUPO ═══
-      const allUsers = global.db.data.users || {}
-      const candidatos = Object.entries(allUsers).filter(([id, data]) => {
-        if (id === senderId) return false
-        if (id === botId) return false
-        if ((data.bank || 0) < 200 && (data.coins || 0) < 200) return false
-        return true
-      })
+    } else if (Math.random() < 0.4) {
+      // ═══ VÍCTIMA ALEATORIA (40% de probabilidad) ═══
+      // Solo buscar entre miembros reales del grupo
+      try {
+        const groupMetadata = await client.groupMetadata(chatId)
+        const miembrosGrupo = groupMetadata.participants.map(p => p.id)
+        const allUsers = global.db.data.users || {}
+        const candidatos = Object.entries(allUsers).filter(([id, data]) => {
+          if (id === senderId) return false
+          if (id === botId) return false
+          if (!miembrosGrupo.includes(id)) return false
+          if ((data.bank || 0) < 200 && (data.coins || 0) < 200) return false
+          return true
+        })
 
-      if (candidatos.length > 0) {
-        const [victimaId, victimaData] = candidatos[Math.floor(Math.random() * candidatos.length)]
-        targetId = victimaId
-        targetData = victimaData
-        targetName = victimaData.name || victimaId.split('@')[0]
-        fueAleatorio = true
-      }
+        if (candidatos.length > 0) {
+          const [victimaId, victimaData] = candidatos[Math.floor(Math.random() * candidatos.length)]
+          targetId = victimaId
+          targetData = victimaData
+          targetName = victimaData.name || victimaId.split('@')[0]
+          fueAleatorio = true
+        }
+      } catch {}
     }
 
     const éxito = Math.random() < 0.5
     const now = Date.now()
-    user.crimeCooldown = now + 10 * 60 * 1000
+    user.crimeCooldown = now + 7 * 60 * 1000
     user.health = user.health ?? 100
 
     // ═══ MODO CON VÍCTIMA ═══
@@ -367,7 +373,7 @@ export default {
         const chatUsers = chatData.users || {}
         const victimLocal = chatUsers[targetId]
 
-        if (victimLocal?.characters?.length > 0 && Math.random() < 0.12) {
+        if (victimLocal?.characters?.length > 0 && Math.random() < 0.20) {
           const charIndex = Math.floor(Math.random() * victimLocal.characters.length)
           const personajeRobado = victimLocal.characters[charIndex]
 
