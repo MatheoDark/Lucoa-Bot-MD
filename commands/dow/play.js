@@ -107,8 +107,9 @@ function ytDlpDownload(url, isAudio) {
 // ==========================================
 // 🔄 DESCARGA CON MÚLTIPLES FALLBACKS
 // ==========================================
-async function getDownloadUrl(url, isAudio) {
+async function downloadWithFallbacks(url, isAudio) {
     const errors = []
+    const ext = isAudio ? 'mp3' : 'mp4'
 
     // 1. SaveTube (via ytscraper - dominio .vip)
     try {
@@ -116,9 +117,16 @@ async function getDownloadUrl(url, isAudio) {
         const res = isAudio ? await ytmp3(url) : await ytmp4(url)
         if (res.status && res.download?.status && res.download?.url) {
             console.log('[INFO] ✅ SaveTube OK')
-            return { dl: res.download.url, title: res.metadata?.title, source: 'SaveTube' }
+            try {
+                const localPath = await downloadToLocal(res.download.url, ext, 'SaveTube')
+                return { localPath, title: res.metadata?.title, source: 'SaveTube' }
+            } catch (dlErr) {
+                console.log(`[WARN] SaveTube descarga falló: ${dlErr.message}`)
+                errors.push(`SaveTube: descarga falló (${dlErr.message})`)
+            }
+        } else {
+            errors.push('SaveTube: respuesta sin URL')
         }
-        errors.push('SaveTube: respuesta sin URL')
     } catch (e) { errors.push(`SaveTube: ${e.message}`) }
 
     // 2. Vreden API (fallback)
@@ -127,9 +135,16 @@ async function getDownloadUrl(url, isAudio) {
         const res = isAudio ? await apimp3(url) : await apimp4(url)
         if (res?.status && res?.download?.url) {
             console.log('[INFO] ✅ Vreden API OK')
-            return { dl: res.download.url, title: res.metadata?.title, source: 'Vreden' }
+            try {
+                const localPath = await downloadToLocal(res.download.url, ext, 'Vreden')
+                return { localPath, title: res.metadata?.title, source: 'Vreden' }
+            } catch (dlErr) {
+                console.log(`[WARN] Vreden descarga falló: ${dlErr.message}`)
+                errors.push(`Vreden: descarga falló (${dlErr.message})`)
+            }
+        } else {
+            errors.push('Vreden: respuesta sin URL')
         }
-        errors.push('Vreden: respuesta sin URL')
     } catch (e) { errors.push(`Vreden: ${e.message}`) }
 
     // 3. ogmp3 (fallback)
@@ -140,9 +155,16 @@ async function getDownloadUrl(url, isAudio) {
         const res = await ogmp3.download(url, format, type)
         if (res.status && res.result?.download) {
             console.log('[INFO] ✅ ogmp3 OK')
-            return { dl: res.result.download, title: res.result.title, source: 'ogmp3' }
+            try {
+                const localPath = await downloadToLocal(res.result.download, ext, 'ogmp3')
+                return { localPath, title: res.result.title, source: 'ogmp3' }
+            } catch (dlErr) {
+                console.log(`[WARN] ogmp3 descarga falló: ${dlErr.message}`)
+                errors.push(`ogmp3: descarga falló (${dlErr.message})`)
+            }
+        } else {
+            errors.push('ogmp3: respuesta sin URL')
         }
-        errors.push('ogmp3: respuesta sin URL')
     } catch (e) { errors.push(`ogmp3: ${e.message}`) }
 
     // 4. yt-dlp local (último y más confiable)
@@ -261,8 +283,8 @@ async function executeDownload(client, m, url, type, title, thumb) {
     await m.react(isAudio ? '🎧' : '🎬')
 
     try {
-        const result = await getDownloadUrl(url, isAudio)
-        if (!result.dl && !result.localPath) return m.reply('❌ No se pudo obtener el enlace de descarga.')
+        const result = await downloadWithFallbacks(url, isAudio)
+        if (!result.localPath) return m.reply('❌ No se pudo obtener el enlace de descarga.')
 
         const source = result.source
         title = result.title || title
@@ -277,14 +299,7 @@ async function executeDownload(client, m, url, type, title, thumb) {
             }
         } catch {}
 
-        // Descarga a archivo local (si es URL remota)
-        let localFilePath
-        if (result.localPath) {
-            // yt-dlp ya descargó el archivo localmente
-            localFilePath = result.localPath
-        } else {
-            localFilePath = await downloadToLocal(result.dl, isAudio ? 'mp3' : 'mp4', source)
-        }
+        let localFilePath = result.localPath
 
         // Fix Video (codec compatible con WhatsApp móvil)
         if (!isAudio) {
