@@ -50,12 +50,17 @@ async function downloadToLocal(url, ext, source) {
 
 function fixVideoWithFFmpeg(inputPath) {
     return new Promise((resolve) => {
+        if (!fs.existsSync(inputPath)) {
+            console.log('⚠️ Archivo de entrada no existe, saltando FFmpeg.')
+            return resolve(inputPath)
+        }
         console.log(`[INFO] 🛠️ Convirtiendo para WhatsApp Móvil (Ultrafast)...`)
-        const outputPath = inputPath.replace('.mp4', '_fixed.mp4')
+        const parsed = path.parse(inputPath)
+        const outputPath = path.join(parsed.dir, `${parsed.name}_fixed.mp4`)
         const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "${outputPath}"`
         
-        exec(cmd, (error) => {
-            if (error) {
+        exec(cmd, { timeout: 120000 }, (error) => {
+            if (error || !fs.existsSync(outputPath)) {
                 console.log('⚠️ FFmpeg falló, enviando original.')
                 resolve(inputPath)
             } else {
@@ -90,14 +95,19 @@ function ytDlpDownload(url, isAudio) {
                 if (error) return reject(new Error(`yt-dlp: ${error.message}`))
 
                 // Buscar el archivo descargado
-                const ext = isAudio ? 'mp3' : 'mp4'
-                const expectedFile = `${outputFile}.${ext}`
-                
-                // yt-dlp puede generar archivos con extensión diferente, buscar por prefijo
-                const files = fs.readdirSync(tmpDir).filter(f => f.startsWith(path.basename(outputFile)))
+                const prefix = path.basename(outputFile)
+                const files = fs.readdirSync(tmpDir)
+                    .filter(f => f.startsWith(prefix) && !f.endsWith('.part'))
+                    .filter(f => {
+                        try { return fs.statSync(path.join(tmpDir, f)).size > 0 } catch { return false }
+                    })
                 if (files.length === 0) return reject(new Error('yt-dlp: No se generó archivo'))
 
-                const finalFile = path.join(tmpDir, files[0])
+                // Preferir el archivo final (sin .f123. en el nombre) sobre fragmentos temporales
+                const ext = isAudio ? 'mp3' : 'mp4'
+                const expectedName = `${prefix}.${ext}`
+                const finalName = files.find(f => f === expectedName) || files.find(f => !f.includes('.f')) || files[0]
+                const finalFile = path.join(tmpDir, finalName)
                 resolve({ localPath: finalFile, title, source: 'yt-dlp' })
             })
         })
@@ -306,6 +316,7 @@ async function executeDownload(client, m, url, type, title, thumb) {
             localFilePath = await fixVideoWithFFmpeg(localFilePath)
         }
 
+        if (!fs.existsSync(localFilePath)) return m.reply('❌ El archivo descargado no se encontró.')
         const fileData = fs.readFileSync(localFilePath)
         const cleanTitle = sanitizeFileName(title)
 
