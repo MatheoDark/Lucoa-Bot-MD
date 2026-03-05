@@ -25,16 +25,20 @@ async function getBuffer(url) {
 
 const sanitizeFileName = (s) => String(s).replace(/[^a-zA-Z0-9]/g, '_')
 
-async function downloadToLocal(url, ext) {
+async function downloadToLocal(url, ext, source) {
     console.log(`[INFO] ⬇️ Descargando archivo: ${ext}`)
     const tmpDir = path.join(process.cwd(), 'tmp')
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
     const filePath = path.join(tmpDir, `${Date.now()}.${ext}`)
     
     try {
+        const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+        if (source === 'SaveTube' || url.includes('savetube')) {
+            headers['Referer'] = 'https://yt.savetube.me/'
+        }
         const response = await axios({
             url, method: 'GET', responseType: 'stream',
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+            headers
         })
         await streamPipeline(response.data, fs.createWriteStream(filePath))
         return filePath
@@ -279,7 +283,7 @@ async function executeDownload(client, m, url, type, title, thumb) {
             // yt-dlp ya descargó el archivo localmente
             localFilePath = result.localPath
         } else {
-            localFilePath = await downloadToLocal(result.dl, isAudio ? 'mp3' : 'mp4')
+            localFilePath = await downloadToLocal(result.dl, isAudio ? 'mp3' : 'mp4', source)
         }
 
         // Fix Video (codec compatible con WhatsApp móvil)
