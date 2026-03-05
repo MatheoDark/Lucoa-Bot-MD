@@ -111,6 +111,7 @@ export default {
 
             // Gestión de Multimedia (videos optimizados + imágenes)
             let media = null
+            let tempFile = null
             const MEDIA_DIR = path.join(process.cwd(), 'media')
             if (fs.existsSync(MEDIA_DIR)) {
                 try {
@@ -121,10 +122,14 @@ export default {
                     if (videos.length > 0) {
                         const randomVideo = videos[Math.floor(Math.random() * videos.length)]
                         let buffer = fs.readFileSync(path.join(MEDIA_DIR, randomVideo))
-                        media = await optimizeVideo(buffer, randomVideo.split('.').pop())
+                        buffer = await optimizeVideo(buffer, randomVideo.split('.').pop())
+                        if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp')
+                        tempFile = `./tmp/menu_${Date.now()}.mp4`
+                        fs.writeFileSync(tempFile, buffer)
+                        media = tempFile
                     } else if (images.length > 0) {
                         const randomImage = images[Math.floor(Math.random() * images.length)]
-                        media = fs.readFileSync(path.join(MEDIA_DIR, randomImage))
+                        media = path.join(MEDIA_DIR, randomImage)
                     }
                 } catch (e) {}
             }
@@ -145,6 +150,11 @@ export default {
                 null,
                 m
             )
+
+            // Limpiar archivo temporal si se creó
+            if (tempFile && fs.existsSync(tempFile)) {
+                fs.promises.unlink(tempFile).catch(() => {})
+            }
 
         } catch (e) {
             console.error(e)
