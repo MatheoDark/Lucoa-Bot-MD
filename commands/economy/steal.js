@@ -129,6 +129,18 @@ export default {
     targetData.coins -= cantidadRobada
     senderData.roboCooldown = now + COOLDOWN_BASE
 
+    // 10% de chance de robar también del banco de la víctima
+    let bankMsg = ''
+    const targetBank = targetData.bank || 0
+    if (targetBank > 0 && Math.random() < 0.10) {
+      const bankRobado = Math.floor(targetBank * (Math.random() * 0.05 + 0.03)) // 3-8% del banco
+      if (bankRobado > 0) {
+        targetData.bank -= bankRobado
+        senderData.coins += bankRobado
+        bankMsg = `\n│\n│ 🏦 *¡BONUS! Accediste a su banco!*\n│ 💰 Robaste *¥${bankRobado.toLocaleString()} ${monedas}* del banco`
+      }
+    }
+
     // 15% de chance de robar también un personaje
     let charMsg = ''
     const chatUsers = chatData.users || {}
@@ -158,7 +170,7 @@ export default {
     const imgSuccess = await getRPGImage('steal', 'success')
     await client.sendMessage(chatId, {
         image: { url: imgSuccess },
-        caption: `╭─── ⋆🐉⋆ ───\n│ 🥷 *¡ROBO EXITOSO!*\n├───────────────\n│ Le robaste *¥${cantidadRobada.toLocaleString()} ${monedas}*\n│ a *@${targetId.split('@')[0]}* (◕ᴗ◕✿)${charMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
+        caption: `╭─── ⋆🐉⋆ ───\n│ 🥷 *¡ROBO EXITOSO!*\n├───────────────\n│ Le robaste *¥${cantidadRobada.toLocaleString()} ${monedas}*\n│ a *@${targetId.split('@')[0]}* (◕ᴗ◕✿)${bankMsg}${charMsg}\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
         mentions: [targetId],
       }, { quoted: m }
     )
