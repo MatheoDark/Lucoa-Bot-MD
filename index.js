@@ -818,6 +818,25 @@ async function startBot() {
 
       // 🎁 Iniciar scheduler de drops aleatorios
       startDropScheduler(client)
+
+      // 🐉 Auto-actualizar estado de WhatsApp con uptime y estética Lucoa
+      if (disconnectTracker._statusInterval) clearInterval(disconnectTracker._statusInterval)
+      const updateBotStatus = async () => {
+        try {
+          const sec = process.uptime()
+          const d = Math.floor(sec / 86400)
+          const h = Math.floor((sec % 86400) / 3600)
+          const mn = Math.floor((sec % 3600) / 60)
+          const parts = []
+          if (d > 0) parts.push(`${d}d`)
+          if (h > 0) parts.push(`${h}h`)
+          parts.push(`${mn}m`)
+          const uptimeStr = parts.join(' ')
+          await client.updateProfileStatus(`🐉 Lucoa Bot · ⏱ ${uptimeStr} activa · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`)
+        } catch {}
+      }
+      updateBotStatus()
+      disconnectTracker._statusInterval = setInterval(updateBotStatus, 5 * 60 * 1000)
     }
   })
 
