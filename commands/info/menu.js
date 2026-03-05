@@ -62,6 +62,32 @@ export default {
 
             const selectedCategory = args[0]?.toLowerCase()
 
+            // ═══ VER TODO: Menú completo en texto ═══
+            if (selectedCategory === 'all') {
+                let fullText = `╭─── ⋆🐉⋆ ───────────╮\n`
+                fullText += `│  *${botname}* ${kao}\n`
+                fullText += `│ 📚 *Comandos ›* ${myCommands.length}\n`
+                fullText += `│ ✧ *Prefijo ›* ${cleanPrefix}\n`
+                fullText += `╰─── ⋆✨⋆ ───────────╯\n\n`
+
+                for (const [tag, label] of Object.entries(catMap)) {
+                    const cmds = myCommands.filter(c => c.category === tag)
+                    if (cmds.length === 0) continue
+                    fullText += `╭── ${label} ──\n`
+                    cmds.forEach(cmd => {
+                        let commandLine = `${cleanPrefix}${cmd.name}`
+                        if (cmd.alias && Array.isArray(cmd.alias) && cmd.alias.length > 0) {
+                            const aliasLimpis = cmd.alias.map(a => `${cleanPrefix}${a.replace(/^\//, '')}`)
+                            commandLine += ` / ${aliasLimpis.join(' / ')}`
+                        }
+                        fullText += `│ ❀ ${commandLine}${cmd.desc ? `\n│   ╰ _${cmd.desc}_` : ''}\n`
+                    })
+                    fullText += `╰──────────⋆✦⋆\n\n`
+                }
+                fullText += `> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`
+                return await client.sendMessage(m.chat, { text: fullText.trim() }, { quoted: m })
+            }
+
             // ═══ NIVEL 2: Comandos de una categoría ═══
             if (selectedCategory && catMap[selectedCategory]) {
                 const cmds = myCommands.filter(c => c.category === selectedCategory)
@@ -190,10 +216,12 @@ export default {
                 .filter(([key]) => myCommands.some(c => c.category === key))
 
             // WhatsApp permite máximo 12 opciones en una encuesta
-            const pollOptions = activeCategories.slice(0, 12).map(([key, label]) => {
+            const pollOptions = activeCategories.slice(0, 11).map(([key, label]) => {
                 const count = myCommands.filter(c => c.category === key).length
                 return { name: `${label} (${count})`, command: `${cleanPrefix}menu ${key}` }
             })
+            // Opción para ver todo el menú (texto completo)
+            pollOptions.push({ name: '📖 Ver todo el menú', command: `${cleanPrefix}menu all` })
 
             // Crear el mapeo optionHash → comando
             const optionMap = {}

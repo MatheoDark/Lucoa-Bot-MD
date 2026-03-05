@@ -849,49 +849,55 @@ async function startBot() {
           if (creationKey) {
             const pollData = pollStore.get(creationKey.id)
             if (pollData) {
+              // Recopilar TODOS los JIDs posibles del bot (creator)
+              const creatorSet = new Set()
               const meNorm = jidNormalizedUser(client.user.id)
-              // getKeyAuthor logic: fromMe → meId, else → participantAlt || remoteJidAlt || participant || remoteJid
-              const pollCreatorJid = creationKey.fromMe ? meNorm : (creationKey.participantAlt || creationKey.remoteJidAlt || creationKey.participant || creationKey.remoteJid)
-              // Voter JID: try alt first (PN), then regular (LID)
-              const voterAlt = m.key?.participantAlt || m.key?.remoteJidAlt
-              const voterRegular = m.key?.participant || m.key?.remoteJid
-              
-              // Try all combinations: the HMAC signature must match exactly
-              const jidCombos = []
-              const creatorCandidates = [pollCreatorJid, meNorm]
-              const voterCandidates = voterAlt ? [voterAlt, voterRegular] : [voterRegular]
-              for (const cr of creatorCandidates) {
-                for (const vt of voterCandidates) {
-                  if (cr && vt) jidCombos.push({ cr, vt })
-                }
-              }
+              creatorSet.add(meNorm)
+              // LID del bot desde authState
+              const meLid = client.authState?.creds?.me?.lid
+              if (meLid) creatorSet.add(jidNormalizedUser(meLid))
+              // PN del bot (extraer de id si tiene formato user:device@s.whatsapp.net)
+              const meDecoded = jidDecode(client.user.id)
+              if (meDecoded?.user) creatorSet.add(meDecoded.user + '@s.whatsapp.net')
+
+              // Recopilar TODOS los JIDs posibles del votante
+              const voterSet = new Set()
+              if (m.key?.participantAlt) voterSet.add(m.key.participantAlt)
+              if (m.key?.remoteJidAlt) voterSet.add(m.key.remoteJidAlt)
+              if (m.key?.participant) voterSet.add(m.key.participant)
+              if (m.key?.remoteJid && !m.key.remoteJid.endsWith('@g.us')) voterSet.add(m.key.remoteJid)
+
+              const creatorArr = [...creatorSet]
+              const voterArr = [...voterSet]
 
               let decrypted = null
-              for (const { cr, vt } of jidCombos) {
-                try {
-                  decrypted = decryptPollVote(
-                    pollUpdate.vote,
-                    {
-                      pollEncKey: pollData.pollEncKey,
-                      pollCreatorJid: cr,
-                      pollMsgId: creationKey.id,
-                      voterJid: vt
+              let matchedCreator = null, matchedVoter = null
+              for (const cr of creatorArr) {
+                for (const vt of voterArr) {
+                  try {
+                    decrypted = decryptPollVote(
+                      pollUpdate.vote,
+                      { pollEncKey: pollData.pollEncKey, pollCreatorJid: cr, pollMsgId: creationKey.id, voterJid: vt }
+                    )
+                    if (decrypted?.selectedOptions?.length) {
+                      matchedCreator = cr
+                      matchedVoter = vt
+                      break
                     }
-                  )
-                  if (decrypted?.selectedOptions?.length) {
-                    console.log('[PollVote] Decrypted OK with creator:', cr, 'voter:', vt)
-                    break
-                  }
-                } catch {}
+                  } catch {}
+                }
+                if (decrypted?.selectedOptions?.length) break
               }
 
               if (decrypted?.selectedOptions?.length) {
+                console.log('[PollVote] OK creator:', matchedCreator, 'voter:', matchedVoter)
                 for (const optHash of decrypted.selectedOptions) {
                   const hashHex = Buffer.from(optHash).toString('hex')
                   const command = pollData.optionMap[hashHex]
                   if (command) {
+                    const voterJid = m.key?.participant || m.key?.remoteJid
                     const fakeMsg = {
-                      key: { remoteJid: m.key.remoteJid, fromMe: false, participant: voterRegular, id: m.key.id + '_pollcmd' },
+                      key: { remoteJid: m.key.remoteJid, fromMe: false, participant: voterJid, id: m.key.id + '_pollcmd' },
                       message: { conversation: command },
                       pushName: m.pushName || 'Usuario'
                     }
@@ -900,7 +906,7 @@ async function startBot() {
                   }
                 }
               } else {
-                console.log('[PollVote] Could not decrypt. Tried combos:', jidCombos.length, 'key fields:', JSON.stringify(m.key))
+                console.log('[PollVote] FAILED. Creators tried:', creatorArr, 'Voters tried:', voterArr)
               }
             }
           }
