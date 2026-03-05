@@ -899,6 +899,7 @@ async function startBot() {
                     const fakeMsg = {
                       key: { remoteJid: m.key.remoteJid, fromMe: false, participant: voterJid, id: m.key.id + '_pollcmd' },
                       message: { conversation: command },
+                      messageTimestamp: Math.floor(Date.now() / 1000),
                       pushName: m.pushName || 'Usuario'
                     }
                     const mFake = await smsg(client, fakeMsg)
