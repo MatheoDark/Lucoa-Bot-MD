@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import crypto from 'crypto'
 
 const execPromise = promisify(exec)
 
@@ -61,7 +62,7 @@ export default {
 
             const selectedCategory = args[0]?.toLowerCase()
 
-            // ═══ NIVEL 2: Comandos de una categoría (con botón volver) ═══
+            // ═══ NIVEL 2: Comandos de una categoría ═══
             if (selectedCategory && catMap[selectedCategory]) {
                 const cmds = myCommands.filter(c => c.category === selectedCategory)
                 if (cmds.length === 0) return m.reply('❌ No hay comandos en esta categoría.')
@@ -77,16 +78,35 @@ export default {
                 })
                 cmdText += `╰──────────⋆✦⋆\n\n> 📊 Total: ${cmds.length} comandos`
 
-                return await client.sendButton(
-                    m.chat,
-                    cmdText,
-                    '🐉 Lucoa Bot',
-                    'https://raw.githubusercontent.com/MatheoDark/Lucoa-Bot-MD/main/media/banner2.jpg',
-                    [['↩ Volver al Menú', `${cleanPrefix}menu`]],
-                    null,
-                    null,
-                    m
-                )
+                await client.sendMessage(m.chat, { text: cmdText }, { quoted: m })
+
+                // Encuesta para volver o ir a otra categoría
+                const volverOptions = [{ name: '↩ Volver al Menú', command: `${cleanPrefix}menu` }]
+                const volverMap = {}
+                for (const opt of volverOptions) {
+                    const hash = crypto.createHash('sha256').update(opt.name).digest('hex')
+                    volverMap[hash] = opt.command
+                }
+                const volverPoll = await client.sendMessage(m.chat, {
+                    poll: {
+                        name: '🐉 ¿Qué deseas hacer?',
+                        values: volverOptions.map(o => o.name),
+                        selectableCount: 1
+                    }
+                })
+                if (volverPoll?.key?.id) {
+                    const pollEncKey = volverPoll.message?.messageContextInfo?.messageSecret
+                    if (pollEncKey) {
+                        global.activePollMenus.set(volverPoll.key.id, {
+                            pollEncKey,
+                            pollCreatorJid: client.user.id,
+                            optionMap: volverMap,
+                            chatJid: m.chat,
+                            createdAt: Date.now()
+                        })
+                    }
+                }
+                return
             }
 
             // ═══ NIVEL 1: Menú original con video/imagen + botones de categoría ═══
@@ -165,29 +185,56 @@ export default {
             // Enviar menú original con video/imagen
             await client.sendMessage(m.chat, messageOptions, { quoted: m })
 
-            // Enviar botones de categorías (máximo 3 por mensaje)
-            const categoryButtons = Object.entries(catMap)
+            // ═══ Encuesta interactiva de categorías ═══
+            const activeCategories = Object.entries(catMap)
                 .filter(([key]) => myCommands.some(c => c.category === key))
-                .map(([key, label]) => {
-                    const count = myCommands.filter(c => c.category === key).length
-                    return [`${label} (${count})`, `${cleanPrefix}menu ${key}`]
-                })
 
-            // Dividir en grupos de 3 (límite de WhatsApp)
-            for (let i = 0; i < categoryButtons.length; i += 3) {
-                const chunk = categoryButtons.slice(i, i + 3)
-                const page = Math.floor(i / 3) + 1
-                const totalPages = Math.ceil(categoryButtons.length / 3)
-                await client.sendButton(
-                    m.chat,
-                    page === 1 ? '_Selecciona una categoría para ver sus comandos_ 🐉' : `_Más categorías (${page}/${totalPages})_ 🐉`,
-                    '🐉 Lucoa Bot · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ',
-                    null,
-                    chunk,
-                    null,
-                    null,
-                    m
-                )
+            // WhatsApp permite máximo 12 opciones en una encuesta
+            const pollOptions = activeCategories.slice(0, 12).map(([key, label]) => {
+                const count = myCommands.filter(c => c.category === key).length
+                return { name: `${label} (${count})`, command: `${cleanPrefix}menu ${key}` }
+            })
+
+            // Crear el mapeo optionHash → comando
+            const optionMap = {}
+            for (const opt of pollOptions) {
+                const hash = crypto.createHash('sha256').update(opt.name).digest('hex')
+                optionMap[hash] = opt.command
+            }
+
+            // Enviar la encuesta
+            const pollResult = await client.sendMessage(m.chat, {
+                poll: {
+                    name: '🐉 Selecciona una categoría',
+                    values: pollOptions.map(o => o.name),
+                    selectableCount: 1
+                }
+            }, { quoted: m })
+
+            // Guardar en store global para detectar el voto
+            if (pollResult?.key?.id) {
+                const pollEncKey = pollResult.message?.messageContextInfo?.messageSecret
+                    || pollResult.message?.pollCreationMessageV3?.messageSecret
+                    || pollResult.message?.pollCreationMessage?.messageSecret
+                console.log('[MenuPoll] Poll ID:', pollResult.key.id, 'encKey found:', !!pollEncKey, 'options:', Object.values(optionMap))
+                if (!pollEncKey) {
+                    console.log('[MenuPoll] Full message keys:', JSON.stringify(Object.keys(pollResult.message || {})))
+                }
+                if (pollEncKey) {
+                    global.activePollMenus.set(pollResult.key.id, {
+                        pollEncKey,
+                        pollCreatorJid: client.user.id,
+                        optionMap,
+                        chatJid: m.chat,
+                        createdAt: Date.now()
+                    })
+                    // Limpiar polls viejos (más de 30 minutos)
+                    for (const [id, data] of global.activePollMenus) {
+                        if (Date.now() - data.createdAt > 30 * 60 * 1000) {
+                            global.activePollMenus.delete(id)
+                        }
+                    }
+                }
             }
 
         } catch (e) {

@@ -90,7 +90,8 @@ import {
   jidDecode,
   DisconnectReason,
   generateWAMessageFromContent,
-  proto
+  proto,
+  decryptPollVote
 } from "@whiskeysockets/baileys"
 
 import pino from "pino"
@@ -101,6 +102,9 @@ import qrcode from "qrcode-terminal"
 import { smsg } from "./lib/message.js"
 import { startSubBot } from './lib/subs.js'
 import { startDropScheduler } from './lib/drops.js'
+
+// ═══ Store global de polls activos (para menú interactivo) ═══
+global.activePollMenus = global.activePollMenus || new Map()
 
 const log = {
   info: (msg) => console.log(chalk.bgBlue.white.bold(`INFO`), chalk.white(msg)),
@@ -834,6 +838,53 @@ async function startBot() {
       let m = messages?.[0]
       if (!m?.message) return
       m.message = Object.keys(m.message)[0] === "ephemeralMessage" ? m.message.ephemeralMessage.message : m.message
+
+      // ═══ POLL VOTE HANDLER (para menú interactivo con encuestas) ═══
+      const pollUpdate = m.message?.pollUpdateMessage
+      if (pollUpdate) {
+        try {
+          const pollStore = global.activePollMenus
+          const creationKey = pollUpdate.pollCreationMessageKey
+          console.log('[PollVote] Received vote! creationKey:', creationKey?.id, 'stored polls:', [...pollStore.keys()])
+          if (creationKey) {
+            const pollData = pollStore.get(creationKey.id)
+            if (pollData) {
+              const voterJid = m.key?.participant || m.key?.remoteJid
+              console.log('[PollVote] Found poll data, decrypting vote from:', voterJid)
+              const decrypted = decryptPollVote(
+                pollUpdate.vote,
+                {
+                  pollEncKey: pollData.pollEncKey,
+                  pollCreatorJid: pollData.pollCreatorJid,
+                  pollMsgId: creationKey.id,
+                  voterJid
+                }
+              )
+              console.log('[PollVote] Decrypted:', JSON.stringify(decrypted?.selectedOptions?.map(o => Buffer.from(o).toString('hex'))))
+              if (decrypted?.selectedOptions?.length) {
+                for (const optHash of decrypted.selectedOptions) {
+                  const hashHex = Buffer.from(optHash).toString('hex')
+                  const command = pollData.optionMap[hashHex]
+                  console.log('[PollVote] Hash:', hashHex, 'Command:', command)
+                  if (command) {
+                    const fakeMsg = {
+                      key: { remoteJid: m.key.remoteJid, fromMe: false, participant: voterJid, id: m.key.id + '_pollcmd' },
+                      message: { conversation: command },
+                      pushName: m.pushName || 'Usuario'
+                    }
+                    const mFake = await smsg(client, fakeMsg)
+                    await handler(client, mFake, { messages: [fakeMsg], type: 'notify' })
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[PollMenu] Error:', err.message)
+        }
+        return
+      }
+
       if (m.key?.remoteJid === "status@broadcast") return
 
       client.public = true
