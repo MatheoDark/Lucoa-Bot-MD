@@ -14,6 +14,39 @@ const streamPipeline = promisify(pipeline)
 const limit = 200 // Límite MB
 
 // ==========================================
+// 🧠 SISTEMA DE SALUD DE APIs
+// ==========================================
+const apiHealth = {}
+const COOLDOWN_MS = 10 * 60 * 1000 // 10 min de cooldown si falla
+
+function markApiFailed(name) {
+    if (!apiHealth[name]) apiHealth[name] = { fails: 0 }
+    apiHealth[name].fails++
+    apiHealth[name].lastFail = Date.now()
+    // Cooldown escala: 10min, 20min, 30min... (máx 1h)
+    apiHealth[name].cooldownUntil = Date.now() + Math.min(apiHealth[name].fails * COOLDOWN_MS, 60 * 60 * 1000)
+    console.log(`[HEALTH] ❌ ${name} falló (${apiHealth[name].fails}x). Cooldown hasta ${new Date(apiHealth[name].cooldownUntil).toLocaleTimeString()}`)
+}
+
+function markApiOk(name) {
+    delete apiHealth[name]
+}
+
+function isApiAvailable(name) {
+    const h = apiHealth[name]
+    if (!h || !h.cooldownUntil) return true
+    if (Date.now() > h.cooldownUntil) return true // cooldown expiró
+    return false
+}
+
+function withTimeout(promise, ms, label) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}: timeout (${ms}ms)`)), ms))
+    ])
+}
+
+// ==========================================
 // 🛠️ UTILIDADES
 // ==========================================
 async function getBuffer(url) {
@@ -25,12 +58,46 @@ async function getBuffer(url) {
 
 const sanitizeFileName = (s) => String(s).replace(/[^a-zA-Z0-9]/g, '_')
 
+function downloadWithCurl(url, filePath, source) {
+    return new Promise((resolve, reject) => {
+        const headers = [
+            '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            '-H', 'Accept: */*',
+            '-H', 'Accept-Language: en-US,en;q=0.9',
+            '-H', 'Sec-Fetch-Dest: document',
+            '-H', 'Sec-Fetch-Mode: navigate',
+            '-H', 'Sec-Fetch-Site: cross-site',
+        ]
+        if (source === 'SaveTube' || url.includes('savetube')) {
+            headers.push('-H', 'Referer: https://yt.savetube.me/')
+            headers.push('-H', 'Origin: https://yt.savetube.me')
+        }
+        const args = ['-L', '-s', '-f', '-o', filePath, ...headers, url]
+        const child = exec(`curl ${args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`, { timeout: 120000 }, (error) => {
+            if (error || !fs.existsSync(filePath) || fs.statSync(filePath).size === 0) {
+                try { fs.unlinkSync(filePath) } catch {}
+                reject(new Error(`curl falló: ${error?.message || 'archivo vacío'}`))
+            } else {
+                resolve(filePath)
+            }
+        })
+    })
+}
+
 async function downloadToLocal(url, ext, source) {
     console.log(`[INFO] ⬇️ Descargando archivo: ${ext}`)
     const tmpDir = path.join(process.cwd(), 'tmp')
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
     const filePath = path.join(tmpDir, `${Date.now()}.${ext}`)
     
+    // Intentar con curl primero (mejor TLS fingerprint, evita bloqueos anti-bot)
+    try {
+        return await downloadWithCurl(url, filePath, source)
+    } catch (curlErr) {
+        console.log(`[WARN] curl falló, intentando con axios: ${curlErr.message}`)
+    }
+
+    // Fallback a axios
     try {
         const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         if (source === 'SaveTube' || url.includes('savetube')) {
@@ -82,34 +149,30 @@ function ytDlpDownload(url, isAudio) {
 
         let cmd
         if (isAudio) {
-            cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings --quiet "${url}"`
+            cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings --quiet --print title "${url}"`
         } else {
-            cmd = `yt-dlp -f "bv*[height<=720]+ba/b[height<=720]/best" --merge-output-format mp4 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings --quiet "${url}"`
+            cmd = `yt-dlp -f "bv*[height<=720]+ba/b[height<=720]/best" --merge-output-format mp4 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings --quiet --print title "${url}"`
         }
 
-        // Obtener título primero
-        exec(`yt-dlp --get-title --no-warnings "${url}"`, { timeout: 15000 }, (titleErr, titleOut) => {
-            const title = titleOut?.trim() || 'Sin título'
+        exec(cmd, { timeout: 120000 }, (error, stdout, stderr) => {
+            if (error) return reject(new Error(`yt-dlp: ${error.message}`))
 
-            exec(cmd, { timeout: 120000 }, (error, stdout, stderr) => {
-                if (error) return reject(new Error(`yt-dlp: ${error.message}`))
+            const title = stdout?.trim()?.split('\n')[0] || 'Sin título'
 
-                // Buscar el archivo descargado
-                const prefix = path.basename(outputFile)
-                const files = fs.readdirSync(tmpDir)
-                    .filter(f => f.startsWith(prefix) && !f.endsWith('.part'))
-                    .filter(f => {
-                        try { return fs.statSync(path.join(tmpDir, f)).size > 0 } catch { return false }
-                    })
-                if (files.length === 0) return reject(new Error('yt-dlp: No se generó archivo'))
+            // Buscar el archivo descargado
+            const prefix = path.basename(outputFile)
+            const files = fs.readdirSync(tmpDir)
+                .filter(f => f.startsWith(prefix) && !f.endsWith('.part'))
+                .filter(f => {
+                    try { return fs.statSync(path.join(tmpDir, f)).size > 0 } catch { return false }
+                })
+            if (files.length === 0) return reject(new Error('yt-dlp: No se generó archivo'))
 
-                // Preferir el archivo final (sin .f123. en el nombre) sobre fragmentos temporales
-                const ext = isAudio ? 'mp3' : 'mp4'
-                const expectedName = `${prefix}.${ext}`
-                const finalName = files.find(f => f === expectedName) || files.find(f => !f.includes('.f')) || files[0]
-                const finalFile = path.join(tmpDir, finalName)
-                resolve({ localPath: finalFile, title, source: 'yt-dlp' })
-            })
+            const ext = isAudio ? 'mp3' : 'mp4'
+            const expectedName = `${prefix}.${ext}`
+            const finalName = files.find(f => f === expectedName) || files.find(f => !f.includes('.f')) || files[0]
+            const finalFile = path.join(tmpDir, finalName)
+            resolve({ localPath: finalFile, title, source: 'yt-dlp' })
         })
     })
 }
@@ -121,74 +184,72 @@ async function downloadWithFallbacks(url, isAudio) {
     const errors = []
     const ext = isAudio ? 'mp3' : 'mp4'
 
-    // 1. SaveTube (via ytscraper - dominio .vip)
-    try {
-        console.log('[INFO] 🔄 Intentando SaveTube...')
-        const res = isAudio ? await ytmp3(url) : await ytmp4(url)
-        if (res.status && res.download?.status && res.download?.url) {
-            console.log('[INFO] ✅ SaveTube OK')
-            try {
+    const providers = [
+        {
+            name: 'yt-dlp',
+            timeout: 120000,
+            fn: async () => {
+                const result = await ytDlpDownload(url, isAudio)
+                if (!result.localPath) throw new Error('No se generó archivo')
+                return result
+            }
+        },
+        {
+            name: 'SaveTube',
+            timeout: 20000,
+            fn: async () => {
+                const res = isAudio ? await ytmp3(url) : await ytmp4(url)
+                if (!res.status || !res.download?.status || !res.download?.url) throw new Error('respuesta sin URL')
                 const localPath = await downloadToLocal(res.download.url, ext, 'SaveTube')
                 return { localPath, title: res.metadata?.title, source: 'SaveTube' }
-            } catch (dlErr) {
-                console.log(`[WARN] SaveTube descarga falló: ${dlErr.message}`)
-                errors.push(`SaveTube: descarga falló (${dlErr.message})`)
             }
-        } else {
-            errors.push('SaveTube: respuesta sin URL')
-        }
-    } catch (e) { errors.push(`SaveTube: ${e.message}`) }
-
-    // 2. Vreden API (fallback)
-    try {
-        console.log('[INFO] 🔄 Intentando Vreden API...')
-        const res = isAudio ? await apimp3(url) : await apimp4(url)
-        if (res?.status && res?.download?.url) {
-            console.log('[INFO] ✅ Vreden API OK')
-            try {
+        },
+        {
+            name: 'Vreden',
+            timeout: 15000,
+            fn: async () => {
+                const res = isAudio ? await apimp3(url) : await apimp4(url)
+                if (!res?.status || !res?.download?.url) throw new Error('respuesta sin URL')
                 const localPath = await downloadToLocal(res.download.url, ext, 'Vreden')
                 return { localPath, title: res.metadata?.title, source: 'Vreden' }
-            } catch (dlErr) {
-                console.log(`[WARN] Vreden descarga falló: ${dlErr.message}`)
-                errors.push(`Vreden: descarga falló (${dlErr.message})`)
             }
-        } else {
-            errors.push('Vreden: respuesta sin URL')
-        }
-    } catch (e) { errors.push(`Vreden: ${e.message}`) }
-
-    // 3. ogmp3 (fallback)
-    try {
-        console.log('[INFO] 🔄 Intentando ogmp3...')
-        const format = isAudio ? '320' : '720'
-        const type = isAudio ? 'audio' : 'video'
-        const res = await ogmp3.download(url, format, type)
-        if (res.status && res.result?.download) {
-            console.log('[INFO] ✅ ogmp3 OK')
-            try {
+        },
+        {
+            name: 'ogmp3',
+            timeout: 30000,
+            fn: async () => {
+                const format = isAudio ? '320' : '720'
+                const type = isAudio ? 'audio' : 'video'
+                const res = await ogmp3.download(url, format, type)
+                if (!res.status || !res.result?.download) throw new Error('respuesta sin URL')
                 const localPath = await downloadToLocal(res.result.download, ext, 'ogmp3')
                 return { localPath, title: res.result.title, source: 'ogmp3' }
-            } catch (dlErr) {
-                console.log(`[WARN] ogmp3 descarga falló: ${dlErr.message}`)
-                errors.push(`ogmp3: descarga falló (${dlErr.message})`)
             }
-        } else {
-            errors.push('ogmp3: respuesta sin URL')
         }
-    } catch (e) { errors.push(`ogmp3: ${e.message}`) }
+    ]
 
-    // 4. yt-dlp local (último y más confiable)
-    try {
-        console.log('[INFO] 🔄 Intentando yt-dlp local...')
-        const result = await ytDlpDownload(url, isAudio)
-        if (result.localPath) {
-            console.log('[INFO] ✅ yt-dlp OK')
-            return { localPath: result.localPath, title: result.title, source: 'yt-dlp' }
+    for (const provider of providers) {
+        if (!isApiAvailable(provider.name)) {
+            console.log(`[INFO] ⏭️ ${provider.name} en cooldown, saltando...`)
+            errors.push(`${provider.name}: en cooldown`)
+            continue
         }
-    } catch (e) { errors.push(`yt-dlp: ${e.message}`) }
+        try {
+            console.log(`[INFO] 🔄 Intentando ${provider.name}...`)
+            const result = await withTimeout(provider.fn(), provider.timeout, provider.name)
+            console.log(`[INFO] ✅ ${provider.name} OK`)
+            markApiOk(provider.name)
+            return result
+        } catch (e) {
+            const msg = e.message || 'error desconocido'
+            console.log(`[WARN] ${provider.name} falló: ${msg}`)
+            markApiFailed(provider.name)
+            errors.push(`${provider.name}: ${msg}`)
+        }
+    }
 
-    console.error('[ERROR] Todas las APIs fallaron:', errors)
-    throw new Error('Todas las APIs fallaron. Intenta de nuevo más tarde.')
+    console.error('[ERROR] Todos los proveedores fallaron:', errors)
+    throw new Error('Todos los proveedores fallaron. Intenta de nuevo más tarde.')
 }
 
 // ==========================================
