@@ -76,19 +76,13 @@ export default {
                     id: `${cleanPrefix}menu`
                 })
 
-                const sections = [{
+                return await client.sendNativeSelect(m.chat, {
                     title: catMap[selectedCategory],
+                    body: `📂 *${catMap[selectedCategory]}*\n\n_Toca el botón y selecciona un comando para ejecutarlo._\n\n> 📊 Total: ${cmds.length} comandos`,
+                    footer: '🐉 Lucoa Bot',
+                    buttonText: '📋 Ver Comandos',
                     rows
-                }]
-
-                return await client.sendList(
-                    m.chat,
-                    catMap[selectedCategory],
-                    `📂 *${catMap[selectedCategory]}*\n\n_Toca el botón y selecciona un comando para ejecutarlo._\n\n> 📊 Total: ${cmds.length} comandos`,
-                    '📋 Ver Comandos',
-                    sections,
-                    m
-                )
+                }, m)
             }
 
             // ═══ NIVEL 1: Menú principal con lista de categorías ═══
@@ -113,15 +107,9 @@ export default {
                     }
                 })
 
-            const sections = [{
-                title: '📂 Categorías',
-                rows: categoryRows
-            }]
-
             // Gestión de Multimedia (videos optimizados + imágenes)
-            // Se envía como mensaje separado antes del menú interactivo
-            let mediaSent = false
             const MEDIA_DIR = path.join(process.cwd(), 'media')
+            let mediaSent = false
             if (fs.existsSync(MEDIA_DIR)) {
                 try {
                     const files = fs.readdirSync(MEDIA_DIR)
@@ -150,18 +138,17 @@ export default {
                 if (dbBanner) {
                     await client.sendMessage(m.chat, { image: { url: dbBanner }, caption: headerText }, { quoted: m })
                 } else {
-                    await client.sendMessage(m.chat, { image: { url: 'https://github.com/MatheoDark/Lucoa-Bot-MD/blob/main/media/banner2.jpg?raw=true' }, caption: headerText }, { quoted: m })
+                    await client.sendMessage(m.chat, { image: { url: 'https://raw.githubusercontent.com/MatheoDark/Lucoa-Bot-MD/main/media/banner2.jpg' }, caption: headerText }, { quoted: m })
                 }
             }
 
-            await client.sendList(
-                m.chat,
-                '🐉 Lucoa Bot',
-                '> _Toca el botón de abajo y selecciona una categoría_ 🐉',
-                '📋 Ver Categorías',
-                sections,
-                m
-            )
+            await client.sendNativeSelect(m.chat, {
+                title: '🐉 Lucoa Bot',
+                body: '> _Toca el botón de abajo y selecciona una categoría_ 🐉',
+                footer: 'ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ',
+                buttonText: '📋 Ver Categorías',
+                rows: categoryRows
+            }, m)
 
         } catch (e) {
             console.error(e)
