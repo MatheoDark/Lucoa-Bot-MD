@@ -28,6 +28,14 @@ async function optimizeVideo(buffer, extension) {
     }
 }
 
+// Guardar buffer como archivo temporal y devolver la ruta
+function saveTempMedia(buffer, ext = 'mp4') {
+    if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp')
+    const tmpPath = path.resolve(`./tmp/menu_${Date.now()}.${ext}`)
+    fs.writeFileSync(tmpPath, buffer)
+    return tmpPath
+}
+
 export default {
     command: ['menu', 'help', 'menú', 'comandos'],
     category: 'info',
@@ -64,28 +72,29 @@ export default {
                 const cmds = myCommands.filter(c => c.category === selectedCategory)
                 if (cmds.length === 0) return m.reply('❌ No hay comandos en esta categoría.')
 
-                const rows = cmds.map(cmd => ({
-                    title: `${cleanPrefix}${cmd.name}`,
-                    description: cmd.desc || 'Sin descripción',
-                    id: `${cleanPrefix}${cmd.name}`
-                }))
-
-                rows.unshift({
-                    title: '↩ Volver al Menú',
-                    description: 'Regresar al menú principal',
-                    id: `${cleanPrefix}menu`
+                let cmdText = `📂 *${catMap[selectedCategory]}*\n\n`
+                cmds.forEach(cmd => {
+                    cmdText += `│ ❀ ${cleanPrefix}${cmd.name}${cmd.desc ? ` - _${cmd.desc}_` : ''}\n`
                 })
+                cmdText += `\n> 📊 Total: ${cmds.length} comandos`
 
-                return await client.sendNativeSelect(m.chat, {
-                    title: catMap[selectedCategory],
-                    body: `📂 *${catMap[selectedCategory]}*\n\n_Toca el botón y selecciona un comando para ejecutarlo._\n\n> 📊 Total: ${cmds.length} comandos`,
-                    footer: '🐉 Lucoa Bot',
-                    buttonText: '📋 Ver Comandos',
-                    rows
-                }, m)
+                const buttons = [
+                    ['↩ Volver al Menú', `${cleanPrefix}menu`]
+                ]
+
+                return await client.sendButton(
+                    m.chat,
+                    cmdText,
+                    '🐉 Lucoa Bot',
+                    'https://raw.githubusercontent.com/MatheoDark/Lucoa-Bot-MD/main/media/banner2.jpg',
+                    buttons,
+                    null,
+                    null,
+                    m
+                )
             }
 
-            // ═══ NIVEL 1: Menú principal con lista de categorías ═══
+            // ═══ NIVEL 1: Menú principal con botones de categoría ═══
             let headerText = `╭─── ⋆🐉⋆ ───────────╮\n`
             headerText += `│  *${botname}* ${kao}\n`
             headerText += `├─────────────────────\n`
@@ -96,20 +105,18 @@ export default {
             headerText += `╰─── ⋆✨⋆ ───────────╯\n\n`
             headerText += `_Selecciona una categoría para ver sus comandos_ 🐉`
 
-            const categoryRows = Object.entries(catMap)
+            const activeCategories = Object.entries(catMap)
                 .filter(([key]) => myCommands.some(c => c.category === key))
-                .map(([key, label]) => {
-                    const count = myCommands.filter(c => c.category === key).length
-                    return {
-                        title: label,
-                        description: `${count} comandos disponibles`,
-                        id: `${cleanPrefix}menu ${key}`
-                    }
-                })
 
-            // Gestión de Multimedia (videos optimizados + imágenes)
+            const categoryButtons = activeCategories.map(([key, label]) => {
+                const count = myCommands.filter(c => c.category === key).length
+                return [`${label} (${count})`, `${cleanPrefix}menu ${key}`]
+            })
+
+            // Obtener media (ruta o URL, NO buffer)
+            let media = null
+            let tempFile = null
             const MEDIA_DIR = path.join(process.cwd(), 'media')
-            let mediaSent = false
             if (fs.existsSync(MEDIA_DIR)) {
                 try {
                     const files = fs.readdirSync(MEDIA_DIR)
@@ -120,35 +127,34 @@ export default {
                         const randomVideo = videos[Math.floor(Math.random() * videos.length)]
                         let buffer = fs.readFileSync(path.join(MEDIA_DIR, randomVideo))
                         buffer = await optimizeVideo(buffer, randomVideo.split('.').pop())
-                        await client.sendMessage(m.chat, { video: buffer, gifPlayback: true, caption: headerText }, { quoted: m })
-                        mediaSent = true
+                        tempFile = saveTempMedia(buffer, 'mp4')
+                        media = tempFile
                     } else if (images.length > 0) {
                         const randomImage = images[Math.floor(Math.random() * images.length)]
-                        const imgBuffer = fs.readFileSync(path.join(MEDIA_DIR, randomImage))
-                        await client.sendMessage(m.chat, { image: imgBuffer, caption: headerText }, { quoted: m })
-                        mediaSent = true
+                        media = path.resolve(path.join(MEDIA_DIR, randomImage))
                     }
                 } catch (e) {}
             }
 
-            if (!mediaSent) {
+            if (!media) {
                 const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
-                const dbBanner = global.db?.data?.settings?.[botId]?.banner || null
-
-                if (dbBanner) {
-                    await client.sendMessage(m.chat, { image: { url: dbBanner }, caption: headerText }, { quoted: m })
-                } else {
-                    await client.sendMessage(m.chat, { image: { url: 'https://raw.githubusercontent.com/MatheoDark/Lucoa-Bot-MD/main/media/banner2.jpg' }, caption: headerText }, { quoted: m })
-                }
+                const dbBanner = global.db?.data?.settings?.[botId]?.banner
+                media = dbBanner || 'https://raw.githubusercontent.com/MatheoDark/Lucoa-Bot-MD/main/media/banner2.jpg'
             }
 
-            await client.sendNativeSelect(m.chat, {
-                title: '🐉 Lucoa Bot',
-                body: '> _Toca el botón de abajo y selecciona una categoría_ 🐉',
-                footer: 'ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ',
-                buttonText: '📋 Ver Categorías',
-                rows: categoryRows
-            }, m)
+            await client.sendButton(
+                m.chat,
+                headerText,
+                '🐉 Lucoa Bot · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ',
+                media,
+                categoryButtons,
+                null,
+                null,
+                m
+            )
+
+            // Limpiar temporal
+            if (tempFile) fs.promises.unlink(tempFile).catch(() => {})
 
         } catch (e) {
             console.error(e)
