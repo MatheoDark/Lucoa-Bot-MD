@@ -85,7 +85,10 @@ export default {
                     fullText += `╰──────────⋆✦⋆\n\n`
                 }
                 fullText += `> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`
-                return await client.sendMessage(m.chat, { text: fullText.trim() }, { quoted: m })
+
+                const allMedia = await getMenuMedia()
+                allMedia.caption = fullText.trim()
+                return await client.sendMessage(m.chat, allMedia, { quoted: m })
             }
 
             // ═══ Función para obtener media (video/imagen/banner) ═══
