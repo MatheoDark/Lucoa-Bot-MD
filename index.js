@@ -91,7 +91,8 @@ import {
   DisconnectReason,
   generateWAMessageFromContent,
   proto,
-  decryptPollVote
+  decryptPollVote,
+  jidNormalizedUser
 } from "@whiskeysockets/baileys"
 
 import pino from "pino"
@@ -845,30 +846,52 @@ async function startBot() {
         try {
           const pollStore = global.activePollMenus
           const creationKey = pollUpdate.pollCreationMessageKey
-          console.log('[PollVote] Received vote! creationKey:', creationKey?.id, 'stored polls:', [...pollStore.keys()])
           if (creationKey) {
             const pollData = pollStore.get(creationKey.id)
             if (pollData) {
-              const voterJid = m.key?.participant || m.key?.remoteJid
-              console.log('[PollVote] Found poll data, decrypting vote from:', voterJid)
-              const decrypted = decryptPollVote(
-                pollUpdate.vote,
-                {
-                  pollEncKey: pollData.pollEncKey,
-                  pollCreatorJid: pollData.pollCreatorJid,
-                  pollMsgId: creationKey.id,
-                  voterJid
+              const meNorm = jidNormalizedUser(client.user.id)
+              // getKeyAuthor logic: fromMe → meId, else → participantAlt || remoteJidAlt || participant || remoteJid
+              const pollCreatorJid = creationKey.fromMe ? meNorm : (creationKey.participantAlt || creationKey.remoteJidAlt || creationKey.participant || creationKey.remoteJid)
+              // Voter JID: try alt first (PN), then regular (LID)
+              const voterAlt = m.key?.participantAlt || m.key?.remoteJidAlt
+              const voterRegular = m.key?.participant || m.key?.remoteJid
+              
+              // Try all combinations: the HMAC signature must match exactly
+              const jidCombos = []
+              const creatorCandidates = [pollCreatorJid, meNorm]
+              const voterCandidates = voterAlt ? [voterAlt, voterRegular] : [voterRegular]
+              for (const cr of creatorCandidates) {
+                for (const vt of voterCandidates) {
+                  if (cr && vt) jidCombos.push({ cr, vt })
                 }
-              )
-              console.log('[PollVote] Decrypted:', JSON.stringify(decrypted?.selectedOptions?.map(o => Buffer.from(o).toString('hex'))))
+              }
+
+              let decrypted = null
+              for (const { cr, vt } of jidCombos) {
+                try {
+                  decrypted = decryptPollVote(
+                    pollUpdate.vote,
+                    {
+                      pollEncKey: pollData.pollEncKey,
+                      pollCreatorJid: cr,
+                      pollMsgId: creationKey.id,
+                      voterJid: vt
+                    }
+                  )
+                  if (decrypted?.selectedOptions?.length) {
+                    console.log('[PollVote] Decrypted OK with creator:', cr, 'voter:', vt)
+                    break
+                  }
+                } catch {}
+              }
+
               if (decrypted?.selectedOptions?.length) {
                 for (const optHash of decrypted.selectedOptions) {
                   const hashHex = Buffer.from(optHash).toString('hex')
                   const command = pollData.optionMap[hashHex]
-                  console.log('[PollVote] Hash:', hashHex, 'Command:', command)
                   if (command) {
                     const fakeMsg = {
-                      key: { remoteJid: m.key.remoteJid, fromMe: false, participant: voterJid, id: m.key.id + '_pollcmd' },
+                      key: { remoteJid: m.key.remoteJid, fromMe: false, participant: voterRegular, id: m.key.id + '_pollcmd' },
                       message: { conversation: command },
                       pushName: m.pushName || 'Usuario'
                     }
@@ -876,6 +899,8 @@ async function startBot() {
                     await handler(client, mFake, { messages: [fakeMsg], type: 'notify' })
                   }
                 }
+              } else {
+                console.log('[PollVote] Could not decrypt. Tried combos:', jidCombos.length, 'key fields:', JSON.stringify(m.key))
               }
             }
           }
