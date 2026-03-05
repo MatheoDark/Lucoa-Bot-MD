@@ -31,17 +31,15 @@ async function optimizeVideo(buffer, extension) {
 export default {
     command: ['menu', 'help', 'menú', 'comandos'],
     category: 'info',
-    run: async ({ client, m, usedPrefix }) => {
+    run: async ({ client, m, usedPrefix, args }) => {
         try {
             const botname = '𝐋𝐔𝐂𝐎𝐀 𝐁𝐎𝐓'
             const cleanPrefix = (usedPrefix || '#').trim()
             const username = m.pushName || 'Usuario'
-            
-            // Kaomojis aleatorios
+
             const kaos = ['(◕ᴗ◕✿)', '(●\'◡\'●)', '(˶ᵔ ᵕ ᵔ˶)', '(≧◡≦)', '(✿◠‿◠)', '₍ᐢ..ᐢ₎♡']
             const kao = kaos[Math.floor(Math.random() * kaos.length)]
 
-            // Títulos de categorías - Estética Lucoa Anime
             const catMap = {
                 'info': '🐉 Información',
                 'anime': '🌸 Anime & Reacciones',
@@ -59,45 +57,61 @@ export default {
                 'otros': '🌀 Otros'
             }
 
-            let menuText = `╭─── ⋆🐉⋆ ───────────╮\n`
-            menuText += `│  *${botname}* ${kao}\n`
-            menuText += `├─────────────────────\n`
-            menuText += `│ 👤 *Usuario ›* ${username}\n`
-            menuText += `│ 🐲 *Estado ›* Online\n`
-            menuText += `│ 📚 *Comandos ›* ${myCommands.length}\n`
-            menuText += `│ ✧ *Prefijo ›* ${cleanPrefix}\n`
-            menuText += `╰─── ⋆✨⋆ ───────────╯\n\n`
+            const selectedCategory = args[0]?.toLowerCase()
 
-            // Ordenamos categorías
-            const categoryKeys = Object.keys(catMap)
+            // ═══ NIVEL 2: Comandos de una categoría específica ═══
+            if (selectedCategory && catMap[selectedCategory]) {
+                const cmds = myCommands.filter(c => c.category === selectedCategory)
+                if (cmds.length === 0) return m.reply('❌ No hay comandos en esta categoría.')
 
-            categoryKeys.forEach(tag => {
-                const cmds = myCommands.filter(c => c.category === tag)
-                
-                if (cmds.length > 0) {
-                    menuText += `╭── ${catMap[tag]} ──\n`
-                    
-                    cmds.forEach(cmd => {
-                        let commandLine = `${cleanPrefix}${cmd.name}`
-                        
-                        if (cmd.alias && Array.isArray(cmd.alias) && cmd.alias.length > 0) {
-                            const aliasLimpis = cmd.alias.map(a => `${cleanPrefix}${a.replace(/^\//, '')}`)
-                            commandLine += ` / ${aliasLimpis.join(' / ')}`
-                        }
+                const rows = cmds.map(cmd => ({
+                    title: `${cleanPrefix}${cmd.name}`,
+                    description: cmd.desc || 'Sin descripción',
+                    id: `${cleanPrefix}${cmd.name}`
+                }))
 
-                        menuText += `│ ❀ ${commandLine}${cmd.desc ? `\n│   ╰ _${cmd.desc}_` : ''}\n`
-                    })
-                    menuText += `╰──────────⋆✦⋆\n\n`
-                }
-            })
-            
-            menuText += `> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`
+                rows.unshift({
+                    title: '↩ Volver al Menú',
+                    description: 'Regresar al menú principal',
+                    id: `${cleanPrefix}menu`
+                })
 
-            // Gestión de Multimedia
+                const sections = [{
+                    title: catMap[selectedCategory],
+                    rows
+                }]
+
+                return await client.sendList(
+                    m.chat,
+                    catMap[selectedCategory],
+                    `📂 *${catMap[selectedCategory]}*\n\n_Toca el botón y selecciona un comando para ejecutarlo._\n\n> 📊 Total: ${cmds.length} comandos`,
+                    '📋 Ver Comandos',
+                    sections,
+                    m
+                )
+            }
+
+            // ═══ NIVEL 1: Menú principal con botones de categoría ═══
+            let headerText = `╭─── ⋆🐉⋆ ───────────╮\n`
+            headerText += `│  *${botname}* ${kao}\n`
+            headerText += `├─────────────────────\n`
+            headerText += `│ 👤 *Usuario ›* ${username}\n`
+            headerText += `│ 🐲 *Estado ›* Online\n`
+            headerText += `│ 📚 *Comandos ›* ${myCommands.length}\n`
+            headerText += `│ ✧ *Prefijo ›* ${cleanPrefix}\n`
+            headerText += `╰─── ⋆✨⋆ ───────────╯\n\n`
+            headerText += `_Selecciona una categoría para ver sus comandos_ 🐉`
+
+            const categoryButtons = Object.entries(catMap)
+                .filter(([key]) => myCommands.some(c => c.category === key))
+                .map(([key, label]) => {
+                    const count = myCommands.filter(c => c.category === key).length
+                    return [`${label} (${count})`, `${cleanPrefix}menu ${key}`]
+                })
+
+            // Gestión de Multimedia (videos optimizados + imágenes)
+            let media = null
             const MEDIA_DIR = path.join(process.cwd(), 'media')
-            let buffer = null
-            let isVideo = false
-
             if (fs.existsSync(MEDIA_DIR)) {
                 try {
                     const files = fs.readdirSync(MEDIA_DIR)
@@ -106,32 +120,31 @@ export default {
 
                     if (videos.length > 0) {
                         const randomVideo = videos[Math.floor(Math.random() * videos.length)]
-                        buffer = fs.readFileSync(path.join(MEDIA_DIR, randomVideo))
-                        buffer = await optimizeVideo(buffer, randomVideo.split('.').pop())
-                        isVideo = true
+                        let buffer = fs.readFileSync(path.join(MEDIA_DIR, randomVideo))
+                        media = await optimizeVideo(buffer, randomVideo.split('.').pop())
                     } else if (images.length > 0) {
                         const randomImage = images[Math.floor(Math.random() * images.length)]
-                        buffer = fs.readFileSync(path.join(MEDIA_DIR, randomImage))
+                        media = fs.readFileSync(path.join(MEDIA_DIR, randomImage))
                     }
                 } catch (e) {}
             }
 
-            const messageOptions = { caption: menuText.trim() }
-            const botId = client.user.id.split(':')[0] + "@s.whatsapp.net"
-            const dbBanner = global.db?.data?.settings?.[botId]?.banner || null
-
-            if (isVideo && buffer) {
-                messageOptions.video = buffer
-                messageOptions.gifPlayback = true
-            } else if (buffer) {
-                messageOptions.image = buffer
-            } else if (dbBanner) {
-                messageOptions.image = { url: dbBanner }
-            } else {
-                messageOptions.image = { url: 'https://i.pinimg.com/736x/2a/39/19/2a39199d63c5a704259b15d21a525d88.jpg' }
+            if (!media) {
+                const botId = client.user.id.split(':')[0] + '@s.whatsapp.net'
+                const dbBanner = global.db?.data?.settings?.[botId]?.banner
+                media = dbBanner || 'https://i.pinimg.com/736x/2a/39/19/2a39199d63c5a704259b15d21a525d88.jpg'
             }
 
-            await client.sendMessage(m.chat, messageOptions, { quoted: m })
+            await client.sendButton(
+                m.chat,
+                headerText,
+                '🐉 Lucoa Bot · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ',
+                media,
+                categoryButtons,
+                null,
+                null,
+                m
+            )
 
         } catch (e) {
             console.error(e)
