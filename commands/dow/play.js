@@ -124,15 +124,21 @@ function fixVideoWithFFmpeg(inputPath) {
         console.log(`[INFO] 🛠️ Convirtiendo para WhatsApp Móvil (Ultrafast)...`)
         const parsed = path.parse(inputPath)
         const outputPath = path.join(parsed.dir, `${parsed.name}_fixed.mp4`)
-        const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "${outputPath}"`
+        const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -c:a aac -b:a 128k -ar 44100 -ac 2 -movflags +faststart -max_muxing_queue_size 1024 "${outputPath}"`
         
-        exec(cmd, { timeout: 120000 }, (error) => {
-            if (error || !fs.existsSync(outputPath)) {
-                console.log('⚠️ FFmpeg falló, enviando original.')
-                resolve(inputPath)
-            } else {
+        exec(cmd, { timeout: 180000, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+            if (error) console.log(`[WARN] FFmpeg error: ${error.message}`)
+            if (stderr) {
+                const lastLines = stderr.split('\n').filter(l => l.trim()).slice(-3).join(' | ')
+                console.log(`[FFmpeg] ${lastLines}`)
+            }
+            if (!error && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
                 try { fs.unlinkSync(inputPath) } catch {}
                 resolve(outputPath)
+            } else {
+                console.log('⚠️ FFmpeg falló, enviando original.')
+                try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath) } catch {}
+                resolve(inputPath)
             }
         })
     })
@@ -147,32 +153,47 @@ function ytDlpDownload(url, isAudio) {
         if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
         const outputFile = path.join(tmpDir, `${Date.now()}_ytdlp`)
 
-        let cmd
-        if (isAudio) {
-            cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings --quiet --print title "${url}"`
-        } else {
-            cmd = `yt-dlp -f "bv*[height<=720]+ba/b[height<=720]/best" --merge-output-format mp4 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings --quiet --print title "${url}"`
-        }
+        // Obtener título primero (rápido, separado de la descarga)
+        exec(`yt-dlp --get-title --no-warnings "${url}"`, { timeout: 15000 }, (titleErr, titleOut) => {
+            const title = titleOut?.trim() || 'Sin título'
 
-        exec(cmd, { timeout: 120000 }, (error, stdout, stderr) => {
-            if (error) return reject(new Error(`yt-dlp: ${error.message}`))
+            let cmd
+            if (isAudio) {
+                cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings "${url}"`
+            } else {
+                // Preferir h264+aac (compatible con WhatsApp móvil), con fallback amplio
+                cmd = `yt-dlp -S "vcodec:h264,acodec:aac" -f "bv*[height<=720]+ba/b[height<=720]/best" --merge-output-format mp4 --recode-video mp4 -o "${outputFile}.%(ext)s" --no-playlist --no-warnings "${url}"`
+            }
 
-            const title = stdout?.trim()?.split('\n')[0] || 'Sin título'
+            console.log(`[INFO] yt-dlp descargando: ${title}`)
+            exec(cmd, { timeout: 180000, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+                if (error) {
+                    const errMsg = stderr?.split('\n').filter(l => l.includes('ERROR')).join(' | ') || error.message
+                    return reject(new Error(`yt-dlp: ${errMsg}`))
+                }
+                if (stderr) {
+                    const warnings = stderr.split('\n').filter(l => l.includes('WARNING')).slice(0, 2).join(' | ')
+                    if (warnings) console.log(`[yt-dlp] ${warnings}`)
+                }
 
-            // Buscar el archivo descargado
-            const prefix = path.basename(outputFile)
-            const files = fs.readdirSync(tmpDir)
-                .filter(f => f.startsWith(prefix) && !f.endsWith('.part'))
-                .filter(f => {
-                    try { return fs.statSync(path.join(tmpDir, f)).size > 0 } catch { return false }
-                })
-            if (files.length === 0) return reject(new Error('yt-dlp: No se generó archivo'))
+                // Buscar el archivo descargado
+                const prefix = path.basename(outputFile)
+                const files = fs.readdirSync(tmpDir)
+                    .filter(f => f.startsWith(prefix) && !f.endsWith('.part') && !f.endsWith('.temp'))
+                    .filter(f => {
+                        try { return fs.statSync(path.join(tmpDir, f)).size > 0 } catch { return false }
+                    })
+                if (files.length === 0) {
+                    console.log(`[WARN] yt-dlp: No se encontró archivo. Archivos en tmp: ${fs.readdirSync(tmpDir).filter(f => f.includes('ytdlp')).join(', ')}`)
+                    return reject(new Error('yt-dlp: No se generó archivo'))
+                }
 
-            const ext = isAudio ? 'mp3' : 'mp4'
-            const expectedName = `${prefix}.${ext}`
-            const finalName = files.find(f => f === expectedName) || files.find(f => !f.includes('.f')) || files[0]
-            const finalFile = path.join(tmpDir, finalName)
-            resolve({ localPath: finalFile, title, source: 'yt-dlp' })
+                const ext = isAudio ? 'mp3' : 'mp4'
+                const expectedName = `${prefix}.${ext}`
+                const finalName = files.find(f => f === expectedName) || files.find(f => !f.includes('.f')) || files[0]
+                const finalFile = path.join(tmpDir, finalName)
+                resolve({ localPath: finalFile, title, source: 'yt-dlp' })
+            })
         })
     })
 }
@@ -187,7 +208,8 @@ async function downloadWithFallbacks(url, isAudio) {
     const providers = [
         {
             name: 'yt-dlp',
-            timeout: 120000,
+            timeout: 180000,
+            noCooldown: true, // yt-dlp puede fallar en un video pero funcionar en otro
             fn: async () => {
                 const result = await ytDlpDownload(url, isAudio)
                 if (!result.localPath) throw new Error('No se generó archivo')
@@ -196,7 +218,7 @@ async function downloadWithFallbacks(url, isAudio) {
         },
         {
             name: 'SaveTube',
-            timeout: 20000,
+            timeout: 60000,
             fn: async () => {
                 const res = isAudio ? await ytmp3(url) : await ytmp4(url)
                 if (!res.status || !res.download?.status || !res.download?.url) throw new Error('respuesta sin URL')
@@ -243,7 +265,7 @@ async function downloadWithFallbacks(url, isAudio) {
         } catch (e) {
             const msg = e.message || 'error desconocido'
             console.log(`[WARN] ${provider.name} falló: ${msg}`)
-            markApiFailed(provider.name)
+            if (!provider.noCooldown) markApiFailed(provider.name)
             errors.push(`${provider.name}: ${msg}`)
         }
     }
