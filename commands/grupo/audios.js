@@ -53,7 +53,8 @@ Ejemplo:
 > También funciona reenviando un audio.`)
     }
 
-    const chat = global.db.data.chats[m.chat] ||= {}
+    if (!global.db.data.chats[m.chat]) global.db.data.chats[m.chat] = {}
+    const chat = global.db.data.chats[m.chat]
 
     if (sub === 'on') {
       chat.audios = true
