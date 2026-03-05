@@ -165,7 +165,7 @@ export default {
             // Enviar menú original con video/imagen
             await client.sendMessage(m.chat, messageOptions, { quoted: m })
 
-            // Enviar botones de categorías como segundo mensaje
+            // Enviar botones de categorías (máximo 3 por mensaje)
             const categoryButtons = Object.entries(catMap)
                 .filter(([key]) => myCommands.some(c => c.category === key))
                 .map(([key, label]) => {
@@ -173,16 +173,22 @@ export default {
                     return [`${label} (${count})`, `${cleanPrefix}menu ${key}`]
                 })
 
-            await client.sendButton(
-                m.chat,
-                '_Selecciona una categoría para ver sus comandos_ 🐉',
-                '🐉 Lucoa Bot · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ',
-                null,
-                categoryButtons,
-                null,
-                null,
-                m
-            )
+            // Dividir en grupos de 3 (límite de WhatsApp)
+            for (let i = 0; i < categoryButtons.length; i += 3) {
+                const chunk = categoryButtons.slice(i, i + 3)
+                const page = Math.floor(i / 3) + 1
+                const totalPages = Math.ceil(categoryButtons.length / 3)
+                await client.sendButton(
+                    m.chat,
+                    page === 1 ? '_Selecciona una categoría para ver sus comandos_ 🐉' : `_Más categorías (${page}/${totalPages})_ 🐉`,
+                    '🐉 Lucoa Bot · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ',
+                    null,
+                    chunk,
+                    null,
+                    null,
+                    m
+                )
+            }
 
         } catch (e) {
             console.error(e)
