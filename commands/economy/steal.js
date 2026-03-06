@@ -88,7 +88,7 @@ export default {
 
     const COOLDOWN_BASE = 30 * 60 * 1000
     const now = Date.now()
-    const success = Math.random() < 0.65
+    const success = Math.random() < 0.45
     const targetName = targetData.name || targetId.split('@')[0]
 
     if (!success) {
