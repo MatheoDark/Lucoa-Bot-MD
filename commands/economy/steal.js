@@ -63,7 +63,7 @@ export default {
     const targetData = global.db.data.users[targetId]
     if (!targetData) return m.reply('🐲 Ese usuario no tiene dinero registrado (◕︿◕)')
 
-    if ((targetData.coins || 0) < 50) {
+    if ((targetData.coins || 0) + (targetData.bank || 0) < 50) {
       return m.reply('🐲 La víctima es muy pobre, no vale la pena (╥﹏╥)')
     }
 
@@ -123,20 +123,26 @@ export default {
     }
 
     // ═══ ÉXITO ═══
-    const cantidadRobada = Math.min(Math.floor(Math.random() * 5000) + 50, targetData.coins)
-    
-    senderData.coins += cantidadRobada
-    targetData.coins -= cantidadRobada
+    // Robar de coins en mano
+    let cantidadRobada = 0
+    if ((targetData.coins || 0) > 0) {
+      cantidadRobada = Math.min(Math.floor(Math.random() * 5000) + 50, targetData.coins)
+      targetData.coins -= cantidadRobada
+      senderData.coins += cantidadRobada
+    }
     senderData.roboCooldown = now + COOLDOWN_BASE
 
-    // 10% de chance de robar también del banco de la víctima
+    // Robar del banco: 10% si ya robó coins, 40% si la víctima no tenía coins en mano
     let bankMsg = ''
     const targetBank = targetData.bank || 0
-    if (targetBank > 0 && Math.random() < 0.10) {
-      const bankRobado = Math.floor(targetBank * (Math.random() * 0.05 + 0.03)) // 3-8% del banco
+    const bankChance = cantidadRobada === 0 ? 0.40 : 0.10
+    if (targetBank > 0 && Math.random() < bankChance) {
+      const bankPercent = cantidadRobada === 0 ? (Math.random() * 0.10 + 0.05) : (Math.random() * 0.05 + 0.03)
+      const bankRobado = Math.floor(targetBank * bankPercent)
       if (bankRobado > 0) {
         targetData.bank -= bankRobado
         senderData.coins += bankRobado
+        cantidadRobada += bankRobado
         bankMsg = `\n│\n│ 🏦 *¡BONUS! Accediste a su banco!*\n│ 💰 Robaste *¥${bankRobado.toLocaleString()} ${monedas}* del banco`
       }
     }
