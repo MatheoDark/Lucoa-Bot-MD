@@ -1,7 +1,10 @@
-import { execSync } from 'child_process'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+
+const execAsync = promisify(exec)
 
 // Voces con nombre, idioma base y ajuste de pitch
 const voices = [
@@ -77,7 +80,7 @@ export default {
       // Descargar audio con curl (más confiable que node-fetch para binarios)
       const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${selectedVoice.lang}&client=tw-ob&q=${encodeURIComponent(text)}`
       
-      execSync(`curl -s -L -o "${rawFile}" -H "User-Agent: Mozilla/5.0" -H "Referer: https://translate.google.com/" "${ttsUrl}"`, { timeout: 15000 })
+      await execAsync(`curl -s -L -o "${rawFile}" -H "User-Agent: Mozilla/5.0" -H "Referer: https://translate.google.com/" "${ttsUrl}"`, { timeout: 15000 })
 
       if (!fs.existsSync(rawFile) || fs.statSync(rawFile).size < 100) {
         throw 'Audio vacío de Google TTS'
@@ -91,9 +94,9 @@ export default {
         ? `-af "asetrate=${sampleRate},aresample=48000,atempo=${selectedVoice.speed}"`
         : ''
 
-      execSync(
+      await execAsync(
         `ffmpeg -y -i "${rawFile}" ${pitchFilter} -c:a libopus -b:a 64k -ac 1 -ar 48000 "${outFile}"`,
-        { timeout: 15000, stdio: 'ignore' }
+        { timeout: 15000 }
       )
 
       if (!fs.existsSync(outFile) || fs.statSync(outFile).size < 100) {

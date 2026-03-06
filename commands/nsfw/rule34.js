@@ -1,8 +1,11 @@
 import fetch from 'node-fetch'
 import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from 'fs'
-import { execSync } from 'child_process'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { join } from 'path'
 import os from 'os'
+
+const execAsync = promisify(exec)
 
 export default {
     command: ['r34', 'rule34'],
@@ -318,15 +321,15 @@ async function convertToMp4(url, originalName = '') {
         const dlBuffer = Buffer.from(await res.arrayBuffer())
         writeFileSync(inputPath, dlBuffer)
         
-        // Detectar si el archivo tiene audio con ffprobe
+        // Detectar si el archivo tiene audio con ffprobe (async para no bloquear event loop)
         let hasAudio = false
         if (inputExt !== 'gif') {
             try {
-                const probeOut = execSync(
+                const { stdout } = await execAsync(
                     `ffprobe -v quiet -select_streams a -show_entries stream=codec_type -of csv=p=0 "${inputPath}"`,
-                    { timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
-                ).toString().trim()
-                hasAudio = probeOut.includes('audio')
+                    { timeout: 10000 }
+                )
+                hasAudio = stdout.trim().includes('audio')
             } catch (e) { hasAudio = false }
         }
         
@@ -340,9 +343,8 @@ async function convertToMp4(url, originalName = '') {
         const inputFlags = inputExt === 'gif' ? '-ignore_loop 0' : ''
         const cmd = `ffmpeg -y ${inputFlags} -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 28 ${audioFlags} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -movflags +faststart "${outputPath}"`
         
-        execSync(cmd, {
-            timeout: 300000,
-            stdio: 'pipe'
+        await execAsync(cmd, {
+            timeout: 300000
         })
         
         const mp4Buffer = readFileSync(outputPath)
