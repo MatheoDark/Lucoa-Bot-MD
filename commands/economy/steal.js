@@ -67,6 +67,12 @@ export default {
       return m.reply('🐲 La víctima es muy pobre, no vale la pena (╥﹏╥)')
     }
 
+    // Si no tiene en mano pero sí en banco, avisar y redirigir al banco
+    const sinMano = (targetData.coins || 0) < 50
+    if (sinMano) {
+      await m.reply('🐲 La víctima es muy pobre... no tiene nada en mano (╥﹏╥)\n🏦 Pero tiene dinero en el banco... *¡intentando hackear!*')
+    }
+
     // Verificar salud mínima
     senderData.health = senderData.health ?? 100
     if (senderData.health < 20) {
@@ -132,10 +138,10 @@ export default {
     }
     senderData.roboCooldown = now + COOLDOWN_BASE
 
-    // Robar del banco: 10% si ya robó coins, 40% si la víctima no tenía coins en mano
+    // Robar del banco: siempre si no tenía coins en mano, 10% si ya robó coins
     let bankMsg = ''
     const targetBank = targetData.bank || 0
-    const bankChance = cantidadRobada === 0 ? 0.40 : 0.10
+    const bankChance = cantidadRobada === 0 ? 1.0 : 0.10
     if (targetBank > 0 && Math.random() < bankChance) {
       const bankPercent = cantidadRobada === 0 ? (Math.random() * 0.10 + 0.05) : (Math.random() * 0.05 + 0.03)
       const bankRobado = Math.floor(targetBank * bankPercent)
