@@ -99,8 +99,7 @@ export default {
 
     const img = await getRPGImage('work', trabajo)
     await client.sendMessage(m.chat, {
-      image: { url: img },
-      caption: msg,
+      text: msg,
     }, { quoted: m })
   }
 }
