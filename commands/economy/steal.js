@@ -142,14 +142,29 @@ export default {
     let bankMsg = ''
     const targetBank = targetData.bank || 0
     const bankChance = cantidadRobada === 0 ? 0.60 : 0.10
-    if (targetBank > 0 && Math.random() < bankChance) {
-      const bankPercent = cantidadRobada === 0 ? (Math.random() * 0.10 + 0.05) : (Math.random() * 0.05 + 0.03)
-      const bankRobado = Math.floor(targetBank * bankPercent)
-      if (bankRobado > 0) {
-        targetData.bank -= bankRobado
-        senderData.coins += bankRobado
-        cantidadRobada += bankRobado
-        bankMsg = `\n│\n│ 🏦 *¡BONUS! Accediste a su banco!*\n│ 💰 Robaste *¥${bankRobado.toLocaleString()} ${monedas}* del banco`
+    if (targetBank > 0) {
+      if (Math.random() < bankChance) {
+        // ═══ HACKEO EXITOSO ═══
+        const bankPercent = cantidadRobada === 0 ? (Math.random() * 0.10 + 0.05) : (Math.random() * 0.05 + 0.03)
+        const bankRobado = Math.floor(targetBank * bankPercent)
+        if (bankRobado > 0) {
+          targetData.bank -= bankRobado
+          senderData.coins += bankRobado
+          cantidadRobada += bankRobado
+          bankMsg = `\n│\n│ 🏦 *¡HACKEO EXITOSO!*\n│ 💰 Robaste *¥${bankRobado.toLocaleString()} ${monedas}* del banco`
+        }
+      } else if (cantidadRobada === 0) {
+        // ═══ HACKEO FALLIDO (solo cuando no tenía en mano) ═══
+        const multa = Math.floor((senderData.coins || 0) * 0.10)
+        senderData.coins = Math.max(0, (senderData.coins || 0) - multa)
+        senderData.roboCooldown = now + COOLDOWN_BASE
+        if (typeof global.markDBDirty === 'function') global.markDBDirty()
+        const imgFail = await getRPGImage('steal', 'fail')
+        return client.sendMessage(chatId, {
+          image: { url: imgFail },
+          caption: `╭─── ⋆🐉⋆ ───\n│ 🏦 *¡HACKEO FALLIDO!*\n├───────────────\n│ Intentaste hackear el banco de\n│ *@${targetId.split('@')[0]}* pero el sistema\n│ de seguridad te detectó 🔒\n│\n│ 💸 Multa: *-¥${multa.toLocaleString()} ${monedas}*\n│ La policía digital te vigila...\n╰─── ⋆🐲⋆ ───\n> 🐉 *Lucoa Bot* · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`,
+          mentions: [targetId],
+        }, { quoted: m })
       }
     }
 
