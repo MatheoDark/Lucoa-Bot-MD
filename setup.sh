@@ -86,6 +86,21 @@ if ! command -v pm2 &> /dev/null; then
     sudo npm install -g pm2
 fi
 
+# Instalar pm2-logrotate para evitar que los logs llenen el disco
+echo -e "${YELLOW}📋 Configurando rotación de logs PM2...${NC}"
+pm2 install pm2-logrotate 2>/dev/null
+pm2 set pm2-logrotate:max_size 10M 2>/dev/null
+pm2 set pm2-logrotate:retain 3 2>/dev/null
+pm2 set pm2-logrotate:compress true 2>/dev/null
+
+# Limpiar logs del sistema para liberar espacio
+echo -e "${YELLOW}🧹 Limpiando logs del sistema...${NC}"
+sudo journalctl --vacuum-size=50M 2>/dev/null
+sudo truncate -s 0 /var/log/syslog 2>/dev/null
+sudo truncate -s 0 /var/log/kern.log 2>/dev/null
+pm2 flush 2>/dev/null
+echo -e "${GREEN}✅ Logs limpiados y rotación configurada.${NC}"
+
 # Permisos
 chmod +x index.js
 chmod +x main.js
