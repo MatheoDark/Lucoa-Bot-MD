@@ -114,20 +114,44 @@ export default {
         return m.reply('✅ *El Bot ya está actualizado.*\n\n' + (hasChanges ? `📝 *Nota:* Tienes cambios locales pendientes:\n${changesList}` : ''))
       }
 
-      // 6. Recargamos comandos en vivo
-      await reloadCommands(path.join(__dirname, '..'))
+      // 6. Detectar si cambió algo core (necesita restart completo) o solo plugins
+      const coreFiles = ['index.js', 'main.js', 'settings.js', 'package.json', 'lib/']
+      const needsRestart = coreFiles.some(f => output.includes(f))
+      
+      // 7. Si package.json cambió, instalar dependencias
+      if (output.includes('package.json')) {
+        await m.reply('📦 *Instalando dependencias nuevas...*')
+        try {
+          await execPromise('npm install --production', { timeout: 120000 })
+        } catch (e) {
+          console.error('Error npm install:', e)
+        }
+      }
 
-      // 7. Mensaje Final
+      // 8. Mensaje final
       let msg = `✅ *¡Actualización Exitosa!*\n\n`
       msg += `📂 *Cambios recibidos:*\n${output}\n`
-      
-      // Aviso si package.json cambió (necesita npm install)
-      if (output.includes('package.json')) {
-        msg += `\n📦 *IMPORTANTE:* Se actualizaron dependencias.\nEjecuta: \`npm install\` en la terminal.\n`
-      }
-      
-      msg += `\n> 🐲 Powered by MatheoDark`
 
+      if (needsRestart) {
+        msg += `\n♻️ *Reiniciando bot con PM2...*`
+        msg += `\n> 🐲 Powered by MatheoDark`
+        await client.sendMessage(m.chat, { text: msg }, { quoted: m })
+        // Dar tiempo a que se envíe el mensaje antes del restart
+        await new Promise(r => setTimeout(r, 2000))
+        // PM2 restart — el proceso se reinicia limpio
+        try {
+          await execPromise('pm2 restart all')
+        } catch {
+          // Si pm2 no está disponible, recargamos en caliente como fallback
+          await reloadCommands(path.join(__dirname, '..'))
+        }
+        return
+      }
+
+      // Solo cambiaron plugins → recarga en caliente sin reiniciar
+      await reloadCommands(path.join(__dirname, '..'))
+      msg += `\n🔄 *Plugins recargados en caliente.*`
+      msg += `\n> 🐲 Powered by MatheoDark`
       await client.sendMessage(m.chat, { text: msg }, { quoted: m })
 
     } catch (error) {
