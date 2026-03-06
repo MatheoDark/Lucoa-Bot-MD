@@ -138,10 +138,10 @@ export default {
     }
     senderData.roboCooldown = now + COOLDOWN_BASE
 
-    // Robar del banco: siempre si no tenía coins en mano, 10% si ya robó coins
+    // Robar del banco: 60% si no tenía coins en mano, 10% si ya robó coins
     let bankMsg = ''
     const targetBank = targetData.bank || 0
-    const bankChance = cantidadRobada === 0 ? 1.0 : 0.10
+    const bankChance = cantidadRobada === 0 ? 0.60 : 0.10
     if (targetBank > 0 && Math.random() < bankChance) {
       const bankPercent = cantidadRobada === 0 ? (Math.random() * 0.10 + 0.05) : (Math.random() * 0.05 + 0.03)
       const bankRobado = Math.floor(targetBank * bankPercent)
