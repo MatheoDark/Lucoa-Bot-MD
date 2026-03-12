@@ -405,27 +405,44 @@ async function executeDownload(client, m, url, type, title, thumb) {
 
         console.log(`[INFO] 📤 Enviando archivo... (${source})`)
 
+        let msgContent
         if (type === 'audio') {
-            await client.sendMessage(m.chat, { 
+            msgContent = {
                 audio: fileData, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`,
                 contextInfo: { externalAdReply: { title: title, body: `Fuente: ${source}`, thumbnail: thumbBuffer, mediaType: 1, renderLargerThumbnail: true } }
-            }, { quoted: m })
-
+            }
         } else if (type === 'video') {
-            await client.sendMessage(m.chat, { 
+            msgContent = {
                 video: fileData, mimetype: 'video/mp4', fileName: `${cleanTitle}.mp4`, caption: `🎬 ${title}`,
-                jpegThumbnail: thumbBuffer 
-            }, { quoted: m })
-
+                jpegThumbnail: thumbBuffer
+            }
         } else if (type === 'document') {
-            await client.sendMessage(m.chat, { 
+            msgContent = {
                 document: fileData, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`, caption: `📂 ${title}`,
-                jpegThumbnail: thumbBuffer 
-            }, { quoted: m })
+                jpegThumbnail: thumbBuffer
+            }
+        }
+
+        // Retry: los servidores de media de WA fallan a veces temporalmente
+        let sent = false
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await client.sendMessage(m.chat, msgContent, { quoted: m })
+                sent = true
+                break
+            } catch (sendErr) {
+                const errMsg = String(sendErr?.message || sendErr || '').toLowerCase()
+                if (errMsg.includes('media upload failed') && attempt < 3) {
+                    console.log(`[RETRY] Upload falló (intento ${attempt}/3), reintentando en ${attempt * 3}s...`)
+                    await new Promise(r => setTimeout(r, attempt * 3000))
+                } else {
+                    throw sendErr
+                }
+            }
         }
 
         try { fs.unlinkSync(localFilePath) } catch {}
-        await m.react('✅')
+        if (sent) await m.react('✅')
 
     } catch (e) {
         console.error(e)
