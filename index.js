@@ -54,9 +54,8 @@ async function gracefulShutdown(signal) {
                 try { global.client.end() } catch {}
             } catch {}
         }
-        // 4. Esperar 3s para que WA registre el cierre del socket
-        // PM2 kill_timeout=8s: ~2s para guardar + 3s espera + margen
-        await new Promise(r => setTimeout(r, 3000))
+        // Esperar 2s para que WA registre el close frame
+        await new Promise(r => setTimeout(r, 2000))
     } catch {}
     console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
     process.exit(0)
@@ -585,18 +584,12 @@ async function startBot() {
     } catch {}
     global.client = null
     const lastReason = disconnectTracker._lastReasonCode
-    const cleanupDelay = (lastReason === 515 || lastReason === 428) ? 5000 : 3000
+    const cleanupDelay = (lastReason === 515 || lastReason === 428) ? 3000 : 1500
     await new Promise(r => setTimeout(r, cleanupDelay))
   }
 
-  // 🔧 FIX v8: Si el proceso acaba de iniciar (PM2 restart), esperar para que
-  // WhatsApp libere la sesión anterior. Sin esto = 401 "Connection Failure".
-  const timeSinceStart = Date.now() - _processStartTime
-  if (timeSinceStart < 15000) {
-    const startupDelay = 8000
-    console.log(chalk.gray(`⏳ Post-restart: esperando ${startupDelay / 1000}s para que WA libere sesión anterior...`))
-    await new Promise(r => setTimeout(r, startupDelay))
-  }
+  // El ecosystem.config.cjs ya agrega restart_delay de 5s entre restarts de PM2
+  // No agregar más delay aquí
 
   await loadDatabaseSafe()
 
@@ -746,9 +739,9 @@ async function startBot() {
             return
           }
           
-          // Backoff progresivo: 15s, 25s, 35s, 50s, 65s, 80s... max 90s
-          const delay401 = Math.min(15000 + (disconnectTracker.consecutive401 - 1) * 10000, 90000)
-          log.warn(`⚠️ Error 401 "Connection Failure" (intento ${disconnectTracker.consecutive401}/10). Reintentando en ${Math.round(delay401 / 1000)}s...`)
+          // Backoff rápido: 5s, 8s, 12s, 18s, 25s... max 30s
+          const delay401 = Math.min(5000 + (disconnectTracker.consecutive401 - 1) * 5000, 30000)
+          log.warn(`⚠️ 401 "Connection Failure" (intento ${disconnectTracker.consecutive401}/10). Reintentando en ${Math.round(delay401 / 1000)}s...`)
           console.log(chalk.gray('   (No es logout real, la sesión sigue válida. Esperando a que WA libere el socket anterior.)'))
           delayedReconnect(delay401, `Error 401 temporal - intento ${disconnectTracker.consecutive401}/10`)
         }
