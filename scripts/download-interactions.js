@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename)
 const MEDIA_DIR = path.join(__dirname, '../media/interactions')
 const INTERACTIONS_JSON = path.join(__dirname, '../media/interactions.json')
 const DOWNLOADS_PER_COMMAND = 7 // Download 7 files per command
-const WAIFU_PICS_API = 'https://api.waifu.pics/sfw'
+const PURRBOT_API = 'https://api.purrbot.site/v2/img/sfw' // Updated to PurrBot v2 (better maintained)
 
 // Helper: Download a file and get its buffer
 async function downloadFile(url) {
@@ -98,14 +98,24 @@ async function downloadInteraction(command, force = false) {
     attempts++
 
     try {
-      const response = await fetch(`${WAIFU_PICS_API}/${command}`)
-      if (!response.ok) {
-        console.log(`⚠️  API returned ${response.status} for ${command}`)
-        break
+      // Try PurrBot v2 first (better maintained, 2024+)
+      let url = null
+      let response = await fetch(`${PURRBOT_API}/${command}/gif`)
+
+      if (response.ok) {
+        const json = await response.json().catch(() => ({}))
+        url = json?.link // PurrBot returns under "link" key
       }
 
-      const json = await response.json().catch(() => ({}))
-      const url = json.url
+      // Fallback to alternative endpoint if needed
+      if (!url && response.status === 404) {
+        console.log(`⚠️  ${command} not found on PurrBot, trying fallback...`)
+        response = await fetch(`${PURRBOT_API}/hug/gif`) // Safe default fallback
+        if (response.ok) {
+          const json = await response.json().catch(() => ({}))
+          url = json?.link
+        }
+      }
 
       if (!url) {
         console.log(`⚠️  No URL returned for ${command}`)

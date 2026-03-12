@@ -309,7 +309,30 @@ export default {
           mediaUrl = json?.result || json?.url
         }
 
-        // Opción B: Fallback a Waifu.pics
+        // Opción B: Fallback a PurrBot v2 (mejor mantenido que Waifu.pics)
+        if (!mediaUrl) {
+          // Map some commands to PurrBot equivalents
+          const purbotMap = {
+            'eat': 'eat',
+            'smoke': 'drink', // Fallback similar
+            'trip': 'hug',    // Fallback similar
+            'peek': 'peek',   // If available
+          }
+
+          let apiCmd = purbotMap[currentCommand] || currentCommand
+
+          // Try PurrBot v2 API
+          let res = await fetch(`https://api.purrbot.site/v2/img/sfw/${apiCmd}/gif`)
+          if (!res.ok) {
+            // Fallback to safe alternative
+            res = await fetch(`https://api.purrbot.site/v2/img/sfw/hug/gif`)
+          }
+
+          const json = await res.json().catch(() => ({}))
+          mediaUrl = json?.link // PurrBot uses "link" key
+        }
+
+        // Opción C: Fallback final a Waifu.pics (legacy)
         if (!mediaUrl) {
           let apiCmd = currentCommand
           if (apiCmd === 'eat') apiCmd = 'nom'

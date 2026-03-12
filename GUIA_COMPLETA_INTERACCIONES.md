@@ -115,11 +115,22 @@ Si no ejecutas el script, la primera vez que alguien use un comando:
 3. **Guarda automáticamente localmente**
 4. Próximas ejecuciones usan el archivo local (⚡ instantáneo)
 
-## Detalles Técnicos
+## 🢁 API Endpoints Utilizadas
 
-### Funciones en `/commands/anime/inter.js`
+### Script de Descarga: **PurrBot v2** (Mejorado)
+```
+https://api.purrbot.site/v2/img/sfw/{command}/gif
+```
+- **Estado**: ✅ Activo (2024+)
+- **Ventajas**: Mejor mantenido, sin issues abiertos, más comandos
+- **Respuesta**: JSON con URL en campo `link`
 
-1. **`loadLocalInteractions()`**
+### Fallback en Tiempo Real: **Cascada de APIs**
+1. **PurrBot v2** (Principal) - Mejor mantenido
+2. **Waifu.pics** (Secundario) - Legacy pero funcional
+3. **Local Cache** (Prioritario) - Si existe localmente
+
+> **Nota**: Migramos de Waifu.pics (2021, 14 issues) a PurrBot v2 (2024+, activo)
    - Lee el archivo `interactions.json`
    - Cachea en variable global para performance
    - Se ejecuta automáticamente al cargar el comando
