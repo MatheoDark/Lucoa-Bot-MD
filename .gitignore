@@ -50,3 +50,7 @@ build/
 out/
 
 package-lock.json
+
+# NSFW Interactions (local cache only - no versionar)
+media/nsfw_interactions/
+media/nsfw_interactions.json

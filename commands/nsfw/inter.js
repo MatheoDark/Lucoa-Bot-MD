@@ -1,10 +1,19 @@
 import fetch from 'node-fetch'
 import https from 'https'
 import fs from 'fs'
+import path from 'path'
+import crypto from 'crypto'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { fileURLToPath } from 'url'
 
 const execPromise = promisify(exec)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Paths for NSFW local cache
+const NSFW_INTERACTIONS_DIR = path.join(__dirname, '../../media/nsfw_interactions')
+const NSFW_INTERACTIONS_JSON = path.join(__dirname, '../../media/nsfw_interactions.json')
 
 // ==========================================================
 // 1. CONFIGURACIÓN DE CONEXIÓN (MÉTODO SCRAPING)
@@ -128,6 +137,95 @@ const captions = {
 const symbols = ['(⁠◠⁠‿⁠◕⁠)', '(✿◡‿◡)', '(✿✪‿✪｡)', '(*≧ω≦)', '(✧ω◕)', '(¬‿¬)', '(✧ω✧)', '(•̀ᴗ•́)و ̑̑']
 function getRandomSymbol() { return symbols[Math.floor(Math.random() * symbols.length)] }
 
+// ===== NUEVA FUNCIONALIDAD: CACHÉ LOCAL NSFW =====
+
+// Cargar índice de interacciones NSFW locales
+let localNsfwCache = null
+
+function loadLocalNsfwInteractions() {
+  if (localNsfwCache) return localNsfwCache
+
+  const cache = {}
+  try {
+    if (fs.existsSync(NSFW_INTERACTIONS_JSON)) {
+      const data = JSON.parse(fs.readFileSync(NSFW_INTERACTIONS_JSON, 'utf8'))
+      Object.entries(data).forEach(([cmd, info]) => {
+        cache[cmd] = info.local || []
+      })
+    }
+  } catch (e) {
+    console.warn('[NSFW] Error loading nsfw_interactions.json:', e.message)
+  }
+
+  localNsfwCache = cache
+  return cache
+}
+
+// Obtener archivo local NSFW aleatorio
+function getLocalNsfwMedia(command) {
+  const cache = loadLocalNsfwInteractions()
+  const files = cache[command] || []
+
+  if (files.length === 0) return null
+
+  const randomFile = files[Math.floor(Math.random() * files.length)]
+  const filePath = path.join(__dirname, '../../', randomFile)
+
+  if (fs.existsSync(filePath)) {
+    try {
+      return fs.readFileSync(filePath)
+    } catch (e) {
+      console.error('[NSFW] Error reading local file:', e.message)
+      return null
+    }
+  }
+
+  return null
+}
+
+// Guardar archivo descargado NSFW localmente (auto-cache)
+// IMPORTANTE: Solo se guarda localmente, NO se versiona en git
+function saveNsfwMediaLocally(command, buffer) {
+  try {
+    if (!fs.existsSync(NSFW_INTERACTIONS_DIR)) {
+      fs.mkdirSync(NSFW_INTERACTIONS_DIR, { recursive: true })
+    }
+
+    const commandDir = path.join(NSFW_INTERACTIONS_DIR, command)
+    if (!fs.existsSync(commandDir)) {
+      fs.mkdirSync(commandDir, { recursive: true })
+    }
+
+    // Detectar tipo de archivo
+    const ext = getBufferType(buffer)
+    if (ext === 'unknown') return
+
+    // Guardar con nombre secuencial
+    const files = fs.readdirSync(commandDir)
+    const fileNum = files.length + 1
+    const fileName = `${fileNum}.${ext}`
+    const filePath = path.join(commandDir, fileName)
+
+    fs.writeFileSync(filePath, buffer)
+
+    // Actualizar nsfw_interactions.json (también local)
+    if (fs.existsSync(NSFW_INTERACTIONS_JSON)) {
+      const data = JSON.parse(fs.readFileSync(NSFW_INTERACTIONS_JSON, 'utf8'))
+      if (!data[command]) {
+        data[command] = { local: [], fallback: true }
+      }
+
+      const relPath = `media/nsfw_interactions/${command}/${fileName}`
+      if (!data[command].local.includes(relPath)) {
+        data[command].local.push(relPath)
+        fs.writeFileSync(NSFW_INTERACTIONS_JSON, JSON.stringify(data, null, 2))
+      }
+    }
+  } catch (e) {
+    console.error('[NSFW] Error saving media locally:', e.message)
+  }
+}
+
 async function gifToMp4(gifBuffer) {
     try {
         if (!fs.existsSync('./tmp')) fs.mkdirSync('./tmp')
@@ -223,44 +321,60 @@ export default {
         : `${fromName} ${txt} ${getRandomSymbol()}`
 
     try {
-      let url = null
+      let buffer = null
 
-      // 1. PurrBot
-      if (purrBotMap[command]) {
-          try {
-              const res = await fetch(`https://purrbot.site/api/img/nsfw/${purrBotMap[command]}/gif`, { agent })
-              const json = await res.json()
-              if (!json.error) url = json.link
-          } catch (e) { }
+      // OPCIÓN 1: Buscar en /media/nsfw_interactions/ local
+      buffer = getLocalNsfwMedia(command)
+      if (buffer) {
+        console.log(`[NSFW] Using local media for ${command}`)
       }
 
-      // 2. Rule34 (MODO SCRAPING - USANDO TU LÓGICA)
-      if (!url && r34Map[command]) {
-          // Esta función implementa exactamente lo que me pasaste
-          url = await getRule34Media(r34Map[command])
+      // OPCIÓN 2: Fallback a APIs remotas (si no tiene local)
+      if (!buffer) {
+        let url = null
+
+        // 1. PurrBot
+        if (purrBotMap[command]) {
+            try {
+                const res = await fetch(`https://purrbot.site/api/img/nsfw/${purrBotMap[command]}/gif`, { agent })
+                const json = await res.json()
+                if (!json.error) url = json.link
+            } catch (e) { }
+        }
+
+        // 2. Rule34 (MODO SCRAPING)
+        if (!url && r34Map[command]) {
+            url = await getRule34Media(r34Map[command])
+        }
+
+        // 3. Fallback (Waifu.pics)
+        if (!url) {
+            try {
+                console.log('[NSFW] Fallback a Waifu.pics')
+                const backupTag = command === 'boobjob' ? 'blowjob' : 'waifu'
+                const res = await fetch(`https://api.waifu.pics/nsfw/${backupTag}`)
+                const json = await res.json()
+                url = json.url
+            } catch (e) {}
+        }
+
+        if (!url) return m.reply('🐲 No se encontró nada. (╥﹏╥)')
+
+        // Descargar y guardar localmente
+        console.log(`[NSFW] Enviando: ${url}`)
+        const response = await fetch(url, { agent, headers })
+        const arrayBuf = await response.arrayBuffer()
+        buffer = Buffer.from(arrayBuf)
+
+        // Auto-guardar localmente (cache NSFW)
+        saveNsfwMediaLocally(command, buffer)
+        console.log(`[NSFW] Downloaded and cached locally: ${command}`)
       }
 
-      // 3. Fallback (Waifu.pics)
-      if (!url) {
-          try {
-              console.log('[NSFW] Fallback a Waifu.pics')
-              const backupTag = command === 'boobjob' ? 'blowjob' : 'waifu'
-              const res = await fetch(`https://api.waifu.pics/nsfw/${backupTag}`)
-              const json = await res.json()
-              url = json.url
-          } catch (e) {}
-      }
+      if (!buffer) return m.reply('🐲 No se encontró nada. (╥﹏╥)')
 
-      if (!url) return m.reply('🐲 No se encontró nada. (╥﹏╥)')
-
-      // DESCARGA Y ENVÍO
-      console.log(`[NSFW] Enviando: ${url}`)
-      const response = await fetch(url, { agent, headers })
-      const arrayBuf = await response.arrayBuffer()
-      let buffer = Buffer.from(arrayBuf)
-      
-      const type = getBufferType(buffer, url)
-      console.log(`[NSFW] Tipo detectado: ${type} | URL: ${url.slice(-30)}`)
+      const type = getBufferType(buffer)
+      console.log(`[NSFW] Tipo detectado: ${type}`)
       let msgOptions = { caption: caption, mentions: [who, m.sender] }
 
       if (type === 'gif') {
