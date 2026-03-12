@@ -333,13 +333,17 @@ export default {
       if (!buffer) {
         let url = null
 
-        // 1. PurrBot
+        // 1. PurrBot v2 (mejor mantenido, 2024+)
         if (purrBotMap[command]) {
             try {
-                const res = await fetch(`https://purrbot.site/api/img/nsfw/${purrBotMap[command]}/gif`, { agent })
-                const json = await res.json()
-                if (!json.error) url = json.link
-            } catch (e) { }
+                const res = await fetch(`https://api.purrbot.site/v2/img/nsfw/${purrBotMap[command]}/gif`)
+                if (res.ok) {
+                    const json = await res.json()
+                    if (json?.link) url = json.link
+                }
+            } catch (e) {
+                console.log(`[NSFW] PurrBot v2 fallback for ${command}`)
+            }
         }
 
         // 2. Rule34 (MODO SCRAPING)

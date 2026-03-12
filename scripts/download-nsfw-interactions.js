@@ -13,6 +13,7 @@ const NSFW_DIR = path.join(__dirname, '../media/nsfw_interactions')
 const NSFW_JSON = path.join(__dirname, '../media/nsfw_interactions.json')
 const DOWNLOADS_PER_COMMAND = 5 // 5 archivos por comando NSFW
 const R34_BASE = 'https://rule34.xxx'
+const PURRBOT_NSFW_API = 'https://api.purrbot.site/v2/img/nsfw' // PurrBot v2 NSFW
 
 // HTTPS Agent for R34
 const agent = new https.Agent({
@@ -24,7 +25,20 @@ const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 }
 
-// Map de comandos a tags R34
+// Map de comandos a API PurrBot v2 NSFW
+const purbotNsfwCommandMap = {
+    anal: 'anal',
+    cum: 'cum',
+    fuck: 'fuck',
+    lickpussy: 'pussylick',
+    fap: 'solo',
+    blowjob: 'blowjob',
+    threesome: 'threesome_fff',
+    yuri: 'yuri'
+    // Otros comandos no tienen soporte en PurrBot, caerán a R34
+}
+
+// Map de comandos a tags R34 (secundario/fallback)
 const r34CommandMap = {
     anal: 'anal',
     cum: 'cum',
@@ -51,6 +65,22 @@ const r34CommandMap = {
     gangbang: 'gangbang',
     facesitting: 'sitting',
     rimjob: 'rimjob'
+}
+
+// Download media from PurrBot v2 NSFW (Primary source)
+async function downloadFromPurrBot(command) {
+    if (!purbotNsfwCommandMap[command]) return null
+
+    try {
+        const response = await fetch(`${PURRBOT_NSFW_API}/${purbotNsfwCommandMap[command]}/gif`)
+        if (!response.ok) return null
+
+        const json = await response.json()
+        return json?.link || null
+    } catch (e) {
+        console.log(`  ⚠️  PurrBot failed, trying R34...`)
+        return null
+    }
 }
 
 // Download media from R34
@@ -144,9 +174,9 @@ function getExt(buffer) {
 
 // Download NSFW command
 async function downloadNsfwCommand(command) {
-    const tag = r34CommandMap[command]
-    if (!tag) {
-        console.log(`⚠️  No R34 mapping for ${command}`)
+    const r34tag = r34CommandMap[command]
+    if (!r34tag && !purbotNsfwCommandMap[command]) {
+        console.log(`⚠️  No API mapping for ${command}`)
         return 0
     }
 
@@ -155,7 +185,7 @@ async function downloadNsfwCommand(command) {
         fs.mkdirSync(cmdDir, { recursive: true })
     }
 
-    console.log(`\n📥 Downloading ${command} from R34...`)
+    console.log(`\n📥 Downloading ${command}...`)
 
     let downloaded = 0
     const existingHashes = new Set()
@@ -176,8 +206,18 @@ async function downloadNsfwCommand(command) {
         try {
             process.stdout.write(`\r  ${command}: ${i + 1}/${DOWNLOADS_PER_COMMAND}`)
 
-            // Download URL
-            const mediaUrl = await downloadFromR34(tag)
+            let mediaUrl = null
+
+            // 1. Try PurrBot v2 NSFW first (better maintained)
+            if (purbotNsfwCommandMap[command]) {
+                mediaUrl = await downloadFromPurrBot(command)
+            }
+
+            // 2. Fallback to R34 scraping
+            if (!mediaUrl && r34tag) {
+                mediaUrl = await downloadFromR34(r34tag)
+            }
+
             if (!mediaUrl) continue
 
             // Download file
@@ -225,9 +265,10 @@ async function main() {
     const args = process.argv.slice(2)
     let commands = args.length > 0 ? args : Object.keys(r34CommandMap)
 
-    console.log(`\n🚀 Starting NSFW R34 downloader...`)
+    console.log(`\n🚀 Starting NSFW downloader (PurrBot v2 + R34)...`)
     console.log(`📋 Commands: ${commands.length}`)
     console.log(`💾 Files per command: ${DOWNLOADS_PER_COMMAND}`)
+    console.log(`📡 Strategy: PurrBot v2 → R34 Fallback`)
 
     let total = 0
     for (const cmd of commands) {

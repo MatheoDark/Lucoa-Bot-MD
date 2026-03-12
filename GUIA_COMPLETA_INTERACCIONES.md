@@ -303,10 +303,12 @@ Respuesta sin latencia
 
 ## Características NSFW
 
+✅ **Cascada Inteligente**: PurrBot v2 (rápido) → R34 (contenido actualizado)
 ✅ **Auto-caché**: Descarga automática se guarda localmente
 ✅ **Respuesta Rápida**: Siguientes usos sin descargar
 ✅ **Privado**: No sube al repositorio
-✅ **Fallback**: Si falla local, descarga remoto
+✅ **Fallback Robusto**: Si falla local, descarga remoto
+✅ **Contenido Fresco**: R34 tiene actualizaciones constantemente
 ✅ **Transparente**: El usuario no hace nada especial
 
 ## Tamaño de Almacenamiento
@@ -320,8 +322,10 @@ Respuesta sin latencia
 
 ## Script de Descarga NSFW (Opcional)
 
+### Descarga con Cascada: PurrBot v2 + R34
+
 ```bash
-# Descargar todos los comandos NSFW:
+# Descargar todos los comandos NSFW (usa PurrBot v2 + R34):
 node scripts/download-nsfw-interactions.js
 
 # Descargar comandos específicos:
@@ -331,7 +335,11 @@ node scripts/download-nsfw-interactions.js anal fuck yuri blowjob
 mkdir -p media/nsfw_interactions/{anal,fuck,blowjob,yuri,cum}
 ```
 
-⚠️ **NOTA**: Este script NO está incluido en `setup.sh`. Es completamente opcional y manual.
+**Estrategia de Descarga:**
+1. **PurrBot v2 NSFW** (Principal) - 8 comandos: anal, cum, fuck, lickpussy, fap, blowjob, threesome, yuri
+2. **Rule34 Scraping** (Fallback) - 17 comandos restantes + actualizaciones constantemente
+
+> ⚠️ **NOTA**: Este script NO está incluido en `setup.sh`. Es completamente opcional y manual.
 
 ## Diferencia: Anime vs NSFW
 
