@@ -274,140 +274,56 @@ async function loadBots() {
   }
 }
 
-// Anti Rate-Limit v5 — ADAPTATIVO: rápido normalmente, frena solo cuando se acerca al límite
+// Queue simple (estilo Megumin/Nekos) — 800ms entre cada envío, retry en rate limit y media upload
 const queue = []
 let running = false
-const MAX_QUEUE = 50
+const DELAY = 800
 
-// Delays BASE (modo normal)
-const DELAY_TEXT_NORMAL = 1500    // 1.5s entre textos
-const DELAY_MEDIA_NORMAL = 4000  // 4s entre media (2.5s causaba 428 en muchos grupos)
-const GROUP_INTERVAL_NORMAL = 3000 // 3s entre msgs al mismo grupo
-
-// Delays CAUTELA (cuando se acerca al límite)
-const DELAY_TEXT_CAUTIOUS = 4000
-const DELAY_MEDIA_CAUTIOUS = 6000
-const GROUP_INTERVAL_CAUTIOUS = 5000
-
-// Delays POST-428 (después de un rate limit real)
-const DELAY_TEXT_RECOVERY = 5000
-const DELAY_MEDIA_RECOVERY = 8000
-const GROUP_INTERVAL_RECOVERY = 6000
-
-const groupLastSend = new Map()
-
-// Tracking adaptativo
-const globalSendTimestamps = []
-const WINDOW = 60000 // Ventana de 1 minuto
-const THRESHOLD_CAUTION = 20  // >20 msg/min → modo cautela
-const THRESHOLD_DANGER = 30   // >30 msg/min → pausar
-let _rateLimitMode = 'normal' // 'normal' | 'cautious' | 'recovery'
-let _recoveryUntil = 0        // Timestamp hasta cuando mantener modo recovery
-
-function getDelays() {
-  // Si estamos en recovery post-428, usar delays conservadores
-  if (_rateLimitMode === 'recovery' && Date.now() < _recoveryUntil) {
-    return { text: DELAY_TEXT_RECOVERY, media: DELAY_MEDIA_RECOVERY, group: GROUP_INTERVAL_RECOVERY }
-  }
-  // Si recovery expiró, volver a normal
-  if (_rateLimitMode === 'recovery' && Date.now() >= _recoveryUntil) {
-    _rateLimitMode = 'normal'
-    console.log('✅ Modo recovery terminado, volviendo a velocidad normal.')
-  }
-  if (_rateLimitMode === 'cautious') {
-    return { text: DELAY_TEXT_CAUTIOUS, media: DELAY_MEDIA_CAUTIOUS, group: GROUP_INTERVAL_CAUTIOUS }
-  }
-  return { text: DELAY_TEXT_NORMAL, media: DELAY_MEDIA_NORMAL, group: GROUP_INTERVAL_NORMAL }
+function enqueue(task) {
+  queue.push(task)
+  run()
 }
 
-// Llamar cuando ocurre un 428 real (desde connection.update)
-export function activateRecoveryMode(durationMs = 120000) {
-  _rateLimitMode = 'recovery'
-  _recoveryUntil = Date.now() + durationMs
-  console.log(`🛡️ Modo recovery activado por ${Math.round(durationMs / 1000)}s — delays más lentos para evitar otro 428.`)
-}
-
-function enqueue(task, jid, hasMedia) { 
-  if (queue.length >= MAX_QUEUE) {
-    console.warn(`⚠️ Cola de mensajes llena (${MAX_QUEUE}). Descartando mensaje antiguo.`)
-    queue.shift()
-  }
-  queue.push({ task, jid, hasMedia })
-  run() 
-}
 async function run() {
   if (running) return
   running = true
   while (queue.length) {
-    const { task, jid, hasMedia } = queue.shift()
-    
-    // Limpiar timestamps viejos
-    const now = Date.now()
-    while (globalSendTimestamps.length && globalSendTimestamps[0] < now - WINDOW) {
-      globalSendTimestamps.shift()
-    }
-    
-    // Adaptar modo según volumen
-    const msgsInWindow = globalSendTimestamps.length
-    if (msgsInWindow >= THRESHOLD_DANGER && _rateLimitMode !== 'recovery') {
-      console.warn(`⚠️ ${msgsInWindow} msgs en 1min — pausando 8s para evitar 428...`)
-      await new Promise(r => setTimeout(r, 8000))
-    } else if (msgsInWindow >= THRESHOLD_CAUTION && _rateLimitMode === 'normal') {
-      _rateLimitMode = 'cautious'
-    } else if (msgsInWindow < THRESHOLD_CAUTION && _rateLimitMode === 'cautious') {
-      _rateLimitMode = 'normal'
-    }
-    
-    const delays = getDelays()
-    
-    // Throttle por grupo
-    if (jid?.endsWith('@g.us')) {
-      const last = groupLastSend.get(jid) || 0
-      const elapsed = Date.now() - last
-      if (elapsed < delays.group) {
-        await new Promise(r => setTimeout(r, delays.group - elapsed))
-      }
-      groupLastSend.set(jid, Date.now())
-    }
-    
+    const job = queue.shift()
     try {
-      await task()
-      globalSendTimestamps.push(Date.now())
-    }
-    catch (e) {
-      const errorStr = String(e?.message || e || '')
-      if (errorStr.includes('rate-overlimit') || errorStr.includes('too many requests')) {
-        console.warn('⚠️ Rate limit en sendMessage, activando recovery + pausando 15s...')
-        activateRecoveryMode(180000)
-        await new Promise(r => setTimeout(r, 15000))
-        queue.unshift({ task, jid, hasMedia })
-      } else if (errorStr.includes('Media upload failed')) {
-        // Retry: los servidores de media de WA fallan a veces temporalmente
+      await job()
+    } catch (e) {
+      const errMsg = String(e?.message || e || '')
+      if (errMsg.includes('rate-overlimit') || errMsg.includes('too many requests')) {
+        console.warn('⚠️ Rate limit detectado, reintentando en 2s...')
+        await new Promise(r => setTimeout(r, 2000))
+        queue.unshift(job)
+      } else if (errMsg.includes('Media upload failed')) {
         console.warn('⚠️ Media upload falló, reintentando en 5s...')
         await new Promise(r => setTimeout(r, 5000))
-        queue.unshift({ task, jid, hasMedia })
-      } else if (errorStr.includes('Connection Closed') || errorStr.includes('stream errored')) {
-        console.warn('⚠️ Stream caído, descartando mensaje en cola.')
+        queue.unshift(job)
       } else {
         console.error('Send error:', e.message || e)
       }
     }
-    // Delay base + jitter pequeño
-    const baseDelay = hasMedia ? delays.media : delays.text
-    const jitter = Math.floor(Math.random() * 800) // 0-0.8s
-    await new Promise(r => setTimeout(r, baseDelay + jitter))
+    await new Promise(r => setTimeout(r, DELAY))
   }
   running = false
 }
+
+// Se mantiene solo para compatibilidad con connection.update (428)
+export function activateRecoveryMode() {}
 
 export function patchSendMessage(client) {
   if (client._sendMessagePatched) return
   client._sendMessagePatched = true
   const original = client.sendMessage.bind(client)
   client.sendMessage = (jid, content, options = {}) => {
-    // Detectar si el mensaje tiene media para ajustar el delay
-    const hasMedia = !!(content?.image || content?.video || content?.audio || content?.document || content?.sticker)
-    return new Promise((resolve) => enqueue(async () => resolve(await original(jid, content, options)), jid, hasMedia))
+    return new Promise((resolve, reject) => {
+      enqueue(async () => {
+        const res = await original(jid, content, options)
+        resolve(res)
+      })
+    })
   }
 }
 
