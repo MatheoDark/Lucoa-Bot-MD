@@ -400,10 +400,18 @@ async function executeDownload(client, m, url, type, title, thumb) {
         }
 
         if (!fs.existsSync(localFilePath)) return m.reply('❌ El archivo descargado no se encontró.')
+        const fileSize = fs.statSync(localFilePath).size
+        const fileSizeMB = fileSize / (1024 * 1024)
         const fileData = fs.readFileSync(localFilePath)
         const cleanTitle = sanitizeFileName(title)
 
-        console.log(`[INFO] 📤 Enviando archivo... (${source})`)
+        // Si el video pasa de 14MB, enviar como documento (WA limita video a ~16MB)
+        if (type === 'video' && fileSizeMB > 14) {
+            console.log(`[INFO] 📤 Video de ${fileSizeMB.toFixed(1)}MB, enviando como documento... (${source})`)
+            type = 'document_video'
+        } else {
+            console.log(`[INFO] 📤 Enviando archivo ${fileSizeMB.toFixed(1)}MB... (${source})`)
+        }
 
         let msgContent
         if (type === 'audio') {
@@ -416,9 +424,13 @@ async function executeDownload(client, m, url, type, title, thumb) {
                 video: fileData, mimetype: 'video/mp4', fileName: `${cleanTitle}.mp4`, caption: `🎬 ${title}`,
                 jpegThumbnail: thumbBuffer
             }
-        } else if (type === 'document') {
+        } else if (type === 'document' || type === 'document_video') {
+            const isVideo = type === 'document_video'
             msgContent = {
-                document: fileData, mimetype: 'audio/mpeg', fileName: `${cleanTitle}.mp3`, caption: `📂 ${title}`,
+                document: fileData,
+                mimetype: isVideo ? 'video/mp4' : 'audio/mpeg',
+                fileName: `${cleanTitle}.${isVideo ? 'mp4' : 'mp3'}`,
+                caption: isVideo ? `🎬 ${title} (${fileSizeMB.toFixed(1)}MB)` : `📂 ${title}`,
                 jpegThumbnail: thumbBuffer
             }
         }
