@@ -50,10 +50,8 @@ async function gracefulShutdown(signal) {
             try {
                 // Desuscribir eventos para evitar que el close trigger reconexión
                 global.client.ev.removeAllListeners()
-                // Cerrar WebSocket directamente (más limpio que end())
-                if (global.client.ws?.isOpen) {
-                    global.client.ws.close()
-                }
+                // 🔧 FIX v8: Usar end() que envía close frame al servidor de WA
+                try { global.client.end() } catch {}
             } catch {}
         }
         // 4. Esperar 5s para que WA registre el cierre del socket
@@ -544,20 +542,31 @@ setInterval(cleanTmpFolder, 10 * 60 * 1000)
 // Limpiar al iniciar
 cleanTmpFolder()
 
-// 🔧 FIX v7: Purgar archivos pre-key acumulados (idea de Ellen-Joe-Bot)
-// Estos archivos se acumulan y generan overhead en cada handshake, contribuyendo a 428.
+// 🔧 FIX v8: Limpiar SOLO pre-keys antiguas en exceso (mantener las últimas 30).
+// Las pre-keys son NECESARIAS para el handshake de Signal/Noise de WhatsApp.
+// Borrarlas TODAS causa desconexión 401/515 al siguiente handshake.
 function purgePreKeys() {
   try {
     const sessionDir = global.sessionName
     if (!fs.existsSync(sessionDir)) return
-    const files = fs.readdirSync(sessionDir).filter(f => f.startsWith('pre-key-'))
-    for (const file of files) {
+    const files = fs.readdirSync(sessionDir)
+      .filter(f => f.startsWith('pre-key-'))
+      .sort((a, b) => {
+        const numA = parseInt(a.replace('pre-key-', '')) || 0
+        const numB = parseInt(b.replace('pre-key-', '')) || 0
+        return numA - numB
+      })
+    // Mantener las últimas 30 pre-keys, solo borrar el exceso
+    const MAX_PREKEYS = 30
+    if (files.length <= MAX_PREKEYS) return
+    const toDelete = files.slice(0, files.length - MAX_PREKEYS)
+    for (const file of toDelete) {
       try { fs.unlinkSync(path.join(sessionDir, file)) } catch {}
     }
-    if (files.length > 0) console.log(chalk.gray(`🔑 Pre-keys limpiadas: ${files.length} archivo(s)`))
+    if (toDelete.length > 0) console.log(chalk.gray(`🔑 Pre-keys antiguas limpiadas: ${toDelete.length} (conservadas: ${MAX_PREKEYS})`))
   } catch {}
 }
-setInterval(purgePreKeys, 10 * 60 * 1000) // Cada 10 minutos
+setInterval(purgePreKeys, 30 * 60 * 1000) // Cada 30 minutos (no cada 10)
 
 async function startBot() {
   // Limpiar interval de auto-save anterior
@@ -570,21 +579,17 @@ async function startBot() {
   if (global.client) {
     try {
       global.client.ev.removeAllListeners()
-      // 🔧 FIX: Solo cerrar ws si aún está abierto. En 401/failure ya está cerrado.
-      // Llamar end() en un socket ya cerrado puede disparar eventos duplicados.
-      if (global.client.ws?.isOpen) {
-        try { global.client.ws.close() } catch {}
-      }
+      // 🔧 FIX v8: Usar end() para cerrar limpiamente (envía close frame al servidor).
+      // ws.close() solo cierra el socket local, end() notifica al servidor de WA.
+      try { global.client.end() } catch {}
     } catch {}
     global.client = null
-    // 401/408 = socket ya muerto por WA, espera mínima.
-    // 515/428 = puede haber socket zombie, esperar más.
     const lastReason = disconnectTracker._lastReasonCode
-    const cleanupDelay = (lastReason === 401 || lastReason === 408) ? 2000 : 8000
+    const cleanupDelay = (lastReason === 515 || lastReason === 428) ? 5000 : 3000
     await new Promise(r => setTimeout(r, cleanupDelay))
   }
 
-  // 🔧 FIX v5: Si el proceso acaba de iniciar (PM2 restart), esperar para que
+  // 🔧 FIX v8: Si el proceso acaba de iniciar (PM2 restart), esperar para que
   // WhatsApp libere la sesión anterior. Sin esto = 401 "Connection Failure".
   const timeSinceStart = Date.now() - _processStartTime
   if (timeSinceStart < 15000) {
@@ -741,8 +746,8 @@ async function startBot() {
             return
           }
           
-          // Backoff progresivo: 10s, 15s, 20s, 30s, 45s, 60s... max 120s
-          const delay401 = Math.min(10000 + (disconnectTracker.consecutive401 - 1) * 10000, 120000)
+          // Backoff progresivo: 15s, 25s, 35s, 50s, 65s, 80s... max 90s
+          const delay401 = Math.min(15000 + (disconnectTracker.consecutive401 - 1) * 10000, 90000)
           log.warn(`⚠️ Error 401 "Connection Failure" (intento ${disconnectTracker.consecutive401}/10). Reintentando en ${Math.round(delay401 / 1000)}s...`)
           console.log(chalk.gray('   (No es logout real, la sesión sigue válida. Esperando a que WA libere el socket anterior.)'))
           delayedReconnect(delay401, `Error 401 temporal - intento ${disconnectTracker.consecutive401}/10`)
@@ -862,6 +867,11 @@ async function startBot() {
       disconnectTracker.consecutiveOther = 0
       disconnectTracker._lastReasonCode = 0
       disconnectTracker.count = 0
+      // 🔧 FIX v8: Resetear 515/428/408 inmediatamente al conectar (antes esperaba 5 min)
+      // Si se desconectaba antes de 5 min, los contadores se acumulaban incorrectamente
+      disconnectTracker.consecutive515 = 0
+      disconnectTracker.consecutive428 = 0
+      disconnectTracker.consecutive408 = 0
       
       // Backup de sesión al conectar
       backupSession()
@@ -879,18 +889,10 @@ async function startBot() {
         }
       }, 5 * 60 * 1000) // Cada 5 minutos
       
-      // Resetear contadores de stream/timeout después de estar estable 5 minutos
+      // Timer de estabilidad: si la conexión dura 5 min, reportar estabilidad
       if (disconnectTracker._stableTimer) clearTimeout(disconnectTracker._stableTimer)
       disconnectTracker._stableTimer = setTimeout(() => {
-        const had515 = disconnectTracker.consecutive515 > 0
-        const had428 = disconnectTracker.consecutive428 > 0
-        const had408 = disconnectTracker.consecutive408 > 0
-        disconnectTracker.consecutive515 = 0
-        disconnectTracker.consecutive428 = 0
-        disconnectTracker.consecutive408 = 0
-        if (had515 || had428 || had408) {
-          console.log(chalk.green('✅ Conexión estable por 5min. Contadores de errores reseteados.'))
-        }
+        console.log(chalk.green('✅ Conexión estable por 5min.'))
       }, 300000)
       
       console.log(

@@ -329,8 +329,6 @@ export default async (client, m) => {
     initializeDBStructure()
     initDB(m, client)
 
-    await resolveMessageJids(m, client)
-
     const sender = m.sender || selfId
     const pushname = m.pushName || CONFIG.DEFAULT_PUSHNAME
     const from = m.key?.remoteJid || m.chat
@@ -355,20 +353,6 @@ export default async (client, m) => {
     const { primaryBot } = chatSettings
     if (primaryBot && selfId !== primaryBot && !isOwner) return
 
-    let groupName = ''
-    let metadata = null
-    let groupAdmins = []
-
-    if (isGroup) {
-      // 🔧 FIX: Usar cache centralizado en vez de llamar API en cada comando
-      metadata = await getCachedGroupMetadata(client, from)
-      groupName = metadata?.subject || ''
-      groupAdmins = await getResolvedGroupAdmins(metadata, client, chatId)
-    }
-
-    const body = extractMessageBody(m.message)
-    let usedPrefix = null
-
     // ═══════════════════════════════════════════════════════════════════
     //  🎯 RASTREO DE ACTIVIDAD PARA MISIONES DE CHAT
     //  Trackea mensajes, stickers, media, audio y reacciones
@@ -376,46 +360,35 @@ export default async (client, m) => {
     // ═══════════════════════════════════════════════════════════════════
     if (isGroup && chatSettings.rpg) {
       try {
-        const activityUserId = sender
-        const activityUser = global.db.data.users[activityUserId]
+        const activityUser = global.db.data.users[sender]
         if (activityUser && activityUser.missions) {
           const msg = m.message || {}
-          // Contar mensajes de texto
           if (msg.conversation || msg.extendedTextMessage) {
             updateMissionProgress(activityUser, 'messages', 1)
           }
-          // Contar stickers  
           if (msg.stickerMessage) {
             updateMissionProgress(activityUser, 'stickers', 1)
             updateMissionProgress(activityUser, 'messages', 1)
           }
-          // Contar fotos/videos
           if (msg.imageMessage || msg.videoMessage) {
             updateMissionProgress(activityUser, 'media', 1)
             updateMissionProgress(activityUser, 'messages', 1)
           }
-          // Contar notas de voz
           if (msg.audioMessage) {
             updateMissionProgress(activityUser, 'audio', 1)
             updateMissionProgress(activityUser, 'messages', 1)
           }
-          // Contar reacciones
           if (msg.reactionMessage) {
             updateMissionProgress(activityUser, 'reactions', 1)
           }
-          // Trackear grupos distintos donde habla
           if (msg.conversation || msg.extendedTextMessage || msg.stickerMessage || msg.imageMessage || msg.videoMessage || msg.audioMessage) {
-            if (!activityUser._chatGroupsToday) activityUser._chatGroupsToday = {}
-            const hoy = new Date().toISOString().slice(0, 10)
-            if (!activityUser._chatGroupsToday[hoy]) activityUser._chatGroupsToday[hoy] = new Set()
-            // Sets don't serialize to JSON, use array-like tracking
             if (!activityUser._activeGroups) activityUser._activeGroups = {}
+            const hoy = new Date().toISOString().slice(0, 10)
             if (!activityUser._activeGroups[hoy]) activityUser._activeGroups[hoy] = []
             if (!activityUser._activeGroups[hoy].includes(chatId)) {
               activityUser._activeGroups[hoy].push(chatId)
               updateMissionProgress(activityUser, 'chatgroups', 1)
             }
-            // Limpiar días viejos
             for (const key of Object.keys(activityUser._activeGroups)) {
               if (key !== hoy) delete activityUser._activeGroups[key]
             }
@@ -423,6 +396,9 @@ export default async (client, m) => {
         }
       } catch (e) { /* silenciar errores de tracking */ }
     }
+
+    const body = extractMessageBody(m.message)
+    let usedPrefix = null
 
     // Hooks .all
     await runPluginHooks('all', client, m, { usedPrefix }, isOwner)
@@ -458,8 +434,20 @@ export default async (client, m) => {
         return m.reply(msg)
     }
 
-    // Si llegamos aquí, el comando SÍ existe
-    logMessage({ pushname, sender, isGroup, groupName, from, command })
+    // Si llegamos aquí, el comando SÍ existe — ahora sí resolver JIDs y metadata
+    await resolveMessageJids(m, client)
+
+    let groupName = ''
+    let metadata = null
+    let groupAdmins = []
+
+    if (isGroup) {
+      metadata = await getCachedGroupMetadata(client, from)
+      groupName = metadata?.subject || ''
+      groupAdmins = await getResolvedGroupAdmins(metadata, client, chatId)
+    }
+
+    logMessage({ pushname, sender: m.sender || sender, isGroup, groupName, from, command })
 
     const cmdData = global.comandos.get(command)
 
@@ -473,7 +461,7 @@ export default async (client, m) => {
       }
     }
 
-    const senderJid = (await resolveLidToRealJid(sender, client, chatId)) || sender
+    const senderJid = m.sender || sender
     const botJid = (await resolveLidToRealJid(selfId, client, chatId)) || selfId
 
     const isAdmin = isGroup && groupAdmins.includes(senderJid)
