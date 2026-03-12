@@ -106,14 +106,12 @@ chmod +x index.js
 chmod +x main.js
 
 echo -e "${YELLOW}🔄 Configurando proceso del bot...${NC}"
-# Si el bot ya corre, lo reinicia. Si no, lo inicia.
+# Siempre eliminar y re-crear para asegurar que use el ecosystem.config.cjs actualizado
 if pm2 list | grep -q "Lucoa"; then
-    pm2 restart Lucoa
-    echo -e "${GREEN}♻️ Bot reiniciado.${NC}"
-else
-    pm2 start ecosystem.config.cjs
-    echo -e "${GREEN}🚀 Bot iniciado.${NC}"
+    pm2 delete Lucoa 2>/dev/null
 fi
+pm2 start ecosystem.config.cjs
+echo -e "${GREEN}🚀 Bot iniciado con ecosystem.config.cjs${NC}"
 
 # Guardar configuración para que inicie al prender el VPS
 pm2 save
