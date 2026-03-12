@@ -370,21 +370,26 @@ async function run() {
       groupLastSend.set(jid, Date.now())
     }
     
-    try { 
+    try {
       await task()
       globalSendTimestamps.push(Date.now())
     }
     catch (e) {
-      const errorStr = String(e)
+      const errorStr = String(e?.message || e || '')
       if (errorStr.includes('rate-overlimit') || errorStr.includes('too many requests')) {
         console.warn('⚠️ Rate limit en sendMessage, activando recovery + pausando 15s...')
-        activateRecoveryMode(180000) // 3 minutos en modo lento
+        activateRecoveryMode(180000)
         await new Promise(r => setTimeout(r, 15000))
+        queue.unshift({ task, jid, hasMedia })
+      } else if (errorStr.includes('Media upload failed')) {
+        // Retry: los servidores de media de WA fallan a veces temporalmente
+        console.warn('⚠️ Media upload falló, reintentando en 5s...')
+        await new Promise(r => setTimeout(r, 5000))
         queue.unshift({ task, jid, hasMedia })
       } else if (errorStr.includes('Connection Closed') || errorStr.includes('stream errored')) {
         console.warn('⚠️ Stream caído, descartando mensaje en cola.')
-      } else { 
-        console.error('Send error:', e.message || e) 
+      } else {
+        console.error('Send error:', e.message || e)
       }
     }
     // Delay base + jitter pequeño
