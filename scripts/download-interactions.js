@@ -14,6 +14,27 @@ const INTERACTIONS_JSON = path.join(__dirname, '../media/interactions.json')
 const DOWNLOADS_PER_COMMAND = 7 // Download 7 files per command
 const PURRBOT_API = 'https://api.purrbot.site/v2/img/sfw' // Updated to PurrBot v2 (better maintained)
 
+// PurrBot v2 SFW command mapping (for commands that might have different names)
+const purbotCommandMap = {
+  'kiss': 'kiss',
+  'hug': 'hug',
+  'pat': 'pat',
+  'poke': 'poke',
+  'slap': 'slap',
+  'bite': 'bite',
+  'punch': 'punch',
+  'kick': 'kick',
+  'cuddle': 'cuddle',
+  'dance': 'dance',
+  'wave': 'wave',
+  'smile': 'smile',
+  'wink': 'wink',
+  'blush': 'blush',
+  'cry': 'cry',
+  'eat': 'eat',
+  // Fallback to 'hug' for commands not in PurrBot v2
+}
+
 // Helper: Download a file and get its buffer
 async function downloadFile(url) {
   try {
@@ -100,14 +121,17 @@ async function downloadInteraction(command, force = false) {
     try {
       // Try PurrBot v2 first (better maintained, 2024+)
       let url = null
-      let response = await fetch(`${PURRBOT_API}/${command}/gif`)
+
+      // Use mapped command name if available
+      const apiCmd = purbotCommandMap[command] || command
+      let response = await fetch(`${PURRBOT_API}/${apiCmd}/gif`)
 
       if (response.ok) {
         const json = await response.json().catch(() => ({}))
         url = json?.link // PurrBot returns under "link" key
       }
 
-      // Fallback to alternative endpoint if needed
+      // Fallback to safe default if command not found
       if (!url && response.status === 404) {
         console.log(`⚠️  ${command} not found on PurrBot, trying fallback...`)
         response = await fetch(`${PURRBOT_API}/hug/gif`) // Safe default fallback
@@ -115,6 +139,20 @@ async function downloadInteraction(command, force = false) {
           const json = await response.json().catch(() => ({}))
           url = json?.link
         }
+      }
+
+      // Fallback to Waifu.pics (legacy)
+      if (!url) {
+        let waiCmd = command
+        if (waiCmd === 'eat') waiCmd = 'nom'
+
+        try {
+          let waiRes = await fetch(`https://api.waifu.pics/sfw/${waiCmd}`)
+          if (!waiRes.ok) waiRes = await fetch(`https://api.waifu.pics/sfw/neko`)
+
+          const waiJson = await waiRes.json().catch(() => ({}))
+          url = waiJson?.url
+        } catch (e) {}
       }
 
       if (!url) {

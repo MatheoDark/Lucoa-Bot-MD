@@ -311,25 +311,29 @@ export default {
 
         // Opción B: Fallback a PurrBot v2 (mejor mantenido que Waifu.pics)
         if (!mediaUrl) {
-          // Map some commands to PurrBot equivalents
+          // Map commands to PurrBot v2 equivalents (verified working)
           const purbotMap = {
-            'eat': 'eat',
-            'smoke': 'drink', // Fallback similar
-            'trip': 'hug',    // Fallback similar
-            'peek': 'peek',   // If available
+            'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
+            'bite': 'bite', 'punch': 'punch', 'kick': 'kick', 'cuddle': 'cuddle',
+            'dance': 'dance', 'wave': 'wave', 'smile': 'smile', 'wink': 'wink',
+            'blush': 'blush', 'cry': 'cry', 'eat': 'eat'
+            // Other commands will fallback
           }
 
-          let apiCmd = purbotMap[currentCommand] || currentCommand
+          const apiCmd = purbotMap[currentCommand] || 'hug'
 
           // Try PurrBot v2 API
           let res = await fetch(`https://api.purrbot.site/v2/img/sfw/${apiCmd}/gif`)
-          if (!res.ok) {
-            // Fallback to safe alternative
+
+          // If fails and wasn't the fallback, try hug
+          if (!res.ok && apiCmd !== 'hug') {
             res = await fetch(`https://api.purrbot.site/v2/img/sfw/hug/gif`)
           }
 
-          const json = await res.json().catch(() => ({}))
-          mediaUrl = json?.link // PurrBot uses "link" key
+          if (res.ok) {
+            const json = await res.json().catch(() => ({}))
+            mediaUrl = json?.link // PurrBot uses "link" key
+          }
         }
 
         // Opción C: Fallback final a Waifu.pics (legacy)
