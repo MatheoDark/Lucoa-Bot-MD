@@ -54,9 +54,9 @@ async function gracefulShutdown(signal) {
                 try { global.client.end() } catch {}
             } catch {}
         }
-        // 4. Esperar 5s para que WA registre el cierre del socket
-        // CRÍTICO: Sin esto, WA cree que seguimos conectados y rechaza el nuevo login con 401
-        await new Promise(r => setTimeout(r, 5000))
+        // 4. Esperar 3s para que WA registre el cierre del socket
+        // PM2 kill_timeout=8s: ~2s para guardar + 3s espera + margen
+        await new Promise(r => setTimeout(r, 3000))
     } catch {}
     console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
     process.exit(0)

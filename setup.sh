@@ -111,7 +111,7 @@ if pm2 list | grep -q "Lucoa"; then
     pm2 restart Lucoa
     echo -e "${GREEN}♻️ Bot reiniciado.${NC}"
 else
-    pm2 start index.js --name Lucoa
+    pm2 start ecosystem.config.cjs
     echo -e "${GREEN}🚀 Bot iniciado.${NC}"
 fi
 
