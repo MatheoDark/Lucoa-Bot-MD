@@ -1,0 +1,430 @@
+{
+  "peek": {
+    "local": [],
+    "fallback": true
+  },
+  "stare": {
+    "local": [],
+    "fallback": true
+  },
+  "trip": {
+    "local": [],
+    "fallback": true
+  },
+  "sleep": {
+    "local": [],
+    "fallback": true
+  },
+  "sing": {
+    "local": [],
+    "fallback": true
+  },
+  "tickle": {
+    "local": [],
+    "fallback": true
+  },
+  "slap": {
+    "local": [
+      "media/interactions/slap/1.gif",
+      "media/interactions/slap/2.gif",
+      "media/interactions/slap/3.gif",
+      "media/interactions/slap/4.gif",
+      "media/interactions/slap/5.gif",
+      "media/interactions/slap/6.gif",
+      "media/interactions/slap/7.gif"
+    ],
+    "fallback": true
+  },
+  "kill": {
+    "local": [
+      "media/interactions/kill/1.gif",
+      "media/interactions/kill/2.gif",
+      "media/interactions/kill/3.gif",
+      "media/interactions/kill/4.gif",
+      "media/interactions/kill/5.gif",
+      "media/interactions/kill/6.gif",
+      "media/interactions/kill/7.gif"
+    ],
+    "fallback": true
+  },
+  "kiss": {
+    "local": [
+      "media/interactions/kiss/1.gif",
+      "media/interactions/kiss/2.gif",
+      "media/interactions/kiss/3.gif",
+      "media/interactions/kiss/4.gif",
+      "media/interactions/kiss/5.gif",
+      "media/interactions/kiss/6.gif",
+      "media/interactions/kiss/7.gif"
+    ],
+    "fallback": true
+  },
+  "hug": {
+    "local": [
+      "media/interactions/hug/1.gif",
+      "media/interactions/hug/2.gif",
+      "media/interactions/hug/3.gif",
+      "media/interactions/hug/4.gif",
+      "media/interactions/hug/5.gif",
+      "media/interactions/hug/6.gif",
+      "media/interactions/hug/7.gif"
+    ],
+    "fallback": true
+  },
+  "pat": {
+    "local": [
+      "media/interactions/pat/1.gif",
+      "media/interactions/pat/2.gif",
+      "media/interactions/pat/3.gif",
+      "media/interactions/pat/4.gif",
+      "media/interactions/pat/5.gif",
+      "media/interactions/pat/6.gif",
+      "media/interactions/pat/7.gif"
+    ],
+    "fallback": true
+  },
+  "lick": {
+    "local": [
+      "media/interactions/lick/1.gif",
+      "media/interactions/lick/2.gif",
+      "media/interactions/lick/3.gif",
+      "media/interactions/lick/4.gif",
+      "media/interactions/lick/5.gif",
+      "media/interactions/lick/6.gif",
+      "media/interactions/lick/7.gif"
+    ],
+    "fallback": true
+  },
+  "cry": {
+    "local": [
+      "media/interactions/cry/1.gif",
+      "media/interactions/cry/2.gif",
+      "media/interactions/cry/3.gif",
+      "media/interactions/cry/4.gif",
+      "media/interactions/cry/5.gif",
+      "media/interactions/cry/6.gif",
+      "media/interactions/cry/7.gif"
+    ],
+    "fallback": true
+  },
+  "blush": {
+    "local": [
+      "media/interactions/blush/1.gif",
+      "media/interactions/blush/2.gif",
+      "media/interactions/blush/3.gif",
+      "media/interactions/blush/4.gif",
+      "media/interactions/blush/5.gif",
+      "media/interactions/blush/6.gif",
+      "media/interactions/blush/7.gif"
+    ],
+    "fallback": true
+  },
+  "smile": {
+    "local": [
+      "media/interactions/smile/1.gif",
+      "media/interactions/smile/2.gif",
+      "media/interactions/smile/3.gif",
+      "media/interactions/smile/4.gif",
+      "media/interactions/smile/5.gif",
+      "media/interactions/smile/6.gif",
+      "media/interactions/smile/7.gif"
+    ],
+    "fallback": true
+  },
+  "wave": {
+    "local": [
+      "media/interactions/wave/1.gif",
+      "media/interactions/wave/2.gif",
+      "media/interactions/wave/3.gif",
+      "media/interactions/wave/4.gif",
+      "media/interactions/wave/5.gif",
+      "media/interactions/wave/6.gif",
+      "media/interactions/wave/7.gif"
+    ],
+    "fallback": true
+  },
+  "highfive": {
+    "local": [
+      "media/interactions/highfive/1.gif",
+      "media/interactions/highfive/2.gif",
+      "media/interactions/highfive/3.gif",
+      "media/interactions/highfive/4.gif",
+      "media/interactions/highfive/5.gif",
+      "media/interactions/highfive/6.gif",
+      "media/interactions/highfive/7.gif"
+    ],
+    "fallback": true
+  },
+  "dance": {
+    "local": [
+      "media/interactions/dance/1.gif",
+      "media/interactions/dance/2.gif",
+      "media/interactions/dance/3.gif",
+      "media/interactions/dance/4.gif",
+      "media/interactions/dance/5.gif",
+      "media/interactions/dance/6.gif",
+      "media/interactions/dance/7.gif"
+    ],
+    "fallback": true
+  },
+  "wink": {
+    "local": [
+      "media/interactions/wink/1.gif",
+      "media/interactions/wink/2.gif",
+      "media/interactions/wink/3.gif",
+      "media/interactions/wink/4.gif",
+      "media/interactions/wink/5.gif",
+      "media/interactions/wink/6.gif",
+      "media/interactions/wink/7.gif"
+    ],
+    "fallback": true
+  },
+  "happy": {
+    "local": [
+      "media/interactions/happy/1.gif",
+      "media/interactions/happy/2.gif",
+      "media/interactions/happy/3.gif",
+      "media/interactions/happy/4.gif",
+      "media/interactions/happy/5.gif",
+      "media/interactions/happy/6.gif",
+      "media/interactions/happy/7.gif"
+    ],
+    "fallback": true
+  },
+  "cuddle": {
+    "local": [
+      "media/interactions/cuddle/1.gif",
+      "media/interactions/cuddle/2.gif",
+      "media/interactions/cuddle/3.gif",
+      "media/interactions/cuddle/4.gif",
+      "media/interactions/cuddle/5.gif",
+      "media/interactions/cuddle/6.gif",
+      "media/interactions/cuddle/7.gif"
+    ],
+    "fallback": true
+  },
+  "poke": {
+    "local": [
+      "media/interactions/poke/1.gif",
+      "media/interactions/poke/2.gif",
+      "media/interactions/poke/3.gif",
+      "media/interactions/poke/4.gif",
+      "media/interactions/poke/5.gif",
+      "media/interactions/poke/6.gif",
+      "media/interactions/poke/7.gif"
+    ],
+    "fallback": true
+  },
+  "bite": {
+    "local": [
+      "media/interactions/bite/1.gif",
+      "media/interactions/bite/2.gif",
+      "media/interactions/bite/3.gif",
+      "media/interactions/bite/4.gif",
+      "media/interactions/bite/5.gif",
+      "media/interactions/bite/6.gif",
+      "media/interactions/bite/7.gif"
+    ],
+    "fallback": true
+  },
+  "angry": {
+    "local": [],
+    "fallback": true
+  },
+  "bleh": {
+    "local": [],
+    "fallback": true
+  },
+  "bored": {
+    "local": [],
+    "fallback": true
+  },
+  "bonk": {
+    "local": [
+      "media/interactions/bonk/1.gif",
+      "media/interactions/bonk/2.gif",
+      "media/interactions/bonk/3.gif",
+      "media/interactions/bonk/4.gif",
+      "media/interactions/bonk/5.gif",
+      "media/interactions/bonk/6.gif",
+      "media/interactions/bonk/7.gif"
+    ],
+    "fallback": true
+  },
+  "bully": {
+    "local": [
+      "media/interactions/bully/1.gif",
+      "media/interactions/bully/2.gif",
+      "media/interactions/bully/3.gif",
+      "media/interactions/bully/4.gif",
+      "media/interactions/bully/5.gif",
+      "media/interactions/bully/6.gif",
+      "media/interactions/bully/7.gif"
+    ],
+    "fallback": true
+  },
+  "coffee": {
+    "local": [],
+    "fallback": true
+  },
+  "clap": {
+    "local": [],
+    "fallback": true
+  },
+  "cringe": {
+    "local": [
+      "media/interactions/cringe/1.gif",
+      "media/interactions/cringe/2.gif",
+      "media/interactions/cringe/3.gif",
+      "media/interactions/cringe/4.gif",
+      "media/interactions/cringe/5.gif",
+      "media/interactions/cringe/6.gif",
+      "media/interactions/cringe/7.gif"
+    ],
+    "fallback": true
+  },
+  "drunk": {
+    "local": [],
+    "fallback": true
+  },
+  "dramatic": {
+    "local": [],
+    "fallback": true
+  },
+  "handhold": {
+    "local": [
+      "media/interactions/handhold/1.gif",
+      "media/interactions/handhold/2.gif",
+      "media/interactions/handhold/3.gif",
+      "media/interactions/handhold/4.jpg",
+      "media/interactions/handhold/5.gif",
+      "media/interactions/handhold/6.gif",
+      "media/interactions/handhold/7.gif"
+    ],
+    "fallback": true
+  },
+  "eat": {
+    "local": [],
+    "fallback": true
+  },
+  "love": {
+    "local": [],
+    "fallback": true
+  },
+  "pout": {
+    "local": [],
+    "fallback": true
+  },
+  "punch": {
+    "local": [],
+    "fallback": true
+  },
+  "run": {
+    "local": [],
+    "fallback": true
+  },
+  "scared": {
+    "local": [],
+    "fallback": true
+  },
+  "sad": {
+    "local": [],
+    "fallback": true
+  },
+  "smoke": {
+    "local": [],
+    "fallback": true
+  },
+  "spit": {
+    "local": [],
+    "fallback": true
+  },
+  "smug": {
+    "local": [
+      "media/interactions/smug/1.gif",
+      "media/interactions/smug/2.gif",
+      "media/interactions/smug/3.gif",
+      "media/interactions/smug/4.gif",
+      "media/interactions/smug/5.gif",
+      "media/interactions/smug/6.gif",
+      "media/interactions/smug/7.gif"
+    ],
+    "fallback": true
+  },
+  "think": {
+    "local": [],
+    "fallback": true
+  },
+  "walk": {
+    "local": [],
+    "fallback": true
+  },
+  "impregnate": {
+    "local": [],
+    "fallback": true
+  },
+  "confused": {
+    "local": [],
+    "fallback": true
+  },
+  "seduce": {
+    "local": [],
+    "fallback": true
+  },
+  "shy": {
+    "local": [],
+    "fallback": true
+  },
+  "kick": {
+    "local": [
+      "media/interactions/kick/1.gif",
+      "media/interactions/kick/2.gif",
+      "media/interactions/kick/3.gif",
+      "media/interactions/kick/4.gif",
+      "media/interactions/kick/5.gif",
+      "media/interactions/kick/6.gif",
+      "media/interactions/kick/7.gif"
+    ],
+    "fallback": true
+  },
+  "splash": {
+    "local": [],
+    "fallback": true
+  },
+  "grab": {
+    "local": [],
+    "fallback": true
+  },
+  "flick": {
+    "local": [],
+    "fallback": true
+  },
+  "comfort": {
+    "local": [],
+    "fallback": true
+  },
+  "freeze": {
+    "local": [],
+    "fallback": true
+  },
+  "shock": {
+    "local": [],
+    "fallback": true
+  },
+  "bite_head": {
+    "local": [],
+    "fallback": true
+  },
+  "slurp": {
+    "local": [],
+    "fallback": true
+  },
+  "knead": {
+    "local": [],
+    "fallback": true
+  },
+  "celebrate": {
+    "local": [],
+    "fallback": true
+  }
+}

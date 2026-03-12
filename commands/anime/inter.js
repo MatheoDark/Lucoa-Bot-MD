@@ -1,9 +1,18 @@
 import fetch from 'node-fetch'
 import fs from 'fs'
+import path from 'path'
+import crypto from 'crypto'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { fileURLToPath } from 'url'
 
 const execPromise = promisify(exec)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Paths
+const INTERACTIONS_DIR = path.join(__dirname, '../../media/interactions')
+const INTERACTIONS_JSON = path.join(__dirname, '../../media/interactions.json')
 
 /**
  * ✅ Estilo Lucoa Mejorado:
@@ -65,7 +74,20 @@ const captions = {
   impregnate: (from, to) => from === to ? 'se embarazó.' : 'embarazó a',
   confused: (from, to) => from === to ? 'está confundido.' : 'está confundido por',
   seduce: (from, to) => from === to ? 'se seduce solo.' : 'intenta seducir a',
-  shy: (from, to) => from === to ? 'es timido/a.' : 'es timido/a con'
+  shy: (from, to) => from === to ? 'es timido/a.' : 'es timido/a con',
+
+  // --- NUEVOS COMANDOS (10+) ---
+  kick: (from, to) => from === to ? 'se pateó a sí mismo.' : 'le dio una patada a',
+  splash: (from, to) => from === to ? 'se salpicar el agua.' : 'le salpicó agua a',
+  grab: (from, to) => from === to ? 'se agarró a sí mismo.' : 'agarró a',
+  flick: (from, to) => from === to ? 'se dio un coscorrón.' : 'le dio un coscorrón a',
+  comfort: (from, to) => from === to ? 'se consuela a sí mismo.' : 'está consolando a',
+  freeze: (from, to) => from === to ? 'está congelado/a.' : 'congeló a',
+  shock: (from, to) => from === to ? 'está sorprendido/a.' : 'sorprendió a',
+  bite_head: (from, to) => from === to ? 'se mordió la cabeza.' : 'le mordió la cabeza a',
+  slurp: (from, to) => from === to ? 'está sorbing algo delicioso.' : 'sorbe a',
+  knead: (from, to) => from === to ? 'está amasando el aire.' : 'le hace amasada a',
+  celebrate: (from, to) => from === to ? 'está celebrando su victoria.' : 'está celebrando con'
 }
 
 // Símbolos (Tu configuración)
@@ -77,6 +99,94 @@ const symbols = [
 
 function getRandomSymbol() {
   return symbols[Math.floor(Math.random() * symbols.length)]
+}
+
+// ===== NUEVA FUNCIONALIDAD: CARGAR INTERACCIONES LOCALES =====
+
+// Cargar índice de interacciones locales
+let localInteractionsCache = null
+
+function loadLocalInteractions() {
+  if (localInteractionsCache) return localInteractionsCache
+
+  const cache = {}
+  try {
+    if (fs.existsSync(INTERACTIONS_JSON)) {
+      const data = JSON.parse(fs.readFileSync(INTERACTIONS_JSON, 'utf8'))
+      Object.entries(data).forEach(([cmd, info]) => {
+        cache[cmd] = info.local || []
+      })
+    }
+  } catch (e) {
+    console.warn('[Anime] Error loading interactions.json:', e.message)
+  }
+
+  localInteractionsCache = cache
+  return cache
+}
+
+// Obtener archivo local aleatorio
+function getLocalMedia(command) {
+  const cache = loadLocalInteractions()
+  const files = cache[command] || []
+
+  if (files.length === 0) return null
+
+  const randomFile = files[Math.floor(Math.random() * files.length)]
+  const filePath = path.join(__dirname, '../../', randomFile)
+
+  if (fs.existsSync(filePath)) {
+    try {
+      return fs.readFileSync(filePath)
+    } catch (e) {
+      console.error('[Anime] Error reading local file:', e.message)
+      return null
+    }
+  }
+
+  return null
+}
+
+// Guardar archivo descargado localmente (auto-cache)
+function saveMediaLocally(command, buffer) {
+  try {
+    if (!fs.existsSync(INTERACTIONS_DIR)) {
+      fs.mkdirSync(INTERACTIONS_DIR, { recursive: true })
+    }
+
+    const commandDir = path.join(INTERACTIONS_DIR, command)
+    if (!fs.existsSync(commandDir)) {
+      fs.mkdirSync(commandDir, { recursive: true })
+    }
+
+    // Detectar tipo de archivo
+    const ext = getBufferType(buffer)
+    if (ext === 'unknown') return
+
+    // Guardar con nombre secuencial
+    const files = fs.readdirSync(commandDir)
+    const fileNum = files.length + 1
+    const fileName = `${fileNum}.${ext}`
+    const filePath = path.join(commandDir, fileName)
+
+    fs.writeFileSync(filePath, buffer)
+
+    // Actualizar interactions.json
+    if (fs.existsSync(INTERACTIONS_JSON)) {
+      const data = JSON.parse(fs.readFileSync(INTERACTIONS_JSON, 'utf8'))
+      if (!data[command]) {
+        data[command] = { local: [], fallback: true }
+      }
+
+      const relPath = `media/interactions/${command}/${fileName}`
+      if (!data[command].local.includes(relPath)) {
+        data[command].local.push(relPath)
+        fs.writeFileSync(INTERACTIONS_JSON, JSON.stringify(data, null, 2))
+      }
+    }
+  } catch (e) {
+    console.error('[Anime] Error saving media locally:', e.message)
+  }
 }
 
 // Conversión GIF → MP4 (WhatsApp no reproduce GIFs inline, necesita MP4)
@@ -125,7 +235,11 @@ const commandAliases = {
   comer: 'eat', fumar: 'smoke', enojado: 'angry', aburrido: 'bored',
   golpear: 'punch', correr: 'run', asustado: 'scared', triste: 'sad',
   cafe: 'coffee', presumir: 'smug', pensar: 'think', escupir: 'spit',
-  caminar: 'walk', embarazar: 'impregnate', timido: 'shy', seducir: 'seduce'
+  caminar: 'walk', embarazar: 'impregnate', timido: 'shy', seducir: 'seduce',
+  // Nuevos comandos:
+  patada: 'kick', salpicar: 'splash', agarrar: 'grab', coscorron: 'flick',
+  consolar: 'comfort', congelar: 'freeze', sorpresa: 'shock',
+  morder_cabeza: 'bite_head', sorber: 'slurp', amasar: 'knead', celebrar: 'celebrate'
 }
 
 // Generamos la lista de comandos para el export
@@ -172,58 +286,72 @@ export default {
         ? `@${m.sender.split('@')[0]} ${captionText} @${who.split('@')[0]} ${getRandomSymbol()}.`
         : `${fromName} ${captionText} ${getRandomSymbol()}.`
 
-    // 5. Obtener Video/GIF
+    // 5. Obtener Video/GIF (Primero local, luego remoto)
     try {
-      let mediaUrl = null
+      let mediaBuffer = null
 
-      // Opción A: API del Bot (si existe)
-      if (typeof api !== 'undefined' && api?.url) {
-        const response = await fetch(
-          `${api.url}/sfw/interaction?type=${currentCommand}${api.key ? `&key=${api.key}` : ''}`
-        )
-        const json = await response.json().catch(() => ({}))
-        mediaUrl = json?.result || json?.url
+      // OPCIÓN 1: Buscar en /media/interactions/ local
+      mediaBuffer = getLocalMedia(currentCommand)
+      if (mediaBuffer) {
+        console.log(`[Anime] Using local media for ${currentCommand}`)
       }
 
-      // Opción B: Fallback a Waifu.pics (Si la A falla)
-      if (!mediaUrl) {
-        // Mapeo manual para waifu.pics si el nombre no coincide exacto
-        let apiCmd = currentCommand
-        if (apiCmd === 'eat') apiCmd = 'nom' // waifu.pics usa 'nom' para comer
-        
-        let res = await fetch(`https://api.waifu.pics/sfw/${apiCmd}`)
-        
-        // Si no existe la categoría, usamos 'neko' de comodín
-        if (!res.ok) res = await fetch(`https://api.waifu.pics/sfw/neko`)
-        
-        const json = await res.json().catch(() => ({}))
-        mediaUrl = json?.url
+      // OPCIÓN 2: Fallback a API remota (si no tiene local)
+      if (!mediaBuffer) {
+        let mediaUrl = null
+
+        // Opción A: API del Bot (si existe)
+        if (typeof api !== 'undefined' && api?.url) {
+          const response = await fetch(
+            `${api.url}/sfw/interaction?type=${currentCommand}${api.key ? `&key=${api.key}` : ''}`
+          )
+          const json = await response.json().catch(() => ({}))
+          mediaUrl = json?.result || json?.url
+        }
+
+        // Opción B: Fallback a Waifu.pics
+        if (!mediaUrl) {
+          let apiCmd = currentCommand
+          if (apiCmd === 'eat') apiCmd = 'nom'
+
+          let res = await fetch(`https://api.waifu.pics/sfw/${apiCmd}`)
+          if (!res.ok) res = await fetch(`https://api.waifu.pics/sfw/neko`)
+
+          const json = await res.json().catch(() => ({}))
+          mediaUrl = json?.url
+        }
+
+        if (!mediaUrl) throw new Error('No media url')
+
+        // Descargar
+        const mediaRes = await fetch(mediaUrl)
+        const arrayBuf = await mediaRes.arrayBuffer()
+        mediaBuffer = Buffer.from(arrayBuf)
+
+        // Auto-guardar localmente (futuro caché)
+        saveMediaLocally(currentCommand, mediaBuffer)
+        console.log(`[Anime] Downloaded and cached: ${currentCommand}`)
       }
 
-      if (!mediaUrl) throw new Error('No media url')
-
-      // 6. Descargar y detectar tipo
-      const mediaRes = await fetch(mediaUrl)
-      const arrayBuf = await mediaRes.arrayBuffer()
-      let buffer = Buffer.from(arrayBuf)
+      if (!mediaBuffer) throw new Error('No media buffer')
       
       const mentions = [...new Set([who, m.sender])].filter(Boolean)
-      const type = getBufferType(buffer)
+      const type = getBufferType(mediaBuffer)
       let msgOptions = { caption: caption, mentions: mentions }
 
       if (type === 'gif') {
         // GIF → MP4 para que WhatsApp lo reproduzca inline
-        buffer = await gifToMp4(buffer)
-        msgOptions.video = buffer
+        const mp4Buffer = await gifToMp4(mediaBuffer)
+        msgOptions.video = mp4Buffer
         msgOptions.gifPlayback = true
       } else if (type === 'mp4' || type === 'webm') {
-        msgOptions.video = buffer
+        msgOptions.video = mediaBuffer
         msgOptions.gifPlayback = true
       } else if (type === 'jpg' || type === 'png') {
-        msgOptions.image = buffer
+        msgOptions.image = mediaBuffer
       } else {
         // Fallback: intentar como video
-        msgOptions.video = buffer
+        msgOptions.video = mediaBuffer
         msgOptions.gifPlayback = true
       }
 

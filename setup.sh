@@ -74,13 +74,24 @@ npm install --no-audit
 
 echo -e "${CYAN}---------------------------------------------------${NC}"
 
-# 6. CONFIGURAR LIMPIEZA AUTOMÁTICA (CRON)
+# 6. DESCARGAR INTERACCIONES ANIME (LOCAL CACHE)
+echo -e "${YELLOW}🎬 Descargando interacciones anime locales...${NC}"
+if command -v node &> /dev/null; then
+    # Descargar las interacciones de anime para que no se descarguen cada vez
+    node scripts/download-interactions.js all 2>/dev/null && echo -e "${GREEN}✅ Interacciones descargadas correctamente.${NC}" || echo -e "${YELLOW}⚠️ No se pudieron descargar todas las interacciones (esto es opcional).${NC}"
+else
+    echo -e "${YELLOW}⚠️ Node.js no disponible, saltando descarga de interacciones.${NC}"
+fi
+
+echo -e "${CYAN}---------------------------------------------------${NC}"
+
+# 7. CONFIGURAR LIMPIEZA AUTOMÁTICA (CRON)
 # Agrega la tarea de borrar tmp los domingos si no existe ya
 CRON_JOB="0 0 * * 0 rm -rf $(pwd)/tmp/*"
 (crontab -l 2>/dev/null | grep -F "$CRON_JOB") || (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
 echo -e "${GREEN}✅ Limpieza automática de /tmp configurada (Domingos 00:00).${NC}"
 
-# 7. GESTIÓN DE PM2
+# 8. GESTIÓN DE PM2
 if ! command -v pm2 &> /dev/null; then
     echo -e "${YELLOW}⚡ Instalando PM2...${NC}"
     sudo npm install -g pm2
