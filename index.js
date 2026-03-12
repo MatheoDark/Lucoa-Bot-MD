@@ -487,25 +487,27 @@ async function delayedReconnect(delayMs, reason = '') {
     disconnectTracker._reconnectTimer = null
   }
 
-  const now = Date.now()
-  const timeSinceLastDisconnect = now - disconnectTracker.lastDisconnect
-  
-  // Si pasó más de 2 minutos, resetear counter
-  if (timeSinceLastDisconnect > 120000) {
-    disconnectTracker.count = 0
-  }
-  
   let finalDelay = delayMs
-  
-  // Si tuvo muchas desconexiones rápidas, forzar un delay mayor
-  disconnectTracker.count++
-  if (disconnectTracker.count >= disconnectTracker.maxDisconnectsPerMinute) {
-    finalDelay = Math.max(delayMs, 60000)
-    log.warn(`🛑 Muchas desconexiones rápidas (${disconnectTracker.count}). Esperando ${Math.round(finalDelay / 1000)}s.`)
-    disconnectTracker.count = 0
+
+  // Solo aplicar throttle para errores que NO son 401 (401 es temporal y esperado en restarts)
+  if (disconnectTracker._lastReasonCode !== 401) {
+    const now = Date.now()
+    const timeSinceLastDisconnect = now - disconnectTracker.lastDisconnect
+
+    if (timeSinceLastDisconnect > 120000) {
+      disconnectTracker.count = 0
+    }
+
+    disconnectTracker.count++
+    if (disconnectTracker.count >= disconnectTracker.maxDisconnectsPerMinute) {
+      finalDelay = Math.max(delayMs, 60000)
+      log.warn(`🛑 Muchas desconexiones rápidas (${disconnectTracker.count}). Esperando ${Math.round(finalDelay / 1000)}s.`)
+      disconnectTracker.count = 0
+    }
+
+    disconnectTracker.lastDisconnect = now
   }
-  
-  disconnectTracker.lastDisconnect = now
+
   console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(finalDelay / 1000)}s... (${reason})`))
   disconnectTracker._reconnectTimer = setTimeout(() => {
     disconnectTracker._reconnectTimer = null
