@@ -37,7 +37,21 @@ const captions = {
   wink: (from, to, genero) => from === to ? `se guiñó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'le guiñó a',
   blush: (from, to) => from === to ? 'se sonrojó.' : 'se sonrojó por',
   cry: (from, to) => from === to ? 'está llorando.' : 'está llorando por',
-  eat: (from, to) => from === to ? 'está comiendo algo rico.' : 'está comiendo con'
+  eat: (from, to) => from === to ? 'está comiendo algo rico.' : 'está comiendo con',
+
+  // --- COMANDOS NEKOS.LIFE (FALLBACK) ---
+  tickle: (from, to) => from === to ? 'se está haciéndose cosquillas.' : 'le hace cosquillas a',
+  feed: (from, to) => from === to ? 'está comiendo.' : 'está alimentando a',
+  meow: (from, to) => from === to ? 'está maullando.' : 'maúlla cerca de',
+  neko: (from, to) => from === to ? 'está siendo un neko.' : 'es un neko para',
+  lizard: (from, to) => from === to ? 'está siendo un lagarto.' : 'es un lagarto para',
+  woof: (from, to) => from === to ? 'está ladrando.' : 'ladra cerca de',
+  fox_girl: (from, to) => from === to ? 'está siendo una chica zorro.' : 'es una chica zorro para',
+  smug: (from, to) => from === to ? 'está sonriendo altivamente.' : 'le sonríe altivamente a',
+  lewd: (from, to) => from === to ? 'está siendo provocador.' : 'se está comportando de manera provocadora con',
+  spank: (from, to, genero) => from === to ? `se nalgueó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'}.` : 'le dio una nalgada a',
+  gasm: (from, to) => from === to ? 'está jadeando.' : 'hace jadear a',
+  gecko: (from, to) => from === to ? 'está siendo un gecko.' : 'es un gecko para'
 }
 
 // Símbolos (Tu configuración)
@@ -51,93 +65,7 @@ function getRandomSymbol() {
   return symbols[Math.floor(Math.random() * symbols.length)]
 }
 
-// ===== NUEVA FUNCIONALIDAD: CARGAR INTERACCIONES LOCALES =====
-
-// Cargar índice de interacciones locales
-let localInteractionsCache = null
-
-function loadLocalInteractions() {
-  if (localInteractionsCache) return localInteractionsCache
-
-  const cache = {}
-  try {
-    if (fs.existsSync(INTERACTIONS_JSON)) {
-      const data = JSON.parse(fs.readFileSync(INTERACTIONS_JSON, 'utf8'))
-      Object.entries(data).forEach(([cmd, info]) => {
-        cache[cmd] = info.local || []
-      })
-    }
-  } catch (e) {
-    console.warn('[Anime] Error loading interactions.json:', e.message)
-  }
-
-  localInteractionsCache = cache
-  return cache
-}
-
-// Obtener archivo local aleatorio
-function getLocalMedia(command) {
-  const cache = loadLocalInteractions()
-  const files = cache[command] || []
-
-  if (files.length === 0) return null
-
-  const randomFile = files[Math.floor(Math.random() * files.length)]
-  const filePath = path.join(__dirname, '../../', randomFile)
-
-  if (fs.existsSync(filePath)) {
-    try {
-      return fs.readFileSync(filePath)
-    } catch (e) {
-      console.error('[Anime] Error reading local file:', e.message)
-      return null
-    }
-  }
-
-  return null
-}
-
-// Guardar archivo descargado localmente (auto-cache)
-function saveMediaLocally(command, buffer) {
-  try {
-    if (!fs.existsSync(INTERACTIONS_DIR)) {
-      fs.mkdirSync(INTERACTIONS_DIR, { recursive: true })
-    }
-
-    const commandDir = path.join(INTERACTIONS_DIR, command)
-    if (!fs.existsSync(commandDir)) {
-      fs.mkdirSync(commandDir, { recursive: true })
-    }
-
-    // Detectar tipo de archivo
-    const ext = getBufferType(buffer)
-    if (ext === 'unknown') return
-
-    // Guardar con nombre secuencial
-    const files = fs.readdirSync(commandDir)
-    const fileNum = files.length + 1
-    const fileName = `${fileNum}.${ext}`
-    const filePath = path.join(commandDir, fileName)
-
-    fs.writeFileSync(filePath, buffer)
-
-    // Actualizar interactions.json
-    if (fs.existsSync(INTERACTIONS_JSON)) {
-      const data = JSON.parse(fs.readFileSync(INTERACTIONS_JSON, 'utf8'))
-      if (!data[command]) {
-        data[command] = { local: [], fallback: true }
-      }
-
-      const relPath = `media/interactions/${command}/${fileName}`
-      if (!data[command].local.includes(relPath)) {
-        data[command].local.push(relPath)
-        fs.writeFileSync(INTERACTIONS_JSON, JSON.stringify(data, null, 2))
-      }
-    }
-  } catch (e) {
-    console.error('[Anime] Error saving media locally:', e.message)
-  }
-}
+// ===== DESCARGA BAJO DEMANDA (SIN CACHÉ LOCAL) =====
 
 // Conversión GIF → MP4 (WhatsApp no reproduce GIFs inline, necesita MP4)
 async function gifToMp4(gifBuffer) {
@@ -172,8 +100,9 @@ function getBufferType(buffer) {
   } catch { return 'unknown' }
 }
 
-// Alias ES -> Command EN (Solo PurrBot v2 Commands)
+// Alias ES -> Command EN
 const commandAliases = {
+  // PurrBot v2
   besar: 'kiss',
   abrazar: 'hug',
   acariciar: 'pat',
@@ -189,7 +118,18 @@ const commandAliases = {
   guiñar: 'wink',
   sonrojar: 'blush',
   llorar: 'cry',
-  comer: 'eat'
+  comer: 'eat',
+  // Nekos.life
+  hacercosquillas: 'tickle',
+  cosquillas: 'tickle',
+  alimentar: 'feed',
+  maullar: 'meow',
+  ladrar: 'woof',
+  chicazorro: 'fox_girl',
+  sonrisaaltiva: 'smug',
+  provocador: 'lewd',
+  nalgada: 'spank',
+  jadear: 'gasm'
 }
 
 // Generamos la lista de comandos para el export
@@ -236,58 +176,55 @@ export default {
         ? `@${m.sender.split('@')[0]} ${captionText} @${who.split('@')[0]} ${getRandomSymbol()}.`
         : `${fromName} ${captionText} ${getRandomSymbol()}.`
 
-    // 5. Obtener Video/GIF (Primero local, luego remoto)
+    // 5. Obtener Video/GIF - Cascada de APIs (SIN CACHÉ LOCAL)
     try {
       let mediaBuffer = null
+      let mediaUrl = null
 
-      // OPCIÓN 1: Buscar en /media/interactions/ local
-      mediaBuffer = getLocalMedia(currentCommand)
-      if (mediaBuffer) {
-        console.log(`[Anime] Using local media for ${currentCommand}`)
+      // CASCADA DE APIS: PurrBot v2 → Nekos.life → Waifu.pics
+
+      // 1️⃣ PurrBot v2 (Principal - verificado y rápido)
+      const purbotMap = {
+        'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
+        'bite': 'bite', 'punch': 'punch', 'kick': 'kick', 'cuddle': 'cuddle',
+        'dance': 'dance', 'wave': 'wave', 'smile': 'smile', 'wink': 'wink',
+        'blush': 'blush', 'cry': 'cry', 'eat': 'eat'
       }
 
-      // OPCIÓN 2: Fallback a API remota (si no tiene local)
-      if (!mediaBuffer) {
-        let mediaUrl = null
-
-        // Opción A: API del Bot (si existe)
-        if (typeof api !== 'undefined' && api?.url) {
-          const response = await fetch(
-            `${api.url}/sfw/interaction?type=${currentCommand}${api.key ? `&key=${api.key}` : ''}`
-          )
-          const json = await response.json().catch(() => ({}))
-          mediaUrl = json?.result || json?.url
-        }
-
-        // Opción B: Fallback a PurrBot v2 (mejor mantenido que Waifu.pics)
-        if (!mediaUrl) {
-          // Map commands to PurrBot v2 equivalents (verified working)
-          const purbotMap = {
-            'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-            'bite': 'bite', 'punch': 'punch', 'kick': 'kick', 'cuddle': 'cuddle',
-            'dance': 'dance', 'wave': 'wave', 'smile': 'smile', 'wink': 'wink',
-            'blush': 'blush', 'cry': 'cry', 'eat': 'eat'
-            // Other commands will fallback
-          }
-
-          const apiCmd = purbotMap[currentCommand] || 'hug'
-
-          // Try PurrBot v2 API
-          let res = await fetch(`https://api.purrbot.site/v2/img/sfw/${apiCmd}/gif`)
-
-          // If fails and wasn't the fallback, try hug
-          if (!res.ok && apiCmd !== 'hug') {
-            res = await fetch(`https://api.purrbot.site/v2/img/sfw/hug/gif`)
-          }
-
+      if (purbotMap[currentCommand]) {
+        try {
+          const res = await fetch(`https://api.purrbot.site/v2/img/sfw/${purbotMap[currentCommand]}/gif`)
           if (res.ok) {
             const json = await res.json().catch(() => ({}))
-            mediaUrl = json?.link // PurrBot uses "link" key
+            mediaUrl = json?.link
           }
+        } catch (e) {}
+      }
+
+      // 2️⃣ Nekos.life (Fallback secundario - legacy pero funcional)
+      if (!mediaUrl) {
+        const nekosMap = {
+          'hug': 'hug', 'kiss': 'kiss', 'pat': 'pat', 'cuddle': 'cuddle',
+          'poke': 'poke', 'slap': 'slap', 'tickle': 'tickle', 'feed': 'feed',
+          'meow': 'meow', 'neko': 'neko', 'lizard': 'lizard', 'woof': 'woof',
+          'fox_girl': 'fox_girl', 'smug': 'smug', 'lewd': 'lewd',
+          'spank': 'spank', 'gasm': 'gasm', 'gecko': 'gecko'
         }
 
-        // Opción C: Fallback final a Waifu.pics (legacy)
-        if (!mediaUrl) {
+        if (nekosMap[currentCommand]) {
+          try {
+            const res = await fetch(`https://api.nekos.life/api/v2/img/${nekosMap[currentCommand]}`)
+            if (res.ok) {
+              const json = await res.json().catch(() => ({}))
+              mediaUrl = json?.url
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 3️⃣ Waifu.pics (Fallback final - legacy)
+      if (!mediaUrl) {
+        try {
           let apiCmd = currentCommand
           if (apiCmd === 'eat') apiCmd = 'nom'
 
@@ -296,19 +233,15 @@ export default {
 
           const json = await res.json().catch(() => ({}))
           mediaUrl = json?.url
-        }
-
-        if (!mediaUrl) throw new Error('No media url')
-
-        // Descargar
-        const mediaRes = await fetch(mediaUrl)
-        const arrayBuf = await mediaRes.arrayBuffer()
-        mediaBuffer = Buffer.from(arrayBuf)
-
-        // Auto-guardar localmente (futuro caché)
-        saveMediaLocally(currentCommand, mediaBuffer)
-        console.log(`[Anime] Downloaded and cached: ${currentCommand}`)
+        } catch (e) {}
       }
+
+      if (!mediaUrl) throw new Error('No media url from any API')
+
+      // Descargar desde URL obtenida
+      const mediaRes = await fetch(mediaUrl)
+      const arrayBuf = await mediaRes.arrayBuffer()
+      mediaBuffer = Buffer.from(arrayBuf)
 
       if (!mediaBuffer) throw new Error('No media buffer')
       
