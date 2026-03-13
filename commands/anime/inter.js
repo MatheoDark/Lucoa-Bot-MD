@@ -21,73 +21,23 @@ const INTERACTIONS_JSON = path.join(__dirname, '../../media/interactions.json')
  */
 
 const captions = {
-  // --- TUS REACCIONES ORIGINALES ---
-  peek: (from, to) => from === to ? 'está espiando detrás de una puerta por diversión.' : 'está espiando a',
-  stare: (from, to) => from === to ? 'se queda mirando al techo sin razón.' : 'se queda mirando fijamente a',
-  trip: (from, to) => from === to ? 'se tropezó consigo mismo, otra vez.' : 'tropezó accidentalmente con',
-  sleep: (from, to) => from === to ? 'está durmiendo plácidamente.' : 'está durmiendo con',
-  sing: (from, to) => from === to ? 'está cantando.' : 'le está cantando a',
-  tickle: (from, to) => from === to ? 'se está haciendo cosquillas.' : 'le está haciendo cosquillas a',
-  slap: (from, to, genero) => from === to ? `se dio una bofetada a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'}.` : 'le dio una bofetada a',
-  kill: (from, to) => from === to ? 'se autoeliminó en modo dramático.' : 'asesinó a',
+  // --- COMANDOS PURRBOT V2 (VERIFICADOS Y RÁPIDOS) ---
   kiss: (from, to) => from === to ? 'se mandó un beso al aire.' : 'le dio un beso a',
   hug: (from, to, genero) => from === to ? `se abrazó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'}.` : 'le dio un abrazo a',
   pat: (from, to) => from === to ? 'se acarició la cabeza con ternura.' : 'le dio una caricia a',
-  lick: (from, to) => from === to ? 'se lamió por curiosidad.' : 'lamió a',
-  cry: (from, to) => from === to ? 'está llorando.' : 'está llorando por',
-  blush: (from, to) => from === to ? 'se sonrojó.' : 'se sonrojó por',
-  smile: (from, to) => from === to ? 'está sonriendo.' : 'le sonrió a',
-  wave: (from, to, genero) => from === to ? `se saludó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'está saludando a',
-  highfive: (from, to) => from === to ? 'se chocó los cinco frente al espejo.' : 'chocó los 5 con',
-  dance: (from, to) => from === to ? 'está bailando.' : 'está bailando con',
-  wink: (from, to, genero) => from === to ? `se guiñó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'le guiñó a',
-  happy: (from, to) => from === to ? 'está feliz.' : 'está feliz con',
-  cuddle: (from, to, genero) => from === to ? `se acurrucó ${genero === 'Hombre' ? 'solo' : genero === 'Mujer' ? 'sola' : 'solx'}.` : 'se acurrucó con',
   poke: (from, to) => from === to ? 'se picó la cara.' : 'le picó la cara a',
+  slap: (from, to, genero) => from === to ? `se dio una bofetada a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'}.` : 'le dio una bofetada a',
   bite: (from, to, genero) => from === to ? `se mordió ${genero === 'Hombre' ? 'solito' : genero === 'Mujer' ? 'solita' : 'solitx'}.` : 'mordió a',
-
-  // --- REACCIONES QUE FALTABAN (Agregadas de la base) ---
-  angry: (from, to, genero) => from === to ? `está muy ${genero === 'Hombre' ? 'enojado' : 'enojada'}.` : `está muy ${genero === 'Hombre' ? 'enojado' : 'enojada'} con`,
-  bleh: (from, to) => from === to ? 'se sacó la lengua frente al espejo.' : 'le está haciendo muecas con la lengua a',
-  bored: (from, to, genero) => from === to ? `está muy ${genero === 'Hombre' ? 'aburrido' : 'aburrida'}.` : `está ${genero === 'Hombre' ? 'aburrido' : 'aburrida'} de`,
-  bonk: (from, to) => from === to ? 'se golpeó la cabeza.' : 'le dio un golpe a',
-  bully: (from, to) => from === to ? 'se hace bullying solo.' : 'le está haciendo bullying a',
-  coffee: (from, to) => from === to ? 'está tomando café.' : 'está tomando café con',
-  clap: (from, to) => from === to ? 'está aplaudiendo.' : 'le aplaude a',
-  cringe: (from, to) => from === to ? 'siente cringe.' : 'siente cringe por',
-  drunk: (from, to) => from === to ? 'está borracho/a.' : 'está borracho/a con',
-  dramatic: (from, to) => from === to ? 'hace drama.' : 'le hace un drama a',
-  handhold: (from, to) => from === to ? 'se agarra la mano.' : 'le agarró la mano a',
-  eat: (from, to) => from === to ? 'está comiendo algo rico.' : 'está comiendo con',
-  kill: (from, to) => from === to ? 'se murió.' : 'asesinó a',
-  love: (from, to) => from === to ? 'se quiere mucho.' : 'siente amor por',
-  pout: (from, to) => from === to ? 'hace pucheros.' : 'le hace pucheros a',
   punch: (from, to) => from === to ? 'lanza golpes al aire.' : 'le dio un puñetazo a',
-  run: (from, to) => from === to ? 'sale corriendo.' : 'huye de',
-  scared: (from, to) => from === to ? 'está asustado/a.' : 'tiene miedo de',
-  sad: (from, to) => from === to ? 'está triste.' : 'está triste por',
-  smoke: (from, to) => from === to ? 'fuma un cigarro.' : 'fuma con',
-  spit: (from, to) => from === to ? 'escupió al suelo.' : 'le escupió a',
-  smug: (from, to) => from === to ? 'presume.' : 'presume ante',
-  think: (from, to) => from === to ? 'piensa...' : 'piensa en',
-  walk: (from, to) => from === to ? 'camina solo/a.' : 'camina con',
-  impregnate: (from, to) => from === to ? 'se embarazó.' : 'embarazó a',
-  confused: (from, to) => from === to ? 'está confundido.' : 'está confundido por',
-  seduce: (from, to) => from === to ? 'se seduce solo.' : 'intenta seducir a',
-  shy: (from, to) => from === to ? 'es timido/a.' : 'es timido/a con',
-
-  // --- NUEVOS COMANDOS (10+) ---
   kick: (from, to) => from === to ? 'se pateó a sí mismo.' : 'le dio una patada a',
-  splash: (from, to) => from === to ? 'se salpicar el agua.' : 'le salpicó agua a',
-  grab: (from, to) => from === to ? 'se agarró a sí mismo.' : 'agarró a',
-  flick: (from, to) => from === to ? 'se dio un coscorrón.' : 'le dio un coscorrón a',
-  comfort: (from, to) => from === to ? 'se consuela a sí mismo.' : 'está consolando a',
-  freeze: (from, to) => from === to ? 'está congelado/a.' : 'congeló a',
-  shock: (from, to) => from === to ? 'está sorprendido/a.' : 'sorprendió a',
-  bite_head: (from, to) => from === to ? 'se mordió la cabeza.' : 'le mordió la cabeza a',
-  slurp: (from, to) => from === to ? 'está sorbing algo delicioso.' : 'sorbe a',
-  knead: (from, to) => from === to ? 'está amasando el aire.' : 'le hace amasada a',
-  celebrate: (from, to) => from === to ? 'está celebrando su victoria.' : 'está celebrando con'
+  cuddle: (from, to, genero) => from === to ? `se acurrucó ${genero === 'Hombre' ? 'solo' : genero === 'Mujer' ? 'sola' : 'solx'}.` : 'se acurrucó con',
+  dance: (from, to) => from === to ? 'está bailando.' : 'está bailando con',
+  wave: (from, to, genero) => from === to ? `se saludó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'está saludando a',
+  smile: (from, to) => from === to ? 'está sonriendo.' : 'le sonrió a',
+  wink: (from, to, genero) => from === to ? `se guiñó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'le guiñó a',
+  blush: (from, to) => from === to ? 'se sonrojó.' : 'se sonrojó por',
+  cry: (from, to) => from === to ? 'está llorando.' : 'está llorando por',
+  eat: (from, to) => from === to ? 'está comiendo algo rico.' : 'está comiendo con'
 }
 
 // Símbolos (Tu configuración)
@@ -222,24 +172,24 @@ function getBufferType(buffer) {
   } catch { return 'unknown' }
 }
 
-// Alias ES -> Command EN
-// (Agregué los que faltaban para que coincidan con los textos de arriba)
+// Alias ES -> Command EN (Solo PurrBot v2 Commands)
 const commandAliases = {
-  mirar: 'stare', espiar: 'peek', tropezar: 'trip', dormir: 'sleep',
-  cantar: 'sing', cosquillas: 'tickle', bofetada: 'slap', matar: 'kill',
-  besar: 'kiss', abrazar: 'hug', acariciar: 'pat', lamer: 'lick',
-  llorar: 'cry', sonrojar: 'blush', sonreir: 'smile', saludar: 'wave',
-  chocar: 'highfive', bailar: 'dance', guiñar: 'wink', feliz: 'happy',
-  acurrucar: 'cuddle', picar: 'poke', morder: 'bite',
-  // Nuevos:
-  comer: 'eat', fumar: 'smoke', enojado: 'angry', aburrido: 'bored',
-  golpear: 'punch', correr: 'run', asustado: 'scared', triste: 'sad',
-  cafe: 'coffee', presumir: 'smug', pensar: 'think', escupir: 'spit',
-  caminar: 'walk', embarazar: 'impregnate', timido: 'shy', seducir: 'seduce',
-  // Nuevos comandos:
-  patada: 'kick', salpicar: 'splash', agarrar: 'grab', coscorron: 'flick',
-  consolar: 'comfort', congelar: 'freeze', sorpresa: 'shock',
-  morder_cabeza: 'bite_head', sorber: 'slurp', amasar: 'knead', celebrar: 'celebrate'
+  besar: 'kiss',
+  abrazar: 'hug',
+  acariciar: 'pat',
+  picar: 'poke',
+  bofetada: 'slap',
+  morder: 'bite',
+  golpear: 'punch',
+  patada: 'kick',
+  acurrucar: 'cuddle',
+  bailar: 'dance',
+  saludar: 'wave',
+  sonreir: 'smile',
+  guiñar: 'wink',
+  sonrojar: 'blush',
+  llorar: 'cry',
+  comer: 'eat'
 }
 
 // Generamos la lista de comandos para el export
