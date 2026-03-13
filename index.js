@@ -643,14 +643,10 @@ async function startBot() {
         LOGIN_METHOD = await uPLoader()
         startBot()
       }
-      // ERROR 428: Rate limit - ÚNICO caso que necesita backoff real
+      // 428: Rate limit - reconectar directo (el queue ya maneja retry interno)
       else if (reason === 428) {
-        disconnectTracker.consecutive428++
-        const backoff428Steps = [30000, 60000, 120000, 300000]
-        const backoff428 = backoff428Steps[Math.min(disconnectTracker.consecutive428 - 1, backoff428Steps.length - 1)]
-        console.log(chalk.yellow(`⚠️ Error 428: Rate limit. Esperando ${Math.round(backoff428 / 1000)}s (intento ${disconnectTracker.consecutive428})`))
-        activateRecoveryMode(Math.min(120000 + (disconnectTracker.consecutive428 - 1) * 60000, 600000))
-        delayedReconnect(backoff428, 'Error 428 - Rate Limit')
+        log.warn(`⚠️ Error 428: Rate limit. Reconectando...`)
+        startBot()
       }
       // TODOS LOS DEMÁS (515, 408, timedOut, connectionLost, etc.) - reconectar directo
       else {
