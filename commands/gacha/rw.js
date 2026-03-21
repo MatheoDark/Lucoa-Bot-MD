@@ -2,41 +2,103 @@ import fs from 'fs';
 import {v4 as uuidv4} from 'uuid';
 import fetch from 'node-fetch';
 
-const obtenerImagenGelbooru = async (keyword) => {
-  const tag = encodeURIComponent(keyword)
+const IMAGE_EXT_REGEX = /\.(jpg|jpeg|png|webp)$/i
 
-  // 1. SafeBooru (funcional y sin auth)
+const normalizeTag = (value = '') => String(value)
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[():'".]/g, ' ')
+  .replace(/\s+/g, '_')
+  .replace(/_+/g, '_')
+  .replace(/^_+|_+$/g, '')
+
+const buildTagCandidates = (personaje = {}) => {
+  const raw = [
+    personaje.keyword,
+    personaje.name,
+    personaje.source,
+    personaje.name && personaje.source ? `${personaje.name} ${personaje.source}` : null,
+  ].filter(Boolean)
+
+  const set = new Set()
+  for (const entry of raw) {
+    const base = normalizeTag(entry)
+    if (base) set.add(base)
+
+    // Variante sin sufijos entre paréntesis: rem_(re:zero) -> rem
+    const noSuffix = base.replace(/_\([^)]*\)$/g, '')
+    if (noSuffix && noSuffix !== base) set.add(noSuffix)
+
+    // Variante con espacios para endpoints que toleran textos naturales
+    const spaced = base.replace(/_/g, ' ')
+    if (spaced) set.add(spaced)
+  }
+
+  return [...set]
+}
+
+const getJsonSafe = async (url) => {
   try {
-    const res = await fetch(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-    const data = await res.json()
-    const posts = Array.isArray(data) ? data : (data?.post || [])
-    const valid = posts.filter(p => (p.file_url || p.image) && /\.(jpg|jpeg|png|webp)$/i.test(p.file_url || p.image))
-    if (valid.length) {
-      const post = valid[Math.floor(Math.random() * valid.length)]
-      const url = post.file_url || `https://safebooru.org/images/${post.directory}/${post.image}`
-      return url.startsWith('http') ? url : `https://safebooru.org${url}`
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      }
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+const pickRandomImageUrl = (posts = [], mapper) => {
+  const valid = posts
+    .map(mapper)
+    .filter(Boolean)
+    .filter((url) => IMAGE_EXT_REGEX.test(url))
+
+  if (!valid.length) return null
+  return valid[Math.floor(Math.random() * valid.length)]
+}
+
+const obtenerImagenGelbooru = async (personaje) => {
+  const tags = buildTagCandidates(personaje)
+  if (!tags.length) return null
+
+  for (const currentTag of tags) {
+    const tag = encodeURIComponent(currentTag)
+
+    // 1. SafeBooru (funcional y sin auth)
+    {
+      const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+      const posts = Array.isArray(data) ? data : (data?.post || [])
+      const url = pickRandomImageUrl(posts, (p) => {
+        if (p?.file_url) return p.file_url
+        if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
+        return null
+      })
+      if (url) {
+        return url.startsWith('http') ? url : `https://safebooru.org${url}`
+      }
     }
-  } catch {}
 
-  // 2. Gelbooru fallback
-  try {
-    const res = await fetch(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-    const data = await res.json()
-    const posts = data?.post || []
-    const valid = posts.filter(p => p.file_url && /\.(jpg|jpeg|png|webp)$/i.test(p.file_url))
-    if (valid.length) return valid[Math.floor(Math.random() * valid.length)].file_url
-  } catch {}
-
-  // 3. Danbooru fallback
-  try {
-    const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
-    const data = await res.json()
-    const valid = data.filter(p => (p.file_url || p.large_file_url))
-    if (valid.length) {
-      const post = valid[Math.floor(Math.random() * valid.length)]
-      return post.file_url || post.large_file_url
+    // 2. Gelbooru fallback
+    {
+      const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+      const posts = data?.post || []
+      const url = pickRandomImageUrl(posts, (p) => p?.file_url || null)
+      if (url) return url
     }
-  } catch {}
+
+    // 3. Danbooru fallback
+    {
+      const data = await getJsonSafe(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
+      const posts = Array.isArray(data) ? data : []
+      const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.large_file_url || null)
+      if (url) return url
+    }
+  }
 
   return null
 }
@@ -97,16 +159,26 @@ export default {
       ? chat.personajesReservados.find((p) => p.name === personaje.name)
       : null
 
-    // Verificar si alguien DEL GRUPO ya lo tiene
-    const poseedor = Object.entries(chat.users).find(
+    // Verificar quiénes DEL GRUPO ya lo tienen
+    const poseedores = Object.entries(chat.users || {}).filter(
       ([_, u]) => Array.isArray(u.characters) && u.characters.some((c) => c.name === personaje.name),
     )
 
+    // Si por datos antiguos hay duplicados, conservamos el primero y limpiamos el resto.
+    if (poseedores.length > 1) {
+      const [ownerId] = poseedores[0]
+      for (const [dupId, dupUser] of poseedores.slice(1)) {
+        dupUser.characters = (dupUser.characters || []).filter((c) => c.name !== personaje.name)
+      }
+      console.log(`[GACHA] Duplicado corregido para ${personaje.name} en ${chatId}. Owner final: ${ownerId}`)
+    }
+
+    const ownerId = poseedores[0]?.[0] || null
+    const ownerName = ownerId ? (db.users[ownerId]?.name || ownerId.split('@')[0]) : null
+
     let estado = 'Libre'
-    if (poseedor) {
-        const [id] = poseedor
-        const nombrePoseedor = db.users[id]?.name || id.split('@')[0]
-        estado = `Reclamado por ${nombrePoseedor}`
+    if (ownerName) {
+      estado = `Reclamado por ${ownerName}`
     } else if (reservado) {
         const nombreReservador = db.users[reservado.userId]?.name || 'Alguien'
         estado = `Reservado por ${nombreReservador}`
@@ -128,7 +200,10 @@ export default {
 
 ${global.dev || ''}`
 
-    const imagenUrl = await obtenerImagenGelbooru(personaje.keyword)
+    const imagenUrl = await obtenerImagenGelbooru(personaje)
+
+    const mentions = ownerId ? [ownerId] : []
+    if (reservado?.userId) mentions.push(reservado.userId)
 
     if (imagenUrl) {
       try {
@@ -138,6 +213,7 @@ ${global.dev || ''}`
             image: { url: imagenUrl },
             caption: mensaje,
             mimetype: 'image/jpeg',
+            mentions,
           },
           { quoted: m },
         )
@@ -148,7 +224,7 @@ ${global.dev || ''}`
       await m.reply(mensaje)
     }
 
-    if (!poseedor) {
+    if (!ownerId) {
         reservarPersonaje(
           chatId,
           userId,

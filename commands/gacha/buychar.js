@@ -31,6 +31,16 @@ export default {
     if (!personaje)
       return m.reply(`🐲 No se encontró a *${personajeNombre}* en venta en este grupo. (◕︿◕)`)
 
+    // Unicidad por chat: no permitir duplicados del mismo personaje en usuarios distintos.
+    const existingOwner = Object.entries(chatData.users || {}).find(([id, u]) =>
+      id !== userId && Array.isArray(u.characters) && u.characters.some((c) => c.name === personaje.name),
+    )
+    if (existingOwner) {
+      const [ownerId] = existingOwner
+      const ownerName = db.users[ownerId]?.name || ownerId.split('@')[0]
+      return m.reply(`🐲 *${personaje.name}* ya pertenece a *${ownerName}*. (◕︿◕)`)
+    }
+
     // Verificar Dinero Global
     if ((globalUser.coins || 0) < personaje.precio)
       return m.reply(`🐲 No tienes suficientes *${monedas}* (Saldo: ${globalUser.coins}). (◕︿◕)`)

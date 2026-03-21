@@ -9,6 +9,9 @@ function formatDate(timestamp) {
   return date.toLocaleDateString('es-ES')
 }
 
+const CLAIM_STEAL_COST = 100000
+const CLAIM_STEAL_SUCCESS_RATE = 0.25
+
 export default {
   command: ['claim', 'buy', 'c'],
   category: 'gacha',
@@ -23,6 +26,8 @@ export default {
     
     // --- MODELO HÍBRIDO ---
     const globalUser = db.users[userId] || {} // Dinero GLOBAL
+    if (!chatConfig.users) chatConfig.users = {}
+    if (!chatConfig.users[userId]) chatConfig.users[userId] = { characters: [] }
     const localUser = chatConfig.users[userId] // Waifus LOCALES
 
     if (chatConfig.adminonly || !chatConfig.gacha)
@@ -49,9 +54,44 @@ export default {
         u.characters?.some((c) => quotedMessage.includes(c.name)),
       )
       if (claimedEntry) {
-        const [claimerId] = claimedEntry
+        const [claimerId, claimerData] = claimedEntry
         const ownerName = db.users[claimerId]?.name || claimerId.split('@')[0]
-        return m.reply(claimerId === userId ? `🐲 Ya es tuyo. (◕︿◕)` : `🐲 Ya pertenece a *${ownerName}*. (◕︿◕)`)
+
+        if (claimerId === userId) {
+          return m.reply(`🐲 Ya es tuyo. (◕︿◕)`)
+        }
+
+        if ((globalUser.coins || 0) < CLAIM_STEAL_COST) {
+          return m.reply(`🐲 Ya pertenece a *${ownerName}*.\nPuedes intentar robarlo con *${CLAIM_STEAL_COST.toLocaleString()} ${monedas}* respondiendo de nuevo con #claim. (◕︿◕)`)
+        }
+
+        const ownerCharIndex = claimerData.characters.findIndex((c) => quotedMessage.includes(c.name))
+        if (ownerCharIndex < 0) {
+          return m.reply(`🐲 No pude localizar el personaje para el robo. (◕︿◕)`)
+        }
+
+        const now = Date.now()
+        globalUser.coins -= CLAIM_STEAL_COST
+        globalUser.buyCooldown = now + 15 * 60000
+
+        const success = Math.random() < CLAIM_STEAL_SUCCESS_RATE
+        if (!success) {
+          return m.reply(`🐲 Intentaste robarle a *${ownerName}* y fallaste.\nPerdiste *${CLAIM_STEAL_COST.toLocaleString()} ${monedas}*. (╥﹏╥)`)
+        }
+
+        const stolenCharacter = claimerData.characters.splice(ownerCharIndex, 1)[0]
+        if (!localUser.characters) localUser.characters = []
+        localUser.characters = localUser.characters.filter((c) => c.name !== stolenCharacter.name)
+        localUser.characters.push({
+          ...stolenCharacter,
+          claim: formatDate(now),
+          user: userId,
+        })
+
+        return client.sendMessage(chatId, {
+          text: `🐉 Robo exitoso. *${stolenCharacter.name}* ahora es de *${globalUser.name || userId.split('@')[0]}*.\nCosto: *${CLAIM_STEAL_COST.toLocaleString()} ${monedas}*`,
+          mentions: [userId, claimerId],
+        }, { quoted: m })
       }
       return m.reply(`🐲 No se pudo identificar el personaje. (◕︿◕)`)
     }
@@ -64,6 +104,17 @@ export default {
       const reserverName = db.users[reservedCharacter.reservedBy]?.name || 'Alguien'
       if (!isUserReserver)
         return m.reply(`🐲 Protegido por *${reserverName}*. (◕︿◕)`)
+    }
+
+    // Unicidad por chat: solo una persona puede tener este personaje.
+    const existingOwner = Object.entries(chatConfig.users || {}).find(([id, u]) =>
+      id !== userId && Array.isArray(u.characters) && u.characters.some((c) => c.name === reservedCharacter.name),
+    )
+
+    if (existingOwner) {
+      const [ownerId] = existingOwner
+      const ownerName = db.users[ownerId]?.name || ownerId.split('@')[0]
+      return m.reply(`🐲 *${reservedCharacter.name}* ya pertenece a *${ownerName}*. (◕︿◕)`)
     }
 
     // Verificar Dinero GLOBAL

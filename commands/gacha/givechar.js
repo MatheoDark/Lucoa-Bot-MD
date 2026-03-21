@@ -35,6 +35,11 @@ export default {
       return m.reply(`🐲 No tienes a *${characterName}* aquí. (◕︿◕)`)
 
     const character = senderLocal.characters[characterIndex]
+
+    if (receiverLocal.characters?.some((c) => c.name === character.name)) {
+      const receiverName = db.users[mentionedJid]?.name || mentionedJid.split('@')[0]
+      return m.reply(`🐲 *${receiverName}* ya tiene a *${character.name}*. (◕︿◕)`)
+    }
     
     // Mover personaje
     if (!receiverLocal.characters) receiverLocal.characters = []
