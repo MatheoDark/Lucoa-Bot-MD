@@ -5,11 +5,12 @@ import { getPrestigeTitle } from './prestige.js'
 export default {
   command: ['profile', 'perfil'],
   category: 'rpg',
-  run: async ({ client, m }) => {
+    run: async ({ client, m }) => {
     
     // 1. Identificar Usuario (Mencionado, Citado o Sender)
-    const texto = m.mentionedJid
-    const who2 = texto.length > 0 ? texto[0] : (m.quoted ? m.quoted.sender : m.sender)
+        const texto = Array.isArray(m.mentionedJid) ? m.mentionedJid : []
+        const quotedSender = m.quoted?.sender || m.quoted?.participant || m.quoted?.key?.participant || null
+        const who2 = texto.length > 0 ? texto[0] : (quotedSender || m.sender)
     const userId = await resolveLidToRealJid(who2, client, m.chat);
 
     // 2. Obtener Datos Globales
@@ -111,10 +112,11 @@ export default {
 > _${desc}_`
 
     // 9. Enviar
+    const mentionList = [userId, ...(user.marry ? [user.marry] : [])]
     await client.sendMessage(m.chat, { 
         image: { url: perfil }, 
         caption: profileText,
-        mentions: user.marry ? [user.marry] : [] // Mencionamos a la pareja si existe
+        mentions: mentionList
     }, { quoted: m })
   }
 };

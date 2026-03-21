@@ -12,6 +12,7 @@ import { ogmp3 } from '../../lib/youtubedl.js'
 
 const streamPipeline = promisify(pipeline)
 const limit = 200 // Límite MB
+const YT_UNAVAILABLE_REGEX = /(video unavailable|this video is unavailable|removed by the uploader|private video|copyright|terminated|not available)/i
 
 // ==========================================
 // 🧠 SISTEMA DE SALUD DE APIs
@@ -264,6 +265,11 @@ async function downloadWithFallbacks(url, isAudio) {
             return result
         } catch (e) {
             const msg = e.message || 'error desconocido'
+
+            if (provider.name === 'yt-dlp' && YT_UNAVAILABLE_REGEX.test(msg)) {
+                throw new Error('Ese video no está disponible en YouTube (fue eliminado, privado o bloqueado).')
+            }
+
             console.log(`[WARN] ${provider.name} falló: ${msg}`)
             if (!provider.noCooldown) markApiFailed(provider.name)
             errors.push(`${provider.name}: ${msg}`)
