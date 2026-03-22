@@ -274,14 +274,41 @@ async function loadBots() {
   }
 }
 
-// Queue simple (estilo Megumin/Nekos) — 800ms entre cada envío, retry en rate limit y media upload
+// Queue simple (estilo Megumin/Nekos) — 800ms entre cada envío, con retry en errores transitorios
 const queue = []
 let running = false
 const DELAY = 800
 
-function enqueue(task) {
-  queue.push(task)
+function enqueue(task, opts = {}) {
+  queue.push({
+    task,
+    attempts: 0,
+    maxAttempts: opts.maxAttempts || 3,
+    reject: typeof opts.reject === 'function' ? opts.reject : null,
+    label: opts.label || 'task'
+  })
   run()
+}
+
+function isTransientSendError(errMsg = '') {
+  const msg = errMsg.toLowerCase()
+  return (
+    msg.includes('rate-overlimit') ||
+    msg.includes('too many requests') ||
+    msg.includes('media upload failed') ||
+    msg.includes('fetch failed') ||
+    msg.includes('eai_again') ||
+    msg.includes('etimedout') ||
+    msg.includes('econnreset') ||
+    msg.includes('socket hang up')
+  )
+}
+
+function getRetryDelay(errMsg = '', attempts = 1) {
+  const msg = errMsg.toLowerCase()
+  if (msg.includes('rate-overlimit') || msg.includes('too many requests')) return 2000
+  if (msg.includes('media upload failed')) return 5000
+  return Math.min(2000 * attempts, 8000)
 }
 
 async function run() {
@@ -290,19 +317,20 @@ async function run() {
   while (queue.length) {
     const job = queue.shift()
     try {
-      await job()
+      job.attempts += 1
+      await job.task()
     } catch (e) {
       const errMsg = String(e?.message || e || '')
-      if (errMsg.includes('rate-overlimit') || errMsg.includes('too many requests')) {
-        console.warn('⚠️ Rate limit detectado, reintentando en 2s...')
-        await new Promise(r => setTimeout(r, 2000))
-        queue.unshift(job)
-      } else if (errMsg.includes('Media upload failed')) {
-        console.warn('⚠️ Media upload falló, reintentando en 5s...')
-        await new Promise(r => setTimeout(r, 5000))
+      const canRetry = isTransientSendError(errMsg) && job.attempts < job.maxAttempts
+
+      if (canRetry) {
+        const wait = getRetryDelay(errMsg, job.attempts)
+        console.warn(`⚠️ Envío falló (${job.label}) intento ${job.attempts}/${job.maxAttempts}. Reintentando en ${Math.round(wait / 1000)}s...`)
+        await new Promise(r => setTimeout(r, wait))
         queue.unshift(job)
       } else {
         console.error('Send error:', e.message || e)
+        if (job.reject) job.reject(e)
       }
     }
     await new Promise(r => setTimeout(r, DELAY))
@@ -322,7 +350,7 @@ export function patchSendMessage(client) {
       enqueue(async () => {
         const res = await original(jid, content, options)
         resolve(res)
-      })
+      }, { reject, maxAttempts: 3, label: 'sendMessage' })
     })
   }
 }
@@ -332,7 +360,7 @@ export function patchInteractive(client) {
   client._interactivePatched = true
 
   client.sendInteractiveRaw = (jid, messageContent, options = {}) =>
-    new Promise((resolve) =>
+    new Promise((resolve, reject) =>
       enqueue(async () => {
         const msg = generateWAMessageFromContent(
           jid,
@@ -344,7 +372,7 @@ export function patchInteractive(client) {
         )
         const res = await client.relayMessage(jid, msg.message, { messageId: msg.key.id })
         resolve(res)
-      })
+      }, { reject, maxAttempts: 3, label: 'sendInteractiveRaw' })
     )
 
   client.sendNativeSelect = async (jid, { title, body, footer, buttonText, rows }, quoted) => {

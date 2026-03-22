@@ -13,6 +13,7 @@ import { ogmp3 } from '../../lib/youtubedl.js'
 const streamPipeline = promisify(pipeline)
 const limit = 200 // Límite MB
 const YT_UNAVAILABLE_REGEX = /(video unavailable|this video is unavailable|removed by the uploader|private video|copyright|terminated|not available)/i
+const YT_AGE_RESTRICTED_REGEX = /(sign in to confirm your age|age-restricted|inappropriate for some users|youtube.*age|confirm your age)/i
 
 // ==========================================
 // 🧠 SISTEMA DE SALUD DE APIs
@@ -270,6 +271,10 @@ async function downloadWithFallbacks(url, isAudio) {
                 throw new Error('Ese video no está disponible en YouTube (fue eliminado, privado o bloqueado).')
             }
 
+            if (provider.name === 'yt-dlp' && YT_AGE_RESTRICTED_REGEX.test(msg)) {
+                throw new Error('Ese video tiene restricción de edad en YouTube y este servidor no tiene cookies de sesión para descargarlo. Prueba otra versión (clean/radio edit) o usa otro enlace.')
+            }
+
             console.log(`[WARN] ${provider.name} falló: ${msg}`)
             if (!provider.noCooldown) markApiFailed(provider.name)
             errors.push(`${provider.name}: ${msg}`)
@@ -289,6 +294,11 @@ export default {
 
     run: async ({ client, m, args, command, text }) => {
         const chatId = m.chat
+        global.play_active = global.play_active || {}
+
+        if (global.play_active[chatId]) {
+            return m.reply('⏳ Ya hay una descarga en curso en este chat. Espera a que termine para pedir otra.')
+        }
         
         // --- MENÚ RESPUESTA ---
         if (global.play_pending?.[chatId] && /^[1-3]$/.test(text.trim())) {
@@ -361,6 +371,8 @@ Responde con el número:
     before: async (m, { client }) => {
         if (!global.play_pending?.[m.chat]) return false
         if (m.key.fromMe) return false
+        global.play_active = global.play_active || {}
+        if (global.play_active[m.chat]) return true
         const text = m.text?.toLowerCase().trim()
         if (!['1', '2', '3'].includes(text)) return false
         const pending = global.play_pending[m.chat]
@@ -379,6 +391,10 @@ Responde con el número:
 // ⚙️ FUNCIÓN EJECUTORA
 async function executeDownload(client, m, url, type, title, thumb) {
     const isAudio = type === 'audio' || type === 'document'
+    global.play_active = global.play_active || {}
+    if (global.play_active[m.chat]) return m.reply('⏳ Ya hay una descarga en curso en este chat. Intenta nuevamente en unos segundos.')
+
+    global.play_active[m.chat] = true
     await m.react(isAudio ? '🎧' : '🎬')
 
     try {
@@ -465,5 +481,7 @@ async function executeDownload(client, m, url, type, title, thumb) {
     } catch (e) {
         console.error(e)
         m.reply(`❌ Error: ${e.message}`)
+    } finally {
+        delete global.play_active[m.chat]
     }
 }
