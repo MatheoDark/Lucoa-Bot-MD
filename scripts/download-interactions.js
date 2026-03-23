@@ -12,45 +12,30 @@ const __dirname = path.dirname(__filename)
 const MEDIA_DIR = path.join(__dirname, '../media/interactions')
 const INTERACTIONS_JSON = path.join(__dirname, '../media/interactions.json')
 const DOWNLOADS_PER_COMMAND = 7 // Download 7 files per command
-const PURRBOT_API = 'https://api.purrbot.site/v2/img/sfw' // Updated to PurrBot v2 (better maintained)
+const PURRBOT_V2_API = 'https://api.purrbot.site/v2/img/sfw'
+const PURRBOT_V1_API = 'https://purrbot.site/api/img/sfw'
 
-// PurrBot v2 SFW command mapping - TODOS los comandos están mapeados
-// 🔧 NO hay fallback a Nekos.life o Waifu.pics - solo GIFs animados de PurrBot v2
-// Disponibles: angry, bite, blush, comfy, cry, cuddle, dance, fluff, hug, kiss, lay, lick, pat, poke, pout, slap, smile, tail, tickle
-const purbotCommandMap = {
-  // Directos (ya en v2)
-  'kiss': 'kiss',
-  'hug': 'hug',
-  'pat': 'pat',
-  'poke': 'poke',
-  'slap': 'slap',
-  'bite': 'bite',
-  'cuddle': 'cuddle',
-  'dance': 'dance',
-  'smile': 'smile',
-  'blush': 'blush',
-  'cry': 'cry',
-  'tickle': 'tickle',
+// PurrBot v2 SFW command mapping (19 comandos disponibles)
+const purbotv2Map = {
+  'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
+  'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
+  'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
+  'punch': 'slap', 'kick': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
+  'feed': 'lay', 'meow': 'smile', 'neko': 'tail', 'lizard': 'pout', 'woof': 'dance',
+  'fox_girl': 'tail', 'smug': 'smile', 'lewd': 'lick', 'spank': 'slap', 'gasm': 'pout', 'gecko': 'tail'
+}
+
+// PurrBot v1 SFW command mapping (14 comandos disponibles + mapeos fallback)
+const purbotv1Map = {
+  // Directos (disponibles en v1)
+  'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
+  'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
+  'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
   
-  // Mapeados (removidos de v2)
-  'punch': 'slap',        // ataque → golpe
-  'kick': 'slap',         // ataque → golpe
-  'wave': 'smile',        // saludo → sonrisa
-  'wink': 'smile',        // expresión ojo → sonrisa
-  'eat': 'comfy',         // comer → descanso
-  
-  // Nekos.life → PurrBot v2 (nunca fueron felices con nekos)
-  'feed': 'lay',          // alimentar → descanso
-  'meow': 'smile',        // sonido gato → expresión
-  'neko': 'tail',         // chica neko → cola
-  'lizard': 'pout',       // lagarto → pout
-  'woof': 'dance',        // sonido perro → baile
-  'fox_girl': 'tail',     // chica zorro → cola
-  'smug': 'smile',        // sonrisa altiva → sonrisa
-  'lewd': 'lick',         // provocador → lamer
-  'spank': 'slap',        // nalgada → golpe
-  'gasm': 'pout',         // jadear → pout
-  'gecko': 'tail'         // gecko → cola
+  // Mapeados (no existen exacto en v1)
+  'punch': 'slap', 'kick': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'smile',
+  'meow': 'smile', 'lizard': 'smile', 'woof': 'dance', 'fox_girl': 'neko',
+  'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko'
 }
 
 // Helper: Download a file and get its buffer
@@ -137,22 +122,46 @@ async function downloadInteraction(command, force = false) {
     attempts++
 
     try {
-      // 🎬 ÚNICA FUENTE: PurrBot v2 (todos los comandos mapeados)
+      // 🎬 DUAL API FALLBACK: v2 → v1
       let url = null
 
-      // Usar mapeo de comando si existe, sino usar el comando directo
-      const apiCmd = purbotCommandMap[command] || command
-      const response = await fetch(`${PURRBOT_API}/${apiCmd}/gif`)
-
-      if (response.ok) {
-        const json = await response.json().catch(() => ({}))
-        url = json?.link // PurrBot devuelve "link"
-      } else if (response.status === 404) {
-        console.log(`⚠️  ${apiCmd} no encontrado en PurrBot v2`)
-        continue
+      // 1️⃣ Intenta PurrBot v2 primero
+      if (purbotv2Map[command]) {
+        try {
+          const apiCmd = purbotv2Map[command]
+          const response = await fetch(`${PURRBOT_V2_API}/${apiCmd}/gif`, { timeout: 5000 })
+          
+          if (response.ok) {
+            const json = await response.json().catch(() => ({}))
+            if (json?.link) url = json.link
+          }
+        } catch (e) {
+          // v2 falló, intentar v1
+        }
       }
 
-      if (!url) continue
+      // 2️⃣ Fallback a PurrBot v1
+      if (!url && purbotv1Map[command]) {
+        try {
+          const apiCmd = purbotv1Map[command]
+          const response = await fetch(`${PURRBOT_V1_API}/${apiCmd}/gif`, { timeout: 5000 })
+          
+          if (response.ok) {
+            const json = await response.json().catch(() => ({}))
+            if (json?.link) {
+              console.log(`ℹ️  ${command} obtenido desde PurrBot v1 (fallback)`)
+              url = json.link
+            }
+          }
+        } catch (e) {
+          // v1 también falló
+        }
+      }
+
+      if (!url) {
+        console.log(`⚠️  No se pudo obtener URL para ${command}`)
+        continue
+      }
 
       // Descargar el archivo
       const buffer = await downloadFile(url)

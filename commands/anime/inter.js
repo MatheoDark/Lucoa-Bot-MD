@@ -181,53 +181,76 @@ export default {
       let mediaBuffer = null
       let mediaUrl = null
 
-      // 🎬 ÚNICA API: PurrBot v2 SFW (GIFs Animados)
-      // TODOS los comandos están mapeados a equivalentes disponibles
-      // Lista completa: https://api.purrbot.site/v2
-      // Disponibles: angry, bite, blush, comfy, cry, cuddle, dance, fluff, hug, kiss, lay, lick, pat, poke, pout, slap, smile, tail, tickle
+      // 🎬 DUAL API FALLBACK: PurrBot v2 → v1
+      // PurrBot v2 (Primario): 19 comandos disponibles
+      // PurrBot v1 (Fallback): 14 comandos disponibles
       
-      const purbotMap = {
-        // Comandos directos (ya existen en v2)
+      // Mapeos para v2
+      const purbotv2Map = {
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
         'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
+        'punch': 'slap', 'kick': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
+        'feed': 'lay', 'meow': 'smile', 'neko': 'tail', 'lizard': 'pout', 'woof': 'dance',
+        'fox_girl': 'tail', 'smug': 'smile', 'lewd': 'lick', 'spank': 'slap', 'gasm': 'pout', 'gecko': 'tail'
+      }
+      
+      // Mapeos para v1 (fallback cuando v2 falla)
+      const purbotv1Map = {
+        // Directos (disponibles en v1)
+        'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
+        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
+        'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
         
-        // Comandos mapeados (removidos de v2 → mapeo a similar)
-        'punch': 'slap',        // ataque → golpe
-        'kick': 'slap',         // ataque → golpe
-        'wave': 'smile',        // saludo → sonrisa
-        'wink': 'smile',        // expresión → sonrisa
-        'eat': 'comfy',         // comer → descanso comodo
-        
-        // Comandos nekos.life mapeados (nunca hubo, ahora con mapeo)
-        'feed': 'lay',          // alimentar → descanso
-        'meow': 'smile',        // sonido gato → expresión
-        'neko': 'tail',         // chica neko → cola
-        'lizard': 'pout',       // lagarto → expresión linda
-        'woof': 'dance',        // sonido perro → movimiento/baile
-        'fox_girl': 'tail',     // chica zorro → cola
-        'smug': 'smile',        // sonrisa altiva → sonrisa
-        'lewd': 'lick',         // provocador → lamer
-        'spank': 'slap',        // nalgada → golpe
-        'gasm': 'pout',         // jadear → expresión intensa
-        'gecko': 'tail'         // gecko → cola
+        // Mapeados (no existen en v1 exacto)
+        'punch': 'slap', 'kick': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'smile',
+        'meow': 'smile', 'lizard': 'smile', 'woof': 'dance', 'fox_girl': 'neko',
+        'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko'
       }
 
-      // Usar mapeo de PurrBot v2
-      if (purbotMap[currentCommand]) {
-        try {
-          const purbotCmd = purbotMap[currentCommand]
-          const res = await fetch(`https://api.purrbot.site/v2/img/sfw/${purbotCmd}/gif`)
-          if (res.ok) {
-            const json = await res.json().catch(() => ({}))
-            mediaUrl = json?.link
+      // Función para intentar ambas APIs
+      const fetchFromPurrBot = async (cmd) => {
+        let url = null
+        
+        // 1️⃣ Intenta PurrBot v2 primero
+        if (purbotv2Map[cmd]) {
+          try {
+            const v2Endpoint = purbotv2Map[cmd]
+            const res = await fetch(`https://api.purrbot.site/v2/img/sfw/${v2Endpoint}/gif`, { timeout: 5000 })
+            if (res.ok) {
+              const json = await res.json().catch(() => ({}))
+              if (json?.link) return json.link
+            }
+          } catch (e) {
+            console.warn(`[Anime] v2 intento falló para ${cmd}: ${e.message}`)
           }
-        } catch (e) {
-          console.error(`[Anime] Error fetching from PurrBot v2:`, e.message)
         }
+        
+        // 2️⃣ Fallback a PurrBot v1
+        if (purbotv1Map[cmd]) {
+          try {
+            const v1Endpoint = purbotv1Map[cmd]
+            const res = await fetch(`https://purrbot.site/api/img/sfw/${v1Endpoint}/gif`, { timeout: 5000 })
+            if (res.ok) {
+              const json = await res.json().catch(() => ({}))
+              if (json?.link) {
+                console.log(`[Anime] ${cmd} obtenido desde PurrBot v1 (fallback)`)
+                return json.link
+              }
+            }
+          } catch (e) {
+            console.warn(`[Anime] v1 intento falló para ${cmd}: ${e.message}`)
+          }
+        }
+        
+        return null
       }
 
-      if (!mediaUrl) throw new Error('No se pudo obtener GIF de PurrBot v2')
+      if (purbotv2Map[currentCommand] || purbotv1Map[currentCommand]) {
+        mediaUrl = await fetchFromPurrBot(currentCommand)
+      }
+
+      if (!mediaUrl) throw new Error('No se pudo obtener GIF de PurrBot v2 o v1')
 
       // Descargar desde URL obtenida
       const mediaRes = await fetch(mediaUrl)
