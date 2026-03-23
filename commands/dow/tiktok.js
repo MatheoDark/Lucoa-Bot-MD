@@ -1,4 +1,10 @@
 import fetch from 'node-fetch'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import fs from 'fs'
+import path from 'path'
+
+const execAsync = promisify(exec)
 
 const TIKTOK_URL_REGEX = /^https?:\/\/(?:www\.|vm\.|vt\.|m\.|t\.)?tiktok\.com\/.+/i
 
@@ -80,52 +86,76 @@ async function downloadTikTokVideo(url) {
       
       if (videoUrl) {
         const buffer = await downloadBuffer(videoUrl, 'TikWM')
-        if (buffer && buffer.length > 500000) {
+        if (buffer && buffer.length > 1000000) { // 1MB mínimo
           return { buffer, data, source: 'TikWM' }
         }
       }
     }
-    errors.push('TikWM: sin video válido')
+    errors.push('TikWM: incompleto')
   } catch (e) {
-    errors.push(`TikWM: ${e.message}`)
+    errors.push(`TikWM: ${e.message.slice(0, 30)}`)
   }
 
-  // 2. Fallback: Snaptik API
+  // 2. Fallback: TikSave API (más estable)
   try {
-    const apiUrl = `https://api.snaptik.io/download?url=${encodeURIComponent(url)}`
+    const apiUrl = `https://www.tiksave.com/v1/download?url=${encodeURIComponent(url)}`
     const res = await fetch(apiUrl, { timeout: 15000 })
     const json = await res.json()
 
-    if (json?.data?.video) {
-      const buffer = await downloadBuffer(json.data.video, 'Snaptik')
-      if (buffer && buffer.length > 500000) {
-        return { buffer, data: json.data, source: 'Snaptik' }
+    if (json?.video) {
+      const buffer = await downloadBuffer(json.video, 'TikSave')
+      if (buffer && buffer.length > 1000000) {
+        return { buffer, data: json, source: 'TikSave' }
       }
     }
-    errors.push('Snaptik: sin video válido')
+    errors.push('TikSave: incompleto')
   } catch (e) {
-    errors.push(`Snaptik: ${e.message}`)
+    errors.push(`TikSave: ${e.message.slice(0, 30)}`)
   }
 
-  // 3. Fallback: Music API
+  // 3. Fallback: Douyin API (TikTok chino - más estable)
   try {
-    const apiUrl = `https://api.app.music.com/download?url=${encodeURIComponent(url)}`
+    const apiUrl = `https://api.douyin.wtf/download?url=${encodeURIComponent(url)}`
     const res = await fetch(apiUrl, { timeout: 15000 })
     const json = await res.json()
 
-    if (json?.video_url || json?.url) {
-      const videoUrl = json.video_url || json.url
-      const buffer = await downloadBuffer(videoUrl, 'Music.com')
-      if (buffer && buffer.length > 500000) {
-        return { buffer, data: json, source: 'Music.com' }
+    if (json?.video_url || json?.download_url) {
+      const videoUrl = json.video_url || json.download_url
+      const buffer = await downloadBuffer(videoUrl, 'Douyin')
+      if (buffer && buffer.length > 1000000) {
+        return { buffer, data: json, source: 'Douyin' }
       }
     }
-    errors.push('Music.com: sin video válido')
+    errors.push('Douyin: incompleto')
   } catch (e) {
-    errors.push(`Music.com: ${e.message}`)
+    errors.push(`Douyin: ${e.message.slice(0, 30)}`)
   }
 
-  throw new Error(`No se pudo descargar: ${errors.join(' | ')}`)
+  // 4. Fallback FINAL: yt-dlp local (más confiable)
+  try {
+    const tmpDir = path.join(process.cwd(), 'tmp')
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
+    const outputFile = path.join(tmpDir, `${Date.now()}_tiktok.mp4`)
+
+    console.log('[TIKTOK] Usando yt-dlp como fallback...')
+    const { stdout } = await execAsync(
+      `yt-dlp -f best --no-warnings --quiet -o "${outputFile}" "${url}"`,
+      { timeout: 60000, maxBuffer: 50 * 1024 * 1024 }
+    )
+
+    if (fs.existsSync(outputFile)) {
+      const buffer = fs.readFileSync(outputFile)
+      if (buffer && buffer.length > 1000000) {
+        try { fs.unlinkSync(outputFile) } catch {}
+        return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
+      }
+    }
+    errors.push('yt-dlp: incompleto')
+  } catch (e) {
+    errors.push(`yt-dlp: ${e.message.slice(0, 30)}`)
+  }
+
+  throw new Error(`Todas las APIs fallaron. Últimos errores: ${errors.slice(-2).join(' | ')}`)
 }
 
 export default {
