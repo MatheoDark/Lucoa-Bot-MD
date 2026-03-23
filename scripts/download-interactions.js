@@ -14,25 +14,43 @@ const INTERACTIONS_JSON = path.join(__dirname, '../media/interactions.json')
 const DOWNLOADS_PER_COMMAND = 7 // Download 7 files per command
 const PURRBOT_API = 'https://api.purrbot.site/v2/img/sfw' // Updated to PurrBot v2 (better maintained)
 
-// PurrBot v2 SFW command mapping (for commands that might have different names)
+// PurrBot v2 SFW command mapping - TODOS los comandos están mapeados
+// 🔧 NO hay fallback a Nekos.life o Waifu.pics - solo GIFs animados de PurrBot v2
+// Disponibles: angry, bite, blush, comfy, cry, cuddle, dance, fluff, hug, kiss, lay, lick, pat, poke, pout, slap, smile, tail, tickle
 const purbotCommandMap = {
+  // Directos (ya en v2)
   'kiss': 'kiss',
   'hug': 'hug',
   'pat': 'pat',
   'poke': 'poke',
   'slap': 'slap',
   'bite': 'bite',
-  'punch': 'punch',
-  'kick': 'kick',
   'cuddle': 'cuddle',
   'dance': 'dance',
-  'wave': 'wave',
   'smile': 'smile',
-  'wink': 'wink',
   'blush': 'blush',
   'cry': 'cry',
-  'eat': 'eat',
-  // Fallback to 'hug' for commands not in PurrBot v2
+  'tickle': 'tickle',
+  
+  // Mapeados (removidos de v2)
+  'punch': 'slap',        // ataque → golpe
+  'kick': 'slap',         // ataque → golpe
+  'wave': 'smile',        // saludo → sonrisa
+  'wink': 'smile',        // expresión ojo → sonrisa
+  'eat': 'comfy',         // comer → descanso
+  
+  // Nekos.life → PurrBot v2 (nunca fueron felices con nekos)
+  'feed': 'lay',          // alimentar → descanso
+  'meow': 'smile',        // sonido gato → expresión
+  'neko': 'tail',         // chica neko → cola
+  'lizard': 'pout',       // lagarto → pout
+  'woof': 'dance',        // sonido perro → baile
+  'fox_girl': 'tail',     // chica zorro → cola
+  'smug': 'smile',        // sonrisa altiva → sonrisa
+  'lewd': 'lick',         // provocador → lamer
+  'spank': 'slap',        // nalgada → golpe
+  'gasm': 'pout',         // jadear → pout
+  'gecko': 'tail'         // gecko → cola
 }
 
 // Helper: Download a file and get its buffer
@@ -119,48 +137,24 @@ async function downloadInteraction(command, force = false) {
     attempts++
 
     try {
-      // Try PurrBot v2 first (better maintained, 2024+)
+      // 🎬 ÚNICA FUENTE: PurrBot v2 (todos los comandos mapeados)
       let url = null
 
-      // Use mapped command name if available
+      // Usar mapeo de comando si existe, sino usar el comando directo
       const apiCmd = purbotCommandMap[command] || command
-      let response = await fetch(`${PURRBOT_API}/${apiCmd}/gif`)
+      const response = await fetch(`${PURRBOT_API}/${apiCmd}/gif`)
 
       if (response.ok) {
         const json = await response.json().catch(() => ({}))
-        url = json?.link // PurrBot returns under "link" key
+        url = json?.link // PurrBot devuelve "link"
+      } else if (response.status === 404) {
+        console.log(`⚠️  ${apiCmd} no encontrado en PurrBot v2`)
+        continue
       }
 
-      // Fallback to safe default if command not found
-      if (!url && response.status === 404) {
-        console.log(`⚠️  ${command} not found on PurrBot, trying fallback...`)
-        response = await fetch(`${PURRBOT_API}/hug/gif`) // Safe default fallback
-        if (response.ok) {
-          const json = await response.json().catch(() => ({}))
-          url = json?.link
-        }
-      }
+      if (!url) continue
 
-      // Fallback to Waifu.pics (legacy)
-      if (!url) {
-        let waiCmd = command
-        if (waiCmd === 'eat') waiCmd = 'nom'
-
-        try {
-          let waiRes = await fetch(`https://api.waifu.pics/sfw/${waiCmd}`)
-          if (!waiRes.ok) waiRes = await fetch(`https://api.waifu.pics/sfw/neko`)
-
-          const waiJson = await waiRes.json().catch(() => ({}))
-          url = waiJson?.url
-        } catch (e) {}
-      }
-
-      if (!url) {
-        console.log(`⚠️  No URL returned for ${command}`)
-        break
-      }
-
-      // Download the file
+      // Descargar el archivo
       const buffer = await downloadFile(url)
       if (!buffer) continue
 

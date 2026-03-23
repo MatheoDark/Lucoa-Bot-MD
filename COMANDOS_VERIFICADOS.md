@@ -1,26 +1,40 @@
-# 🎬 Comandos Anime Verificados - PurrBot v2
+# 🎬 Comandos Anime Verificados - PurrBot v2 EXCLUSIVAMENTE ✅
 
-## ✅ Comandos que Funcionan en PurrBot v2 (Verificados)
+## 28 Comandos - Todos con GIFs Animados (SIN PNG estáticas)
 
 ```
-15 comandos directos en PurrBot v2 (rápido, directo):
-- kiss
-- hug
-- pat
-- poke
-- slap
-- bite
-- punch
-- kick
-- cuddle
-- dance
-- wave
-- smile
-- wink
-- blush
-- cry
-- eat
+### Directos en PurrBot v2 (12 comandos):
+kiss, hug, pat, poke, slap, bite, cuddle, dance, smile, 
+blush, cry, tickle
+
+### Mapeados a equivalentes PurrBot v2 (16 comandos):
+punch → slap          (ataque)
+kick → slap           (ataque)
+wave → smile          (saludo)
+wink → smile          (expresión)
+eat → comfy           (descanso)
+feed → lay            (descanso)
+meow → smile          (gato)
+neko → tail           (chica neko)
+lizard → pout         (reptil)
+woof → dance          (perro)
+fox_girl → tail       (chica zorro)
+smug → smile          (altiva)
+lewd → lick           (provocador)
+spank → slap          (contacto)
+gasm → pout           (intenso)
+gecko → tail          (reptil)
 ```
+
+## ✅ API Utilizada: SOLO PurrBot v2 SFW
+
+**ELIMINADO:**
+- ❌ Nekos.life (muerto)
+- ❌ Waifu.pics (devolvía PNG estáticas)
+
+**ACTIVO:**
+- ✅ PurrBot v2 (GIFs animados verificados)
+
 
 ## ⚙️ Estrategia por Comando
 

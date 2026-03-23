@@ -181,69 +181,60 @@ export default {
       let mediaBuffer = null
       let mediaUrl = null
 
-      // CASCADA DE APIS: PurrBot v2 → Nekos.life → Waifu.pics
-
-      // 1️⃣ PurrBot v2 (Principal - verificado y rápido)
+      // 🎬 ÚNICA API: PurrBot v2 SFW (GIFs Animados)
+      // TODOS los comandos están mapeados a equivalentes disponibles
+      // Lista completa: https://api.purrbot.site/v2
+      // Disponibles: angry, bite, blush, comfy, cry, cuddle, dance, fluff, hug, kiss, lay, lick, pat, poke, pout, slap, smile, tail, tickle
+      
       const purbotMap = {
+        // Comandos directos (ya existen en v2)
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-        'bite': 'bite', 'punch': 'punch', 'kick': 'kick', 'cuddle': 'cuddle',
-        'dance': 'dance', 'wave': 'wave', 'smile': 'smile', 'wink': 'wink',
-        'blush': 'blush', 'cry': 'cry', 'eat': 'eat'
+        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
+        'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
+        
+        // Comandos mapeados (removidos de v2 → mapeo a similar)
+        'punch': 'slap',        // ataque → golpe
+        'kick': 'slap',         // ataque → golpe
+        'wave': 'smile',        // saludo → sonrisa
+        'wink': 'smile',        // expresión → sonrisa
+        'eat': 'comfy',         // comer → descanso comodo
+        
+        // Comandos nekos.life mapeados (nunca hubo, ahora con mapeo)
+        'feed': 'lay',          // alimentar → descanso
+        'meow': 'smile',        // sonido gato → expresión
+        'neko': 'tail',         // chica neko → cola
+        'lizard': 'pout',       // lagarto → expresión linda
+        'woof': 'dance',        // sonido perro → movimiento/baile
+        'fox_girl': 'tail',     // chica zorro → cola
+        'smug': 'smile',        // sonrisa altiva → sonrisa
+        'lewd': 'lick',         // provocador → lamer
+        'spank': 'slap',        // nalgada → golpe
+        'gasm': 'pout',         // jadear → expresión intensa
+        'gecko': 'tail'         // gecko → cola
       }
 
+      // Usar mapeo de PurrBot v2
       if (purbotMap[currentCommand]) {
         try {
-          const res = await fetch(`https://api.purrbot.site/v2/img/sfw/${purbotMap[currentCommand]}/gif`)
+          const purbotCmd = purbotMap[currentCommand]
+          const res = await fetch(`https://api.purrbot.site/v2/img/sfw/${purbotCmd}/gif`)
           if (res.ok) {
             const json = await res.json().catch(() => ({}))
             mediaUrl = json?.link
           }
-        } catch (e) {}
-      }
-
-      // 2️⃣ Nekos.life (Fallback secundario - legacy pero funcional)
-      if (!mediaUrl) {
-        const nekosMap = {
-          'hug': 'hug', 'kiss': 'kiss', 'pat': 'pat', 'cuddle': 'cuddle',
-          'poke': 'poke', 'slap': 'slap', 'tickle': 'tickle', 'feed': 'feed',
-          'meow': 'meow', 'neko': 'neko', 'lizard': 'lizard', 'woof': 'woof',
-          'fox_girl': 'fox_girl', 'smug': 'smug', 'lewd': 'lewd',
-          'spank': 'spank', 'gasm': 'gasm', 'gecko': 'gecko'
-        }
-
-        if (nekosMap[currentCommand]) {
-          try {
-            const res = await fetch(`https://api.nekos.life/api/v2/img/${nekosMap[currentCommand]}`)
-            if (res.ok) {
-              const json = await res.json().catch(() => ({}))
-              mediaUrl = json?.url
-            }
-          } catch (e) {}
+        } catch (e) {
+          console.error(`[Anime] Error fetching from PurrBot v2:`, e.message)
         }
       }
 
-      // 3️⃣ Waifu.pics (Fallback final - legacy)
-      if (!mediaUrl) {
-        try {
-          let apiCmd = currentCommand
-          if (apiCmd === 'eat') apiCmd = 'nom'
-
-          let res = await fetch(`https://api.waifu.pics/sfw/${apiCmd}`)
-          if (!res.ok) res = await fetch(`https://api.waifu.pics/sfw/neko`)
-
-          const json = await res.json().catch(() => ({}))
-          mediaUrl = json?.url
-        } catch (e) {}
-      }
-
-      if (!mediaUrl) throw new Error('No media url from any API')
+      if (!mediaUrl) throw new Error('No se pudo obtener GIF de PurrBot v2')
 
       // Descargar desde URL obtenida
       const mediaRes = await fetch(mediaUrl)
       const arrayBuf = await mediaRes.arrayBuffer()
       mediaBuffer = Buffer.from(arrayBuf)
 
-      if (!mediaBuffer) throw new Error('No media buffer')
+      if (!mediaBuffer) throw new Error('Buffer vacío')
       
       const mentions = [...new Set([who, m.sender])].filter(Boolean)
       const type = getBufferType(mediaBuffer)
@@ -258,6 +249,8 @@ export default {
         msgOptions.video = mediaBuffer
         msgOptions.gifPlayback = true
       } else if (type === 'jpg' || type === 'png') {
+        // ⚠️ Si recibimos PNG/JPG estático, lo enviamos como imagen
+        // pero esto NO debería ocurrir con PurrBot v2
         msgOptions.image = mediaBuffer
       } else {
         // Fallback: intentar como video

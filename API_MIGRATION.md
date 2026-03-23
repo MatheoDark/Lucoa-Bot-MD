@@ -79,15 +79,51 @@ const PURRBOT_API = 'https://api.purrbot.site/v2/img/sfw'
 3. Waifu.pics       ← LEGACY (fallback)
 ```
 
-## 🚀 Comandos PurrBot v2 Soportados
+## 🚀 Sistema Completo - SOLO PurrBot v2
 
-### SFW (16+)
+### Estrategia Final (ACTUALIZADA 2026)
+
+**Antes (Problemático):**
 ```
-hug, kiss, punch, slap, bite, bully, blush, cuddle,
-cry, drink, eat, laugh, pet, poke, sleep, smile, wave
+PurrBot v2 → Nekos.life → Waifu.pics ❌ (PNG estáticas)
 ```
 
-> **Nota**: Si un comando no existe exactamente en PurrBot, usa un fallback similar (ej: "smoke" → "drink")
+**Ahora (Optimizado):**
+```
+PurrBot v2 EXCLUSIVAMENTE ✅ (GIFs animados)
+```
+
+### Comandos SFW (28 Total - 19 Endpoints)
+```
+PURRBOTV2 Disponibles = 19 GIF endpoints:
+angry, bite, blush, comfy, cry, cuddle, dance, fluff, 
+hug, kiss, lay, lick, pat, poke, pout, slap, smile, tail, tickle
+
+Comandos del Bot = 28:
+- 12 usan endpoint directo
+- 16 usan mapeos inteligentes
+```
+
+### Tabla de Mapeos
+| Bot Command | PurrBot v2 | Razón |
+|---|---|---|
+| punch | slap | Acción de ataque |
+| kick | slap | Acción de ataque |
+| wave | smile | Gesto/expresión |
+| wink | smile | Expresión de ojo |
+| eat | comfy | Descanso/comodidad |
+| feed | lay | Descanso |
+| meow | smile | Expresión felina |
+| neko | tail | Contexto felino |
+| lizard | pout | Expresión linda |
+| woof | dance | Movimiento/diversión |
+| fox_girl | tail | Contexto animal |
+| smug | smile | Sonrisa altiva |
+| lewd | lick | Contexto provocador |
+| spank | slap | Acción de contacto |
+| gasm | pout | Expresión intensa |
+| gecko | tail | Contexto reptil |
+
 
 ## 🧪 Cómo Verificar
 
