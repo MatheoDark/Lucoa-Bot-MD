@@ -71,9 +71,32 @@ async function downloadBuffer(videoUrl, source) {
   }
 }
 
+async function downloadWithYtDlp(url, formatStr, timeout = 30000) {
+  const tmpDir = path.join(process.cwd(), 'tmp')
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
+  const outputFile = path.join(tmpDir, `${Date.now()}_${Math.random().toString(36).slice(2)}.mp4`)
+
+  try {
+    const cmd = `yt-dlp -f '${formatStr}' --no-warnings -o "${outputFile}" "${url}" 2>&1`
+    await execAsync(cmd, { timeout, maxBuffer: 100 * 1024 * 1024 })
+
+    if (fs.existsSync(outputFile)) {
+      const buffer = fs.readFileSync(outputFile)
+      const sizeMB = buffer.length / 1024 / 1024
+      console.log(`[TIKTOK] yt-dlp (${formatStr}): ${sizeMB.toFixed(1)}MB`)
+      try { fs.unlinkSync(outputFile) } catch {}
+      return buffer
+    }
+  } catch (e) {
+    try { fs.unlinkSync(outputFile) } catch {}
+    console.log(`[TIKTOK] yt-dlp error (${formatStr}): ${e.message.slice(0, 40)}`)
+  }
+  return null
+}
+
 async function downloadTikTokVideo(url) {
   const errors = []
-  const MIN_SIZE = 300000 // 300KB mínimo
+  const MIN_SIZE = 500000 // 500KB mínimo para video válido
 
   // 1. Intentar con TikWM
   try {
@@ -97,7 +120,7 @@ async function downloadTikTokVideo(url) {
     errors.push(`TikWM: ${e.message.slice(0, 30)}`)
   }
 
-  // 2. Fallback: TikSave API (más estable)
+  // 2. Fallback: TikSave API
   try {
     const apiUrl = `https://www.tiksave.com/v1/download?url=${encodeURIComponent(url)}`
     const res = await fetch(apiUrl, { timeout: 15000 })
@@ -114,7 +137,7 @@ async function downloadTikTokVideo(url) {
     errors.push(`TikSave: ${e.message.slice(0, 30)}`)
   }
 
-  // 3. Fallback: Douyin API (TikTok chino - más estable)
+  // 3. Fallback: Douyin API
   try {
     const apiUrl = `https://api.douyin.wtf/download?url=${encodeURIComponent(url)}`
     const res = await fetch(apiUrl, { timeout: 15000 })
@@ -132,35 +155,29 @@ async function downloadTikTokVideo(url) {
     errors.push(`Douyin: ${e.message.slice(0, 30)}`)
   }
 
-  // 4. Fallback FINAL: yt-dlp local (más confiable)
-  try {
-    const tmpDir = path.join(process.cwd(), 'tmp')
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
-    const outputFile = path.join(tmpDir, `${Date.now()}_tiktok.mp4`)
-
-    console.log('[TIKTOK] Usando yt-dlp como fallback...')
-    // Descargar con mejor formato: video + audio mezclado
-    const { stdout } = await execAsync(
-      `yt-dlp -f 'best[ext=mp4]/best' --merge-output-format mp4 --no-warnings --quiet -o "${outputFile}" "${url}"`,
-      { timeout: 120000, maxBuffer: 100 * 1024 * 1024 }
-    )
-
-    if (fs.existsSync(outputFile)) {
-      const buffer = fs.readFileSync(outputFile)
-      const sizeMB = buffer.length / 1024 / 1024
-      console.log(`[TIKTOK] yt-dlp descargó: ${sizeMB.toFixed(1)}MB`)
-      
-      if (buffer && buffer.length > MIN_SIZE) {
-        try { fs.unlinkSync(outputFile) } catch {}
-        return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
-      }
-    }
-    errors.push(`yt-dlp: ${fs.existsSync(outputFile) ? 'pequeño' : 'sin archivo'}`)
-  } catch (e) {
-    errors.push(`yt-dlp: ${e.message.slice(0, 40)}`)
+  // 4. Fallback: yt-dlp con múltiples formatos (para videos "difíciles")
+  console.log('[TIKTOK] Intentando yt-dlp con múltiples estrategias...')
+  
+  // Estrategia 1: Mejor formato disponible
+  let buffer = await downloadWithYtDlp(url, 'best', 25000)
+  if (buffer && buffer.length > MIN_SIZE) {
+    return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
   }
 
-  throw new Error(`Todas las APIs fallaron: ${errors.slice(-2).join(' | ')}`)
+  // Estrategia 2: Video mejor calidad + audio
+  buffer = await downloadWithYtDlp(url, 'best[ext=mp4]+bestaudio[ext=m4a]/best', 30000)
+  if (buffer && buffer.length > MIN_SIZE) {
+    return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
+  }
+
+  // Estrategia 3: Cualquier formato disponible
+  buffer = await downloadWithYtDlp(url, 'worst[ext=mp4]/worst', 25000)
+  if (buffer && buffer.length > MIN_SIZE) {
+    return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
+  }
+
+  errors.push('yt-dlp: Sin video válido después de 3 intentos')
+  throw new Error(`Descarga fallida: ${errors[errors.length - 1]}`)
 }
 
 export default {
