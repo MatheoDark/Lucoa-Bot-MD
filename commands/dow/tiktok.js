@@ -73,6 +73,7 @@ async function downloadBuffer(videoUrl, source) {
 
 async function downloadTikTokVideo(url) {
   const errors = []
+  const MIN_SIZE = 300000 // 300KB mínimo
 
   // 1. Intentar con TikWM
   try {
@@ -86,7 +87,7 @@ async function downloadTikTokVideo(url) {
       
       if (videoUrl) {
         const buffer = await downloadBuffer(videoUrl, 'TikWM')
-        if (buffer && buffer.length > 1000000) { // 1MB mínimo
+        if (buffer && buffer.length > MIN_SIZE) {
           return { buffer, data, source: 'TikWM' }
         }
       }
@@ -104,7 +105,7 @@ async function downloadTikTokVideo(url) {
 
     if (json?.video) {
       const buffer = await downloadBuffer(json.video, 'TikSave')
-      if (buffer && buffer.length > 1000000) {
+      if (buffer && buffer.length > MIN_SIZE) {
         return { buffer, data: json, source: 'TikSave' }
       }
     }
@@ -122,7 +123,7 @@ async function downloadTikTokVideo(url) {
     if (json?.video_url || json?.download_url) {
       const videoUrl = json.video_url || json.download_url
       const buffer = await downloadBuffer(videoUrl, 'Douyin')
-      if (buffer && buffer.length > 1000000) {
+      if (buffer && buffer.length > MIN_SIZE) {
         return { buffer, data: json, source: 'Douyin' }
       }
     }
@@ -138,24 +139,28 @@ async function downloadTikTokVideo(url) {
     const outputFile = path.join(tmpDir, `${Date.now()}_tiktok.mp4`)
 
     console.log('[TIKTOK] Usando yt-dlp como fallback...')
+    // Descargar con mejor formato: video + audio mezclado
     const { stdout } = await execAsync(
-      `yt-dlp -f best --no-warnings --quiet -o "${outputFile}" "${url}"`,
-      { timeout: 60000, maxBuffer: 50 * 1024 * 1024 }
+      `yt-dlp -f 'best[ext=mp4]/best' --merge-output-format mp4 --no-warnings --quiet -o "${outputFile}" "${url}"`,
+      { timeout: 120000, maxBuffer: 100 * 1024 * 1024 }
     )
 
     if (fs.existsSync(outputFile)) {
       const buffer = fs.readFileSync(outputFile)
-      if (buffer && buffer.length > 1000000) {
+      const sizeMB = buffer.length / 1024 / 1024
+      console.log(`[TIKTOK] yt-dlp descargó: ${sizeMB.toFixed(1)}MB`)
+      
+      if (buffer && buffer.length > MIN_SIZE) {
         try { fs.unlinkSync(outputFile) } catch {}
         return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
       }
     }
-    errors.push('yt-dlp: incompleto')
+    errors.push(`yt-dlp: ${fs.existsSync(outputFile) ? 'pequeño' : 'sin archivo'}`)
   } catch (e) {
-    errors.push(`yt-dlp: ${e.message.slice(0, 30)}`)
+    errors.push(`yt-dlp: ${e.message.slice(0, 40)}`)
   }
 
-  throw new Error(`Todas las APIs fallaron. Últimos errores: ${errors.slice(-2).join(' | ')}`)
+  throw new Error(`Todas las APIs fallaron: ${errors.slice(-2).join(' | ')}`)
 }
 
 export default {
