@@ -96,7 +96,8 @@ async function downloadWithYtDlp(url, formatStr, timeout = 30000) {
 
 async function downloadTikTokVideo(url) {
   const errors = []
-  const MIN_SIZE = 500000 // 500KB mínimo para video válido
+  const MIN_SIZE = 500000 // Umbral normal
+  const MIN_SHORT_YTDLP_SIZE = 180000 // Permitir clips muy cortos desde yt-dlp
 
   // 1. Intentar con TikWM
   try {
@@ -110,7 +111,7 @@ async function downloadTikTokVideo(url) {
       
       if (videoUrl) {
         const buffer = await downloadBuffer(videoUrl, 'TikWM')
-        if (buffer && buffer.length > MIN_SIZE) {
+        if (buffer && buffer.length >= MIN_SIZE) {
           return { buffer, data, source: 'TikWM' }
         }
       }
@@ -128,7 +129,7 @@ async function downloadTikTokVideo(url) {
 
     if (json?.video) {
       const buffer = await downloadBuffer(json.video, 'TikSave')
-      if (buffer && buffer.length > MIN_SIZE) {
+      if (buffer && buffer.length >= MIN_SIZE) {
         return { buffer, data: json, source: 'TikSave' }
       }
     }
@@ -146,7 +147,7 @@ async function downloadTikTokVideo(url) {
     if (json?.video_url || json?.download_url) {
       const videoUrl = json.video_url || json.download_url
       const buffer = await downloadBuffer(videoUrl, 'Douyin')
-      if (buffer && buffer.length > MIN_SIZE) {
+      if (buffer && buffer.length >= MIN_SIZE) {
         return { buffer, data: json, source: 'Douyin' }
       }
     }
@@ -160,20 +161,32 @@ async function downloadTikTokVideo(url) {
   
   // Estrategia 1: Mejor formato disponible
   let buffer = await downloadWithYtDlp(url, 'best', 25000)
-  if (buffer && buffer.length > MIN_SIZE) {
+  if (buffer && buffer.length >= MIN_SIZE) {
     return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
+  }
+  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE) {
+    console.log(`[TIKTOK] Aceptado clip corto desde yt-dlp (best): ${(buffer.length / 1024 / 1024).toFixed(2)}MB`)
+    return { buffer, data: { source: 'yt-dlp', short: true }, source: 'yt-dlp' }
   }
 
   // Estrategia 2: Video mejor calidad + audio
   buffer = await downloadWithYtDlp(url, 'best[ext=mp4]+bestaudio[ext=m4a]/best', 30000)
-  if (buffer && buffer.length > MIN_SIZE) {
+  if (buffer && buffer.length >= MIN_SIZE) {
     return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
+  }
+  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE) {
+    console.log(`[TIKTOK] Aceptado clip corto desde yt-dlp (best+bestaudio): ${(buffer.length / 1024 / 1024).toFixed(2)}MB`)
+    return { buffer, data: { source: 'yt-dlp', short: true }, source: 'yt-dlp' }
   }
 
   // Estrategia 3: Cualquier formato disponible
   buffer = await downloadWithYtDlp(url, 'worst[ext=mp4]/worst', 25000)
-  if (buffer && buffer.length > MIN_SIZE) {
+  if (buffer && buffer.length >= MIN_SIZE) {
     return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
+  }
+  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE) {
+    console.log(`[TIKTOK] Aceptado clip corto desde yt-dlp (worst): ${(buffer.length / 1024 / 1024).toFixed(2)}MB`)
+    return { buffer, data: { source: 'yt-dlp', short: true }, source: 'yt-dlp' }
   }
 
   errors.push('yt-dlp: Sin video válido después de 3 intentos')
