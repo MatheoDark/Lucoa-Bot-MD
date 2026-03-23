@@ -94,10 +94,16 @@ async function downloadWithYtDlp(url, formatStr, timeout = 30000) {
   return null
 }
 
+function isLikelyMp4(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 60000) return false
+  const head = buffer.subarray(0, 128).toString('latin1')
+  return head.includes('ftyp')
+}
+
 async function downloadTikTokVideo(url) {
   const errors = []
   const MIN_SIZE = 500000 // Umbral normal
-  const MIN_SHORT_YTDLP_SIZE = 180000 // Permitir clips muy cortos desde yt-dlp
+  const MIN_SHORT_YTDLP_SIZE = 70000 // Permitir clips ultra cortos desde yt-dlp
 
   // 1. Intentar con TikWM
   try {
@@ -164,7 +170,7 @@ async function downloadTikTokVideo(url) {
   if (buffer && buffer.length >= MIN_SIZE) {
     return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
   }
-  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE) {
+  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE && isLikelyMp4(buffer)) {
     console.log(`[TIKTOK] Aceptado clip corto desde yt-dlp (best): ${(buffer.length / 1024 / 1024).toFixed(2)}MB`)
     return { buffer, data: { source: 'yt-dlp', short: true }, source: 'yt-dlp' }
   }
@@ -174,7 +180,7 @@ async function downloadTikTokVideo(url) {
   if (buffer && buffer.length >= MIN_SIZE) {
     return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
   }
-  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE) {
+  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE && isLikelyMp4(buffer)) {
     console.log(`[TIKTOK] Aceptado clip corto desde yt-dlp (best+bestaudio): ${(buffer.length / 1024 / 1024).toFixed(2)}MB`)
     return { buffer, data: { source: 'yt-dlp', short: true }, source: 'yt-dlp' }
   }
@@ -184,7 +190,7 @@ async function downloadTikTokVideo(url) {
   if (buffer && buffer.length >= MIN_SIZE) {
     return { buffer, data: { source: 'yt-dlp' }, source: 'yt-dlp' }
   }
-  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE) {
+  if (buffer && buffer.length >= MIN_SHORT_YTDLP_SIZE && isLikelyMp4(buffer)) {
     console.log(`[TIKTOK] Aceptado clip corto desde yt-dlp (worst): ${(buffer.length / 1024 / 1024).toFixed(2)}MB`)
     return { buffer, data: { source: 'yt-dlp', short: true }, source: 'yt-dlp' }
   }
