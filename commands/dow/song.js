@@ -101,7 +101,7 @@ async function getDownloadUrl(url, isAudio) {
         if (res.status && res.download?.status && res.download?.url) {
             return { dl: res.download.url, title: res.metadata?.title, source: 'SaveTube' }
         }
-        errors.push('SaveTube: respuesta sin URL')
+        errors.push(`SaveTube: ${res?.download?.message || res?.message || 'respuesta sin URL'}`)
     } catch (e) { errors.push(`SaveTube: ${e.message}`) }
 
     // 2. Vreden API

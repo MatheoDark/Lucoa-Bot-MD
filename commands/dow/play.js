@@ -223,7 +223,9 @@ async function downloadWithFallbacks(url, isAudio) {
             timeout: 60000,
             fn: async () => {
                 const res = isAudio ? await ytmp3(url) : await ytmp4(url)
-                if (!res.status || !res.download?.status || !res.download?.url) throw new Error('respuesta sin URL')
+                if (!res.status || !res.download?.status || !res.download?.url) {
+                    throw new Error(res?.download?.message || res?.message || 'respuesta sin URL')
+                }
                 const localPath = await downloadToLocal(res.download.url, ext, 'SaveTube')
                 return { localPath, title: res.metadata?.title, source: 'SaveTube' }
             }
