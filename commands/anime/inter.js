@@ -32,6 +32,7 @@ const captions = {
   kickanime: (from, to) => from === to ? 'se pateó a sí mismo.' : 'le dio una patada a',
   cuddle: (from, to, genero) => from === to ? `se acurrucó ${genero === 'Hombre' ? 'solo' : genero === 'Mujer' ? 'sola' : 'solx'}.` : 'se acurrucó con',
   dance: (from, to) => from === to ? 'está bailando.' : 'está bailando con',
+  run: (from, to) => from === to ? 'salió a correr.' : 'salió a correr con',
   wave: (from, to, genero) => from === to ? `se saludó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'está saludando a',
   smile: (from, to) => from === to ? 'está sonriendo.' : 'le sonrió a',
   wink: (from, to, genero) => from === to ? `se guiñó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'le guiñó a',
@@ -131,6 +132,7 @@ const commandAliases = {
   patear: 'kickanime',
   acurrucar: 'cuddle',
   bailar: 'dance',
+  correr: 'run',
   saludar: 'wave',
   sonreir: 'smile',
   guiñar: 'wink',
@@ -224,7 +226,7 @@ export default {
       // Mapeos para v2
       const purbotv2Map = {
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
+        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'dance', 'smile': 'smile',
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
         'angry': 'angry', 'fluff': 'fluff', 'lick': 'lick', 'pout': 'pout', 'tail': 'tail', 'comfy': 'comfy',
         'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
@@ -238,7 +240,7 @@ export default {
       const purbotv1Map = {
         // Directos (disponibles en v1)
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
+        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'dance', 'smile': 'smile',
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
         
         // Mapeados (no existen en v1 exacto)

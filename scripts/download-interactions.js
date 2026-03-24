@@ -18,7 +18,7 @@ const PURRBOT_V1_API = 'https://purrbot.site/api/img/sfw'
 // PurrBot v2 SFW command mapping (19 comandos disponibles)
 const purbotv2Map = {
   'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-  'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
+  'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'dance', 'smile': 'smile',
   'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
   'angry': 'angry', 'fluff': 'fluff', 'lick': 'lick', 'pout': 'pout', 'tail': 'tail', 'comfy': 'comfy',
   'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
@@ -32,7 +32,7 @@ const purbotv2Map = {
 const purbotv1Map = {
   // Directos (disponibles en v1)
   'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-  'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
+  'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'dance', 'smile': 'smile',
   'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
   
   // Mapeados (no existen exacto en v1)

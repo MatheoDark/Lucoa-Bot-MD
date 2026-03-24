@@ -268,9 +268,21 @@ function getBufferType(buffer, url = '') {
 }
 
 const purrBotMap = {
-    anal: 'anal', cum: 'cum', fuck: 'fuck', lickpussy: 'pussylick',
-  fap: 'solo', blowjob: 'blowjob', threesome: 'threesome_fff', yuri: 'yuri',
+    anal: 'anal', cum: 'cum', fuck: ['fuck', 'neko'], lickpussy: 'pussylick',
+  fap: ['solo'], blowjob: 'blowjob', threesome: 'threesome_fff', yuri: 'yuri',
   spank: 'spank', neko18: 'neko', solo: 'solo'
+}
+
+// Intercalado por comando (round-robin) para variar endpoint en cada uso.
+const endpointRotation = {}
+
+function getInterleavedEndpoints(command, endpoints) {
+  if (!Array.isArray(endpoints) || endpoints.length <= 1) return endpoints
+
+  const index = endpointRotation[command] || 0
+  endpointRotation[command] = (index + 1) % endpoints.length
+
+  return endpoints.map((_, i) => endpoints[(index + i) % endpoints.length])
 }
 
 const r34Map = {
@@ -341,10 +353,20 @@ export default {
         // 1. PurrBot v2 (mejor mantenido, 2024+)
         if (purrBotMap[command]) {
             try {
-                const res = await fetch(`https://api.purrbot.site/v2/img/nsfw/${purrBotMap[command]}/gif`)
-                if (res.ok) {
-                    const json = await res.json()
-                    if (json?.link) url = json.link
+                const endpoints = Array.isArray(purrBotMap[command])
+                  ? purrBotMap[command]
+                  : [purrBotMap[command]]
+
+                const orderedEndpoints = getInterleavedEndpoints(command, endpoints)
+
+                for (const endpoint of orderedEndpoints) {
+                  const res = await fetch(`https://api.purrbot.site/v2/img/nsfw/${endpoint}/gif`)
+                  if (!res.ok) continue
+                  const json = await res.json().catch(() => ({}))
+                  if (json?.link) {
+                    url = json.link
+                    break
+                  }
                 }
             } catch (e) {
                 console.log(`[NSFW] PurrBot v2 fallback for ${command}`)
