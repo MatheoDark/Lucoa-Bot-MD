@@ -181,9 +181,10 @@ export default {
       let mediaBuffer = null
       let mediaUrl = null
 
-      // 🎬 DUAL API FALLBACK: PurrBot v2 → v1
+      // 🎬 DUAL API FALLBACK: fuentes directas por comando + PurrBot v2 → v1
       // PurrBot v2 (Primario): 19 comandos disponibles
       // PurrBot v1 (Fallback): 14 comandos disponibles
+      // Para comandos sin endpoint directo en v2, se priorizan APIs con reacción real.
       
       // Mapeos para v2
       const purbotv2Map = {
@@ -208,7 +209,54 @@ export default {
         'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko'
       }
 
-      // Función para intentar ambas APIs
+      const directReactionApis = {
+        punch: [
+          'https://nekos.best/api/v2/punch',
+          'https://api.otakugifs.xyz/gif?reaction=punch'
+        ],
+        kick: [
+          'https://nekos.best/api/v2/kick'
+        ],
+        wave: [
+          'https://nekos.best/api/v2/wave',
+          'https://api.otakugifs.xyz/gif?reaction=wave'
+        ],
+        wink: [
+          'https://nekos.best/api/v2/wink'
+        ],
+        feed: [
+          'https://nekos.best/api/v2/feed'
+        ],
+        neko: [
+          'https://nekos.best/api/v2/neko'
+        ],
+        smug: [
+          'https://nekos.best/api/v2/smug',
+          'https://api.otakugifs.xyz/gif?reaction=smug'
+        ]
+      }
+
+      // Prioriza reacción real cuando existe endpoint dedicado.
+      const fetchDirectReaction = async (cmd) => {
+        const apis = directReactionApis[cmd]
+        if (!apis?.length) return null
+
+        for (const api of apis) {
+          try {
+            const res = await fetch(api, { timeout: 5000 })
+            if (!res.ok) continue
+            const json = await res.json().catch(() => ({}))
+            const url = json?.results?.[0]?.url || json?.url || json?.link
+            if (url) return url
+          } catch (e) {
+            console.warn(`[Anime] API directa falló para ${cmd} (${api}): ${e.message}`)
+          }
+        }
+
+        return null
+      }
+
+      // Función para intentar ambas APIs de PurrBot
       const fetchFromPurrBot = async (cmd) => {
         let url = null
         
@@ -246,7 +294,11 @@ export default {
         return null
       }
 
-      if (purbotv2Map[currentCommand] || purbotv1Map[currentCommand]) {
+      // Ruta especial para comandos con endpoint directo (coherencia visual del comando)
+      mediaUrl = await fetchDirectReaction(currentCommand)
+
+      // Fallback general
+      if (!mediaUrl && (purbotv2Map[currentCommand] || purbotv1Map[currentCommand])) {
         mediaUrl = await fetchFromPurrBot(currentCommand)
       }
 

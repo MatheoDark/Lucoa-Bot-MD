@@ -38,6 +38,52 @@ const purbotv1Map = {
   'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko'
 }
 
+const directReactionApis = {
+  punch: [
+    'https://nekos.best/api/v2/punch',
+    'https://api.otakugifs.xyz/gif?reaction=punch'
+  ],
+  kick: [
+    'https://nekos.best/api/v2/kick'
+  ],
+  wave: [
+    'https://nekos.best/api/v2/wave',
+    'https://api.otakugifs.xyz/gif?reaction=wave'
+  ],
+  wink: [
+    'https://nekos.best/api/v2/wink'
+  ],
+  feed: [
+    'https://nekos.best/api/v2/feed'
+  ],
+  neko: [
+    'https://nekos.best/api/v2/neko'
+  ],
+  smug: [
+    'https://nekos.best/api/v2/smug',
+    'https://api.otakugifs.xyz/gif?reaction=smug'
+  ]
+}
+
+async function fetchDirectReaction(command) {
+  const apis = directReactionApis[command]
+  if (!apis?.length) return null
+
+  for (const api of apis) {
+    try {
+      const response = await fetch(api, { timeout: 5000 })
+      if (!response.ok) continue
+      const json = await response.json().catch(() => ({}))
+      const url = json?.results?.[0]?.url || json?.url || json?.link
+      if (url) return url
+    } catch {
+      // Si falla esta fuente, probar siguiente.
+    }
+  }
+
+  return null
+}
+
 // Helper: Download a file and get its buffer
 async function downloadFile(url) {
   try {
@@ -122,11 +168,14 @@ async function downloadInteraction(command, force = false) {
     attempts++
 
     try {
-      // 🎬 DUAL API FALLBACK: v2 → v1
+      // 🎬 DUAL API FALLBACK: fuentes directas por comando + v2 → v1
       let url = null
 
+      // Priorizar reacción real cuando existe endpoint dedicado.
+      url = await fetchDirectReaction(command)
+
       // 1️⃣ Intenta PurrBot v2 primero
-      if (purbotv2Map[command]) {
+      if (!url && purbotv2Map[command]) {
         try {
           const apiCmd = purbotv2Map[command]
           const response = await fetch(`${PURRBOT_V2_API}/${apiCmd}/gif`, { timeout: 5000 })
