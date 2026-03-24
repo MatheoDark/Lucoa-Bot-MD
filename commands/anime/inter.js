@@ -226,7 +226,7 @@ export default {
       // Mapeos para v2
       const purbotv2Map = {
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'dance', 'smile': 'smile',
+        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'smile', 'smile': 'smile',
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
         'angry': 'angry', 'fluff': 'fluff', 'lick': 'lick', 'pout': 'pout', 'tail': 'tail', 'comfy': 'comfy',
         'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
@@ -240,7 +240,7 @@ export default {
       const purbotv1Map = {
         // Directos (disponibles en v1)
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'dance', 'smile': 'smile',
+        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'smile', 'smile': 'smile',
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
         
         // Mapeados (no existen en v1 exacto)
@@ -263,6 +263,10 @@ export default {
         wave: [
           'https://nekos.best/api/v2/wave',
           'https://api.otakugifs.xyz/gif?reaction=wave'
+        ],
+        run: [
+          'https://nekos.best/api/v2/run',
+          'https://api.otakugifs.xyz/gif?reaction=run'
         ],
         wink: [
           'https://nekos.best/api/v2/wink'
