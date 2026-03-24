@@ -29,7 +29,7 @@ const captions = {
   slap: (from, to, genero) => from === to ? `se dio una bofetada a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'}.` : 'le dio una bofetada a',
   bite: (from, to, genero) => from === to ? `se mordió ${genero === 'Hombre' ? 'solito' : genero === 'Mujer' ? 'solita' : 'solitx'}.` : 'mordió a',
   punch: (from, to) => from === to ? 'lanza golpes al aire.' : 'le dio un puñetazo a',
-  kick: (from, to) => from === to ? 'se pateó a sí mismo.' : 'le dio una patada a',
+  kickanime: (from, to) => from === to ? 'se pateó a sí mismo.' : 'le dio una patada a',
   cuddle: (from, to, genero) => from === to ? `se acurrucó ${genero === 'Hombre' ? 'solo' : genero === 'Mujer' ? 'sola' : 'solx'}.` : 'se acurrucó con',
   dance: (from, to) => from === to ? 'está bailando.' : 'está bailando con',
   wave: (from, to, genero) => from === to ? `se saludó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'está saludando a',
@@ -51,7 +51,24 @@ const captions = {
   lewd: (from, to) => from === to ? 'está siendo provocador.' : 'se está comportando de manera provocadora con',
   spank: (from, to, genero) => from === to ? `se nalgueó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'}.` : 'le dio una nalgada a',
   gasm: (from, to) => from === to ? 'está jadeando.' : 'hace jadear a',
-  gecko: (from, to) => from === to ? 'está siendo un gecko.' : 'es un gecko para'
+  gecko: (from, to) => from === to ? 'está siendo un gecko.' : 'es un gecko para',
+
+  // --- COMANDOS EXTRA (PurrBot/Nekos.best) ---
+  angry: (from, to) => from === to ? 'está enojado.' : 'se enojó con',
+  fluff: (from, to) => from === to ? 'está esponjoso y feliz.' : 'se puso esponjoso con',
+  lick: (from, to) => from === to ? 'se lamió.' : 'lamió a',
+  pout: (from, to) => from === to ? 'está haciendo puchero.' : 'le hizo puchero a',
+  tail: (from, to) => from === to ? 'mueve la cola.' : 'mueve la cola para',
+  comfy: (from, to) => from === to ? 'está cómodo descansando.' : 'está cómodo junto a',
+  highfive: (from, to) => from === to ? 'se chocó los cinco en el aire.' : 'le chocó los cinco a',
+  handhold: (from, to) => from === to ? 'se tomó de su propia mano.' : 'tomó de la mano a',
+  nom: (from, to) => from === to ? 'está haciendo nom nom.' : 'le hizo nom nom a',
+  laugh: (from, to) => from === to ? 'se está riendo.' : 'se rió con',
+  yeet: (from, to) => from === to ? 'se lanzó al aire.' : 'lanzó a',
+  shrug: (from, to) => from === to ? 'se encogió de hombros.' : 'se encogió de hombros ante',
+  stare: (from, to) => from === to ? 'se quedó mirando fijo.' : 'miró fijamente a',
+  think: (from, to) => from === to ? 'está pensando.' : 'se quedó pensando en',
+  peck: (from, to) => from === to ? 'dio un besito al aire.' : 'le dio un besito a'
 }
 
 // Símbolos (Tu configuración)
@@ -110,7 +127,8 @@ const commandAliases = {
   bofetada: 'slap',
   morder: 'bite',
   golpear: 'punch',
-  patada: 'kick',
+  patada: 'kickanime',
+  patear: 'kickanime',
   acurrucar: 'cuddle',
   bailar: 'dance',
   saludar: 'wave',
@@ -129,7 +147,24 @@ const commandAliases = {
   sonrisaaltiva: 'smug',
   provocador: 'lewd',
   nalgada: 'spank',
-  jadear: 'gasm'
+  jadear: 'gasm',
+
+  // Extras
+  enojado: 'angry',
+  furioso: 'angry',
+  esponjoso: 'fluff',
+  lamer: 'lick',
+  puchero: 'pout',
+  cola: 'tail',
+  comodo: 'comfy',
+  choquepalmas: 'highfive',
+  tomarmano: 'handhold',
+  reir: 'laugh',
+  lanzar: 'yeet',
+  encoger: 'shrug',
+  mirar: 'stare',
+  pensar: 'think',
+  besito: 'peck'
 }
 
 // Generamos la lista de comandos para el export
@@ -191,9 +226,12 @@ export default {
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
         'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
-        'punch': 'slap', 'kick': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
+        'angry': 'angry', 'fluff': 'fluff', 'lick': 'lick', 'pout': 'pout', 'tail': 'tail', 'comfy': 'comfy',
+        'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
         'feed': 'lay', 'meow': 'smile', 'neko': 'tail', 'lizard': 'pout', 'woof': 'dance',
-        'fox_girl': 'tail', 'smug': 'smile', 'lewd': 'lick', 'spank': 'slap', 'gasm': 'pout', 'gecko': 'tail'
+        'fox_girl': 'tail', 'smug': 'smile', 'lewd': 'lick', 'spank': 'slap', 'gasm': 'pout', 'gecko': 'tail',
+        'highfive': 'smile', 'handhold': 'hug', 'nom': 'comfy', 'laugh': 'smile',
+        'yeet': 'dance', 'shrug': 'pout', 'stare': 'pout', 'think': 'pout', 'peck': 'kiss'
       }
       
       // Mapeos para v1 (fallback cuando v2 falla)
@@ -204,9 +242,12 @@ export default {
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
         
         // Mapeados (no existen en v1 exacto)
-        'punch': 'slap', 'kick': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'smile',
+        'angry': 'smile', 'fluff': 'smile', 'lick': 'smile', 'pout': 'smile', 'tail': 'neko', 'comfy': 'smile',
+        'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'smile',
         'meow': 'smile', 'lizard': 'smile', 'woof': 'dance', 'fox_girl': 'neko',
-        'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko'
+        'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko',
+        'highfive': 'smile', 'handhold': 'hug', 'nom': 'smile', 'laugh': 'smile',
+        'yeet': 'dance', 'shrug': 'smile', 'stare': 'smile', 'think': 'smile', 'peck': 'kiss'
       }
 
       const directReactionApis = {
@@ -214,7 +255,7 @@ export default {
           'https://nekos.best/api/v2/punch',
           'https://api.otakugifs.xyz/gif?reaction=punch'
         ],
-        kick: [
+        kickanime: [
           'https://nekos.best/api/v2/kick'
         ],
         wave: [
@@ -233,6 +274,33 @@ export default {
         smug: [
           'https://nekos.best/api/v2/smug',
           'https://api.otakugifs.xyz/gif?reaction=smug'
+        ],
+        highfive: [
+          'https://nekos.best/api/v2/highfive'
+        ],
+        handhold: [
+          'https://nekos.best/api/v2/handhold'
+        ],
+        nom: [
+          'https://nekos.best/api/v2/nom'
+        ],
+        laugh: [
+          'https://nekos.best/api/v2/laugh'
+        ],
+        yeet: [
+          'https://nekos.best/api/v2/yeet'
+        ],
+        shrug: [
+          'https://nekos.best/api/v2/shrug'
+        ],
+        stare: [
+          'https://nekos.best/api/v2/stare'
+        ],
+        think: [
+          'https://nekos.best/api/v2/think'
+        ],
+        peck: [
+          'https://nekos.best/api/v2/peck'
         ]
       }
 

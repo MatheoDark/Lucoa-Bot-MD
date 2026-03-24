@@ -20,9 +20,12 @@ const purbotv2Map = {
   'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
   'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'smile': 'smile',
   'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
-  'punch': 'slap', 'kick': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
+  'angry': 'angry', 'fluff': 'fluff', 'lick': 'lick', 'pout': 'pout', 'tail': 'tail', 'comfy': 'comfy',
+  'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
   'feed': 'lay', 'meow': 'smile', 'neko': 'tail', 'lizard': 'pout', 'woof': 'dance',
-  'fox_girl': 'tail', 'smug': 'smile', 'lewd': 'lick', 'spank': 'slap', 'gasm': 'pout', 'gecko': 'tail'
+  'fox_girl': 'tail', 'smug': 'smile', 'lewd': 'lick', 'spank': 'slap', 'gasm': 'pout', 'gecko': 'tail',
+  'highfive': 'smile', 'handhold': 'hug', 'nom': 'comfy', 'laugh': 'smile',
+  'yeet': 'dance', 'shrug': 'pout', 'stare': 'pout', 'think': 'pout', 'peck': 'kiss'
 }
 
 // PurrBot v1 SFW command mapping (14 comandos disponibles + mapeos fallback)
@@ -33,9 +36,12 @@ const purbotv1Map = {
   'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
   
   // Mapeados (no existen exacto en v1)
-  'punch': 'slap', 'kick': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'smile',
+  'angry': 'smile', 'fluff': 'smile', 'lick': 'smile', 'pout': 'smile', 'tail': 'neko', 'comfy': 'smile',
+  'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'smile',
   'meow': 'smile', 'lizard': 'smile', 'woof': 'dance', 'fox_girl': 'neko',
-  'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko'
+  'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko',
+  'highfive': 'smile', 'handhold': 'hug', 'nom': 'smile', 'laugh': 'smile',
+  'yeet': 'dance', 'shrug': 'smile', 'stare': 'smile', 'think': 'smile', 'peck': 'kiss'
 }
 
 const directReactionApis = {
@@ -43,7 +49,7 @@ const directReactionApis = {
     'https://nekos.best/api/v2/punch',
     'https://api.otakugifs.xyz/gif?reaction=punch'
   ],
-  kick: [
+  kickanime: [
     'https://nekos.best/api/v2/kick'
   ],
   wave: [
@@ -62,6 +68,33 @@ const directReactionApis = {
   smug: [
     'https://nekos.best/api/v2/smug',
     'https://api.otakugifs.xyz/gif?reaction=smug'
+  ],
+  highfive: [
+    'https://nekos.best/api/v2/highfive'
+  ],
+  handhold: [
+    'https://nekos.best/api/v2/handhold'
+  ],
+  nom: [
+    'https://nekos.best/api/v2/nom'
+  ],
+  laugh: [
+    'https://nekos.best/api/v2/laugh'
+  ],
+  yeet: [
+    'https://nekos.best/api/v2/yeet'
+  ],
+  shrug: [
+    'https://nekos.best/api/v2/shrug'
+  ],
+  stare: [
+    'https://nekos.best/api/v2/stare'
+  ],
+  think: [
+    'https://nekos.best/api/v2/think'
+  ],
+  peck: [
+    'https://nekos.best/api/v2/peck'
   ]
 }
 

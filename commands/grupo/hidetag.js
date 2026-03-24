@@ -1,8 +1,16 @@
 export default {
   command: ['hidetag', 'tag'],
   category: 'grupo',
-  isAdmin: true,
-  run: async ({client, m, args}) => {
+  run: async ({ client, m, args, isAdmin, isOwner }) => {
+    if (!m.isGroup) {
+      return m.reply('🐲 Este comando solo funciona en grupos.')
+    }
+
+    // Permitir uso tanto a admins del grupo como al creador del bot.
+    if (!isAdmin && !isOwner) {
+      return m.reply('🐲 Solo administradores o el creador pueden usar este comando.')
+    }
+
     const text = args.join(' ')
     const groupMetadata = m.isGroup ? await client.groupMetadata(m.chat).catch(() => null) : null
     const groupParticipants = groupMetadata?.participants || []
