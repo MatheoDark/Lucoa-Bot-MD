@@ -131,7 +131,9 @@ const captions = {
   creampie: (from, to) => from === to ? 'se llenó de leche.' : 'le llenó el coño de leche a',
   gangbang: (from, to) => from === to ? 'está siendo rodeada por todos.' : 'organizó una orgía con',
   facesitting: (from, to) => from === to ? 'se sentó en la cara de alguien.' : 'se sentó en la cara de',
-  rimjob: (from, to) => from === to ? 'se está lamiendo el culo.' : 'le está lamiendo el culo a'
+  rimjob: (from, to) => from === to ? 'se está lamiendo el culo.' : 'le está lamiendo el culo a',
+  neko18: (from, to) => from === to ? 'está en modo neko.' : 'se puso en modo neko para',
+  solo: (from, to) => from === to ? 'está en modo solo.' : 'se mostró en modo solo para'
 }
 
 const symbols = ['(⁠◠⁠‿⁠◕⁠)', '(✿◡‿◡)', '(✿✪‿✪｡)', '(*≧ω≦)', '(✧ω◕)', '(¬‿¬)', '(✧ω✧)', '(•̀ᴗ•́)و ̑̑']
@@ -267,7 +269,8 @@ function getBufferType(buffer, url = '') {
 
 const purrBotMap = {
     anal: 'anal', cum: 'cum', fuck: 'fuck', lickpussy: 'pussylick',
-    fap: 'solo', blowjob: 'blowjob', threesome: 'threesome_fff', yuri: 'yuri'
+  fap: 'solo', blowjob: 'blowjob', threesome: 'threesome_fff', yuri: 'yuri',
+  spank: 'spank', neko18: 'neko', solo: 'solo'
 }
 
 const r34Map = {
@@ -286,7 +289,9 @@ const commandAliases = {
   manosear: 'grope', toquetear: 'grope', chupartetas: 'suckboobs', agarrartetas: 'grabboobs',
   69: 'sixnine', dedos: 'fingering', dedear: 'fingering', mojarse: 'squirt', chorro: 'squirt',
   garganta: 'deepthroat', profunda: 'deepthroat', amarrar: 'bondage', atar: 'bondage', bdsm: 'bondage',
-  leche: 'creampie', llenar: 'creampie', orgia: 'gangbang', sentarse: 'facesitting', culo: 'rimjob', besoanal: 'rimjob'
+  leche: 'creampie', llenar: 'creampie', orgia: 'gangbang', sentarse: 'facesitting', culo: 'rimjob', besoanal: 'rimjob',
+  gatita: 'neko18', nekita: 'neko18',
+  autosolo: 'solo', solito: 'solo'
 }
 
 const mainCommands = Object.keys(captions)
@@ -322,6 +327,7 @@ export default {
 
     try {
       let buffer = null
+      let url = null
 
       // OPCIÓN 1: Buscar en /media/nsfw_interactions/ local
       buffer = getLocalNsfwMedia(command)
@@ -331,7 +337,6 @@ export default {
 
       // OPCIÓN 2: Fallback a APIs remotas (si no tiene local)
       if (!buffer) {
-        let url = null
 
         // 1. PurrBot v2 (mejor mantenido, 2024+)
         if (purrBotMap[command]) {
@@ -349,17 +354,6 @@ export default {
         // 2. Rule34 (MODO SCRAPING)
         if (!url && r34Map[command]) {
             url = await getRule34Media(r34Map[command])
-        }
-
-        // 3. Fallback (Waifu.pics)
-        if (!url) {
-            try {
-                console.log('[NSFW] Fallback a Waifu.pics')
-                const backupTag = command === 'boobjob' ? 'blowjob' : 'waifu'
-                const res = await fetch(`https://api.waifu.pics/nsfw/${backupTag}`)
-                const json = await res.json()
-                url = json.url
-            } catch (e) {}
         }
 
         if (!url) return m.reply('🐲 No se encontró nada. (╥﹏╥)')

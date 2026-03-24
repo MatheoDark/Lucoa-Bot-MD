@@ -34,7 +34,10 @@ const purbotNsfwCommandMap = {
     fap: 'solo',
     blowjob: 'blowjob',
     threesome: 'threesome_fff',
-    yuri: 'yuri'
+    yuri: 'yuri',
+    spank: 'spank',
+    neko18: 'neko',
+    solo: 'solo'
     // Otros comandos no tienen soporte en PurrBot, caerán a R34
 }
 
@@ -64,7 +67,9 @@ const r34CommandMap = {
     creampie: 'creampie',
     gangbang: 'gangbang',
     facesitting: 'sitting',
-    rimjob: 'rimjob'
+    rimjob: 'rimjob',
+    neko18: 'neko',
+    solo: 'solo'
 }
 
 // Download media from PurrBot v2 NSFW (Primary source)
