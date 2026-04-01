@@ -52,17 +52,42 @@ export function invalidateAudiosCache() {
 const cooldowns = new Map()
 const COOLDOWN_MS = 30000 // 30s entre audios en el mismo grupo
 
+function unwrapMessageContent(message = {}) {
+  let msg = message
+  // Algunos clientes envuelven el contenido real dentro de estas capas.
+  if (msg?.ephemeralMessage?.message) msg = msg.ephemeralMessage.message
+  if (msg?.viewOnceMessage?.message) msg = msg.viewOnceMessage.message
+  if (msg?.viewOnceMessageV2?.message) msg = msg.viewOnceMessageV2.message
+  if (msg?.viewOnceMessageV2Extension?.message) msg = msg.viewOnceMessageV2Extension.message
+  return msg || {}
+}
+
+function getBodyText(m) {
+  const msg = unwrapMessageContent(m?.message || {})
+  return (
+    msg?.conversation ||
+    msg?.extendedTextMessage?.text ||
+    msg?.imageMessage?.caption ||
+    msg?.videoMessage?.caption ||
+    msg?.buttonsResponseMessage?.selectedButtonId ||
+    msg?.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    msg?.templateButtonReplyMessage?.selectedId ||
+    ''
+  )
+}
+
 /**
  * Hook "all" — se ejecuta en cada mensaje recibido
  */
 export async function all(m, { client }) {
-  if (!m.isGroup || m.key?.fromMe) return false
+  const isGroup = !!(m?.isGroup || String(m?.chat || m?.key?.remoteJid || '').endsWith('@g.us'))
+  if (!isGroup || m.key?.fromMe) return false
   
   const chat = global.db?.data?.chats?.[m.chat]
   if (!chat || !chat.audios) return false
   
   // Solo reaccionar a mensajes de texto cortos
-  const body = m.message?.conversation || m.message?.extendedTextMessage?.text || ''
+  const body = getBodyText(m)
   if (!body || body.length > 50) return false
   
   // Respetar primaryBot

@@ -82,7 +82,9 @@ Ejemplo:
     }
 
     if (sub === 'add') {
-      const keywords = args.slice(1).join(' ').split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
+      const keywords = [...new Set(
+        args.slice(1).join(' ').split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
+      )]
       if (!keywords.length) {
         return m.reply('⚠️ Debes poner al menos una keyword.\nEjemplo: *#audios add hola,buenas,hey*')
       }
@@ -126,7 +128,10 @@ Ejemplo:
         })
         saveAudios(audios)
 
-        return m.reply(`✅ Audio guardado como *${filename}*\n\n🔑 Keywords: *${keywords.join(', ')}*\n📦 Tamaño: ${(buffer.length / 1024).toFixed(1)} KB\n\n> Cuando alguien escriba alguna de esas palabras, el bot responderá con este audio.`)
+        // Auto-activar para evitar confusion despues de guardar.
+        if (chat.audios !== true) chat.audios = true
+
+        return m.reply(`✅ Audio guardado como *${filename}*\n\n🔑 Keywords: *${keywords.join(', ')}*\n📦 Tamaño: ${(buffer.length / 1024).toFixed(1)} KB\n\n> Auto-audios quedó *activado* en este grupo.\n> Cuando alguien escriba alguna de esas palabras, el bot responderá con este audio.`)
       } catch (e) {
         console.error('Error guardando audio:', e)
         return m.reply('❌ Error al guardar el audio: ' + e.message)
