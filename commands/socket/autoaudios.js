@@ -50,7 +50,7 @@ export function invalidateAudiosCache() {
 
 // Cooldown por grupo para no spamear audios
 const cooldowns = new Map()
-const COOLDOWN_MS = 30000 // 30s entre audios en el mismo grupo
+const COOLDOWN_MS = 10000 // 10s por audio en el mismo grupo
 
 function unwrapMessageContent(message = {}) {
   let msg = message
@@ -94,10 +94,6 @@ export async function all(m, { client }) {
   const botId = client.user?.id?.split(':')[0] + '@s.whatsapp.net'
   if (chat.primaryBot && chat.primaryBot !== botId) return false
   
-  // Cooldown por grupo
-  const lastAudio = cooldowns.get(m.chat) || 0
-  if (Date.now() - lastAudio < COOLDOWN_MS) return false
-  
   const audios = loadAudios()
   if (!audios.length) return false
   
@@ -108,12 +104,17 @@ export async function all(m, { client }) {
     item.keywords.some(key => new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text))
   )
   if (!match) return false
+
+  // Cooldown por audio (no bloquea otros audios/palabras del mismo grupo)
+  const cooldownKey = `${m.chat}:${match.file}`
+  const lastAudio = cooldowns.get(cooldownKey) || 0
+  if (Date.now() - lastAudio < COOLDOWN_MS) return false
   
   // Verificar que el archivo existe
   const filePath = path.join(AUDIOS_DIR, match.file)
   if (!existsSync(filePath)) return false
   
-  cooldowns.set(m.chat, Date.now())
+  cooldowns.set(cooldownKey, Date.now())
   
   try {
     const buffer = readFileSync(filePath)
