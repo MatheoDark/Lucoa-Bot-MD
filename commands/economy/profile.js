@@ -1,6 +1,7 @@
 import { resolveLidToRealJid } from "../../lib/utils.js"
 import { getClassName, getClassEmoji } from './class.js'
 import { getPrestigeTitle } from './prestige.js'
+import { fileURLToPath } from 'node:url'
 
 export default {
   command: ['profile', 'perfil'],
@@ -60,8 +61,9 @@ export default {
     const bank = user.bank || 0
     const totalCoins = coins + bank
 
-    // 6. Obtener Foto de Perfil
-    const perfil = await client.profilePictureUrl(userId, 'image').catch((_) => 'https://cdn.stellarwa.xyz/files/1751246122292.jpg')
+    // 6. Obtener Foto de Perfil (con fallback local para evitar caidas de CDN externas)
+    const perfil = await client.profilePictureUrl(userId, 'image').catch(() => null)
+    const fallbackImagePath = fileURLToPath(new URL('../../media/banner1.jpg', import.meta.url))
 
     // 7. Calcular Rank Global (Top Nivel)
     // Convertimos el objeto de usuarios en array y ordenamos por nivel
@@ -111,12 +113,20 @@ export default {
 
 > _${desc}_`
 
-    // 9. Enviar
+    // 10. Enviar
     const mentionList = [userId, ...(user.marry ? [user.marry] : [])]
-    await client.sendMessage(m.chat, { 
-        image: { url: perfil }, 
-        caption: profileText,
-        mentions: mentionList
-    }, { quoted: m })
+    try {
+        await client.sendMessage(m.chat, {
+            image: { url: perfil || fallbackImagePath },
+            caption: profileText,
+            mentions: mentionList
+        }, { quoted: m })
+    } catch {
+        // Si falla la descarga/subida de imagen, enviamos texto para no romper el comando.
+        await client.sendMessage(m.chat, {
+            text: profileText,
+            mentions: mentionList
+        }, { quoted: m })
+    }
   }
 };
