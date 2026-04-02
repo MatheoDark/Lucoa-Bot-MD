@@ -53,7 +53,23 @@ function withTimeout(promise, ms, label) {
 // ==========================================
 async function getBuffer(url) {
     try {
-        const res = await axios.get(url, { responseType: 'arraybuffer' })
+        const cacheBustedUrl = (() => {
+            try {
+                const parsed = new URL(url)
+                parsed.searchParams.set('_', Date.now().toString())
+                return parsed.toString()
+            } catch {
+                return url
+            }
+        })()
+        const res = await axios.get(cacheBustedUrl, {
+            responseType: 'arraybuffer',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        })
         return res.data
     } catch { return null }
 }
@@ -340,13 +356,14 @@ export default {
         
         url = videoInfo.url
         title = videoInfo.title
+        const thumb = await getBuffer(videoInfo.thumbnail)
 
         // --- DIRECTO ---
         if (['mp3', 'ytmp3', 'playaudio'].includes(command)) {
-            return await executeDownload(client, m, url, 'audio', title, videoInfo.thumbnail)
+            return await executeDownload(client, m, url, 'audio', title, thumb)
         }
         if (['mp4', 'ytmp4', 'playvideo'].includes(command)) {
-            return await executeDownload(client, m, url, 'video', title, videoInfo.thumbnail)
+            return await executeDownload(client, m, url, 'video', title, thumb)
         }
 
         // --- MENÚ ---
@@ -361,12 +378,16 @@ Responde con el número:
 🎬 *2* Video (MP4)
 📂 *3* Documento`
 
-        let thumb = await getBuffer(videoInfo.thumbnail)
         const msg = await client.sendMessage(chatId, { image: thumb || undefined, caption }, { quoted: m })
 
         global.play_pending = global.play_pending || {}
         global.play_pending[chatId] = {
-            url, title, thumb: videoInfo.thumbnail, sender: m.sender, key: msg.key
+            url,
+            title,
+            thumb: thumb || null,
+            thumbUrl: videoInfo.thumbnail,
+            sender: m.sender,
+            key: msg.key
         }
     },
 
@@ -385,13 +406,13 @@ Responde con el número:
         if (text === '2') type = 'video'
         if (text === '3') type = 'document'
         
-        await executeDownload(client, m, pending.url, type, pending.title, pending.thumb)
+        await executeDownload(client, m, pending.url, type, pending.title, pending.thumb, pending.thumbUrl)
         return true
     }
 }
 
 // ⚙️ FUNCIÓN EJECUTORA
-async function executeDownload(client, m, url, type, title, thumb) {
+async function executeDownload(client, m, url, type, title, thumb, thumbUrl = null) {
     const isAudio = type === 'audio' || type === 'document'
     global.play_active = global.play_active || {}
     if (global.play_active[m.chat]) return m.reply('⏳ Ya hay una descarga en curso en este chat. Intenta nuevamente en unos segundos.')
@@ -409,7 +430,14 @@ async function executeDownload(client, m, url, type, title, thumb) {
         // Miniatura
         let thumbBuffer = null
         try {
-            if (thumb) {
+            if (Buffer.isBuffer(thumb)) {
+                thumbBuffer = thumb
+            } else if (thumbUrl) {
+                const thumbData = await getBuffer(thumbUrl)
+                if (thumbData) {
+                    thumbBuffer = await sharp(Buffer.from(thumbData)).resize(320, 180).jpeg({ quality: 80 }).toBuffer()
+                }
+            } else if (thumb) {
                 const response = await fetch(thumb)
                 const arrayBuffer = await response.arrayBuffer()
                 thumbBuffer = await sharp(Buffer.from(arrayBuffer)).resize(320, 180).jpeg({ quality: 80 }).toBuffer()
