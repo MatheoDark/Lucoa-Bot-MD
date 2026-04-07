@@ -577,41 +577,39 @@ export default {
 
       // Función para intentar ambas APIs de PurrBot
       const fetchFromPurrBot = async (cmd) => {
-        let url = null
-        
-        // 1️⃣ Intenta PurrBot v2 primero
-        if (purbotv2Map[cmd]) {
+        const v2Candidates = [...new Set([cmd, purbotv2Map[cmd]].filter(Boolean))]
+        const v1Candidates = [...new Set([cmd, purbotv1Map[cmd]].filter(Boolean))]
+
+        // 1️⃣ Intenta PurrBot v2 primero: comando real -> mapeo
+        for (const v2Endpoint of v2Candidates) {
           try {
-            const v2Endpoint = purbotv2Map[cmd]
             const res = await fetch(`https://api.purrbot.site/v2/img/sfw/${v2Endpoint}/gif`, { timeout: 5000 })
-            if (res.ok) {
-              const json = await res.json().catch(() => ({}))
-              if (json?.link) return json.link
-            }
+            if (!res.ok) continue
+            const json = await res.json().catch(() => ({}))
+            if (json?.link) return json.link
           } catch (e) {
-            console.warn(`[Anime] v2 intento falló para ${cmd}: ${e.message}`)
+            console.warn(`[Anime] v2 intento falló para ${cmd} (${v2Endpoint}): ${e.message}`)
           }
         }
-        
-        // 2️⃣ Fallback a PurrBot v1
-        if (purbotv1Map[cmd]) {
+
+        // 2️⃣ Fallback a PurrBot v1: comando real -> mapeo
+        for (const v1Endpoint of v1Candidates) {
           try {
-            const v1Endpoint = purbotv1Map[cmd]
             const res = await fetch(`https://purrbot.site/api/img/sfw/${v1Endpoint}/gif`, { timeout: 5000 })
-            if (res.ok) {
-              const json = await res.json().catch(() => ({}))
-              if (json?.link) {
-                console.log(`[Anime] ${cmd} obtenido desde PurrBot v1 (fallback)`)
-                return json.link
-              }
+            if (!res.ok) continue
+            const json = await res.json().catch(() => ({}))
+            if (json?.link) {
+              console.log(`[Anime] ${cmd} obtenido desde PurrBot v1 (${v1Endpoint})`)
+              return json.link
             }
           } catch (e) {
-            console.warn(`[Anime] v1 intento falló para ${cmd}: ${e.message}`)
+            console.warn(`[Anime] v1 intento falló para ${cmd} (${v1Endpoint}): ${e.message}`)
           }
         }
-        
+
         return null
       }
+
 
       // Ruta especial para comandos con endpoint directo (coherencia visual del comando)
       mediaUrl = await fetchDirectReaction(currentCommand)
@@ -642,14 +640,9 @@ export default {
       } else if (type === 'mp4' || type === 'webm') {
         msgOptions.video = mediaBuffer
         msgOptions.gifPlayback = true
-      } else if (type === 'jpg' || type === 'png') {
-        // ⚠️ Si recibimos PNG/JPG estático, lo enviamos como imagen
-        // pero esto NO debería ocurrir con PurrBot v2
-        msgOptions.image = mediaBuffer
       } else {
-        // Fallback: intentar como video
-        msgOptions.video = mediaBuffer
-        msgOptions.gifPlayback = true
+        // Modo estricto: solo contenido animado
+        throw new Error(`Media no animada detectada (${type})`)
       }
 
       await client.sendMessage(m.chat, msgOptions, { quoted: m })
