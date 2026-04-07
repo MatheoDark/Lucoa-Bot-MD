@@ -33,6 +33,7 @@ const captions = {
   cuddle: (from, to, genero) => from === to ? `se acurrucó ${genero === 'Hombre' ? 'solo' : genero === 'Mujer' ? 'sola' : 'solx'}.` : 'se acurrucó con',
   dance: (from, to) => from === to ? 'está bailando.' : 'está bailando con',
   run: (from, to) => from === to ? 'salió a correr.' : 'salió a correr con',
+  kill: (from, to) => from === to ? 'está en modo caos.' : 'acabó con',
   wave: (from, to, genero) => from === to ? `se saludó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'está saludando a',
   smile: (from, to) => from === to ? 'está sonriendo.' : 'le sonrió a',
   wink: (from, to, genero) => from === to ? `se guiñó a sí ${genero === 'Hombre' ? 'mismo' : genero === 'Mujer' ? 'misma' : 'mismx'} en el espejo.` : 'le guiñó a',
@@ -69,7 +70,41 @@ const captions = {
   shrug: (from, to) => from === to ? 'se encogió de hombros.' : 'se encogió de hombros ante',
   stare: (from, to) => from === to ? 'se quedó mirando fijo.' : 'miró fijamente a',
   think: (from, to) => from === to ? 'está pensando.' : 'se quedó pensando en',
-  peck: (from, to) => from === to ? 'dio un besito al aire.' : 'le dio un besito a'
+  peck: (from, to) => from === to ? 'dio un besito al aire.' : 'le dio un besito a',
+  bite_head: (from, to) => from === to ? 'hizo una mordida al aire.' : 'le mordió la cabeza a',
+  bleh: (from, to) => from === to ? 'sacó la lengua.' : 'le sacó la lengua a',
+  bonk: (from, to) => from === to ? 'se dio un golpecito.' : 'le dio un bonk a',
+  bored: (from, to) => from === to ? 'está aburrido.' : 'se aburrió con',
+  bully: (from, to) => from === to ? 'está en modo bully consigo mismo.' : 'molestó a',
+  celebrate: (from, to) => from === to ? 'está celebrando.' : 'celebró con',
+  clap: (from, to) => from === to ? 'se aplaudió.' : 'le aplaudió a',
+  coffee: (from, to) => from === to ? 'se tomó un café.' : 'invitó un café a',
+  comfort: (from, to) => from === to ? 'se consoló.' : 'consoló a',
+  confused: (from, to) => from === to ? 'está confundido.' : 'quedó confundido por',
+  cringe: (from, to) => from === to ? 'sintió cringe.' : 'sintió cringe por',
+  dramatic: (from, to) => from === to ? 'está en modo dramático.' : 'hizo drama con',
+  drunk: (from, to) => from === to ? 'está borracho.' : 'se emborrachó con',
+  flick: (from, to) => from === to ? 'se dio un flick.' : 'le hizo flick a',
+  freeze: (from, to) => from === to ? 'se quedó congelado.' : 'congeló a',
+  grab: (from, to) => from === to ? 'se agarró a sí mismo.' : 'agarró a',
+  happy: (from, to) => from === to ? 'está feliz.' : 'se puso feliz con',
+  impregnate: (from, to) => from === to ? 'está en modo intenso.' : 'fue intenso con',
+  knead: (from, to) => from === to ? 'está amasando.' : 'amasó a',
+  love: (from, to) => from === to ? 'se ama a sí mismo.' : 'demostró amor a',
+  sad: (from, to) => from === to ? 'está triste.' : 'se puso triste por',
+  scared: (from, to) => from === to ? 'está asustado.' : 'se asustó de',
+  seduce: (from, to) => from === to ? 'intentó seducirse.' : 'sedujo a',
+  shock: (from, to) => from === to ? 'quedó en shock.' : 'dejó en shock a',
+  shy: (from, to) => from === to ? 'está tímido.' : 'se puso tímido con',
+  sing: (from, to) => from === to ? 'está cantando.' : 'le cantó a',
+  sleep: (from, to) => from === to ? 'se quedó dormido.' : 'se durmió junto a',
+  slurp: (from, to) => from === to ? 'está sorbiendo.' : 'sorbió a',
+  smoke: (from, to) => from === to ? 'está fumando.' : 'fumó con',
+  spit: (from, to) => from === to ? 'escupió al aire.' : 'escupió a',
+  splash: (from, to) => from === to ? 'se salpicó agua.' : 'salpicó agua a',
+  trip: (from, to) => from === to ? 'se tropezó.' : 'tropezó cerca de',
+  walk: (from, to) => from === to ? 'salió a caminar.' : 'caminó con',
+  peek: (from, to) => from === to ? 'se asomó discretamente.' : 'se asomó a mirar a'
 }
 
 // Símbolos (Tu configuración)
@@ -133,6 +168,8 @@ const commandAliases = {
   acurrucar: 'cuddle',
   bailar: 'dance',
   correr: 'run',
+  matar: 'kill',
+  decapitar: 'kill',
   saludar: 'wave',
   sonreir: 'smile',
   guiñar: 'wink',
@@ -166,7 +203,44 @@ const commandAliases = {
   encoger: 'shrug',
   mirar: 'stare',
   pensar: 'think',
-  besito: 'peck'
+  besito: 'peck',
+
+  // Extras agregados
+  morderescarabajo: 'bite_head',
+  burla: 'bleh',
+  golpecito: 'bonk',
+  aburrido: 'bored',
+  acosar: 'bully',
+  celebrar: 'celebrate',
+  aplaudir: 'clap',
+  cafe: 'coffee',
+  consolar: 'comfort',
+  confundido: 'confused',
+  verguenza: 'cringe',
+  dramatica: 'dramatic',
+  dramatico: 'dramatic',
+  borracho: 'drunk',
+  flequillo: 'flick',
+  congelar: 'freeze',
+  agarrar: 'grab',
+  feliz: 'happy',
+  embarazar: 'impregnate',
+  amasar: 'knead',
+  amar: 'love',
+  triste: 'sad',
+  asustado: 'scared',
+  seducir: 'seduce',
+  timido: 'shy',
+  cantar: 'sing',
+  dormir: 'sleep',
+  sorber: 'slurp',
+  fumar: 'smoke',
+  escupir: 'spit',
+  salpicar: 'splash',
+  tropezar: 'trip',
+  caminar: 'walk',
+  mirar_escondidas: 'peek',
+  sonrojarse: 'blush'
 }
 
 // Generamos la lista de comandos para el export
@@ -227,20 +301,32 @@ export default {
       const purbotv2Map = {
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
         'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'smile', 'smile': 'smile',
+        'kill': 'angry',
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
         'angry': 'angry', 'fluff': 'fluff', 'lick': 'lick', 'pout': 'pout', 'tail': 'tail', 'comfy': 'comfy',
         'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
         'feed': 'lay', 'meow': 'smile', 'neko': 'tail', 'lizard': 'pout', 'woof': 'dance',
         'fox_girl': 'tail', 'smug': 'smile', 'lewd': 'lick', 'spank': 'slap', 'gasm': 'pout', 'gecko': 'tail',
         'highfive': 'smile', 'handhold': 'hug', 'nom': 'comfy', 'laugh': 'smile',
-        'yeet': 'dance', 'shrug': 'pout', 'stare': 'pout', 'think': 'pout', 'peck': 'kiss'
+        'yeet': 'dance', 'shrug': 'pout', 'stare': 'pout', 'think': 'pout', 'peck': 'kiss',
+
+        // Extras agregados
+        'bite_head': 'bite', 'bleh': 'pout', 'bonk': 'slap', 'bored': 'comfy',
+        'bully': 'angry', 'celebrate': 'smile', 'clap': 'smile', 'coffee': 'comfy',
+        'comfort': 'hug', 'confused': 'pout', 'cringe': 'pout', 'dramatic': 'pout',
+        'drunk': 'smile', 'flick': 'slap', 'freeze': 'pout', 'grab': 'hug',
+        'happy': 'smile', 'impregnate': 'pout', 'knead': 'pat', 'love': 'cuddle',
+        'sad': 'cry', 'scared': 'pout', 'seduce': 'wink', 'shock': 'pout',
+        'shy': 'blush', 'sing': 'dance', 'sleep': 'comfy', 'slurp': 'lick',
+        'smoke': 'smug', 'spit': 'pout', 'splash': 'wave', 'trip': 'run',
+        'walk': 'run', 'peek': 'stare'
       }
       
       // Mapeos para v1 (fallback cuando v2 falla)
       const purbotv1Map = {
         // Directos (disponibles en v1)
         'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'smile', 'smile': 'smile',
+        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'smile', 'smile': 'smile', 'kill': 'slap',
         'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
         
         // Mapeados (no existen en v1 exacto)
@@ -249,7 +335,18 @@ export default {
         'meow': 'smile', 'lizard': 'smile', 'woof': 'dance', 'fox_girl': 'neko',
         'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko',
         'highfive': 'smile', 'handhold': 'hug', 'nom': 'smile', 'laugh': 'smile',
-        'yeet': 'dance', 'shrug': 'smile', 'stare': 'smile', 'think': 'smile', 'peck': 'kiss'
+        'yeet': 'dance', 'shrug': 'smile', 'stare': 'smile', 'think': 'smile', 'peck': 'kiss',
+
+        // Extras agregados
+        'bite_head': 'bite', 'bleh': 'smile', 'bonk': 'slap', 'bored': 'smile',
+        'bully': 'slap', 'celebrate': 'smile', 'clap': 'smile', 'coffee': 'smile',
+        'comfort': 'hug', 'confused': 'smile', 'cringe': 'smile', 'dramatic': 'smile',
+        'drunk': 'smile', 'flick': 'slap', 'freeze': 'smile', 'grab': 'hug',
+        'happy': 'smile', 'impregnate': 'smile', 'knead': 'pat', 'love': 'hug',
+        'sad': 'cry', 'scared': 'smile', 'seduce': 'smile', 'shock': 'smile',
+        'shy': 'blush', 'sing': 'dance', 'sleep': 'smile', 'slurp': 'smile',
+        'smoke': 'smile', 'spit': 'smile', 'splash': 'smile', 'trip': 'smile',
+        'walk': 'smile', 'peek': 'smile'
       }
 
       const directReactionApis = {
@@ -267,6 +364,9 @@ export default {
         run: [
           'https://nekos.best/api/v2/run',
           'https://api.otakugifs.xyz/gif?reaction=run'
+        ],
+        kill: [
+          'https://api.otakugifs.xyz/gif?reaction=kill'
         ],
         wink: [
           'https://nekos.best/api/v2/wink'
@@ -307,6 +407,110 @@ export default {
         ],
         peck: [
           'https://nekos.best/api/v2/peck'
+        ],
+
+        // Extras agregados
+        bite_head: [
+          'https://api.otakugifs.xyz/gif?reaction=bite'
+        ],
+        bleh: [
+          'https://api.otakugifs.xyz/gif?reaction=bleh'
+        ],
+        bonk: [
+          'https://api.otakugifs.xyz/gif?reaction=bonk'
+        ],
+        bored: [
+          'https://api.otakugifs.xyz/gif?reaction=bored'
+        ],
+        bully: [
+          'https://api.otakugifs.xyz/gif?reaction=bully'
+        ],
+        celebrate: [
+          'https://api.otakugifs.xyz/gif?reaction=happy'
+        ],
+        clap: [
+          'https://api.otakugifs.xyz/gif?reaction=clap'
+        ],
+        coffee: [
+          'https://api.otakugifs.xyz/gif?reaction=coffee'
+        ],
+        comfort: [
+          'https://api.otakugifs.xyz/gif?reaction=comfort'
+        ],
+        confused: [
+          'https://api.otakugifs.xyz/gif?reaction=confused'
+        ],
+        cringe: [
+          'https://api.otakugifs.xyz/gif?reaction=cringe'
+        ],
+        dramatic: [
+          'https://api.otakugifs.xyz/gif?reaction=dramatic'
+        ],
+        drunk: [
+          'https://api.otakugifs.xyz/gif?reaction=drunk'
+        ],
+        flick: [
+          'https://api.otakugifs.xyz/gif?reaction=flick'
+        ],
+        freeze: [
+          'https://api.otakugifs.xyz/gif?reaction=freeze'
+        ],
+        grab: [
+          'https://api.otakugifs.xyz/gif?reaction=grab'
+        ],
+        happy: [
+          'https://api.otakugifs.xyz/gif?reaction=happy'
+        ],
+        impregnate: [
+          'https://api.otakugifs.xyz/gif?reaction=seduce'
+        ],
+        knead: [
+          'https://api.otakugifs.xyz/gif?reaction=knead'
+        ],
+        love: [
+          'https://api.otakugifs.xyz/gif?reaction=love'
+        ],
+        sad: [
+          'https://api.otakugifs.xyz/gif?reaction=sad'
+        ],
+        scared: [
+          'https://api.otakugifs.xyz/gif?reaction=scared'
+        ],
+        seduce: [
+          'https://api.otakugifs.xyz/gif?reaction=seduce'
+        ],
+        shock: [
+          'https://api.otakugifs.xyz/gif?reaction=shock'
+        ],
+        shy: [
+          'https://api.otakugifs.xyz/gif?reaction=shy'
+        ],
+        sing: [
+          'https://api.otakugifs.xyz/gif?reaction=sing'
+        ],
+        sleep: [
+          'https://api.otakugifs.xyz/gif?reaction=sleep'
+        ],
+        slurp: [
+          'https://api.otakugifs.xyz/gif?reaction=lick'
+        ],
+        smoke: [
+          'https://api.otakugifs.xyz/gif?reaction=smoke'
+        ],
+        spit: [
+          'https://api.otakugifs.xyz/gif?reaction=spit'
+        ],
+        splash: [
+          'https://api.otakugifs.xyz/gif?reaction=splash'
+        ],
+        trip: [
+          'https://api.otakugifs.xyz/gif?reaction=trip'
+        ],
+        walk: [
+          'https://api.otakugifs.xyz/gif?reaction=walk'
+        ],
+        peek: [
+          'https://api.otakugifs.xyz/gif?reaction=peek'
         ]
       }
 
