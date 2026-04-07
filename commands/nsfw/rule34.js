@@ -177,8 +177,17 @@ export default {
                 posts = await pahealSearch(combinedTag, 100, 1)
             }
 
-            // 2. Si no hay resultados y hay múltiples palabras, probar solo la primera
-            if ((posts.length === 0 || (filterType === 'video' && posts.length < 25)) && searchWords.length > 1) {
+            // 2. Si no hay resultados (o hay pocos animados), ampliar con cada palabra por separado.
+            let shouldExpandByWord = posts.length === 0
+            if (filterType === 'video' && posts.length > 0) {
+                const currentAnimatedCount = posts.filter(p => {
+                    const t = getMediaType(p)
+                    return t === 'video' || t === 'gif' || t === 'webm'
+                }).length
+                if (currentAnimatedCount < 25) shouldExpandByWord = true
+            }
+
+            if (shouldExpandByWord && searchWords.length > 1) {
                 for (const word of searchWords) {
                     if (filterType === 'video') {
                         const videoWordQueries = [`${word}+animated`, `${word}+webm`, `${word}+mp4`, word]
