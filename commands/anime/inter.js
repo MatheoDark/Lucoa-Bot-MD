@@ -589,59 +589,73 @@ export default {
       // Fallback animado por búsqueda semántica (GIF), manteniendo concordancia del comando.
       const fetchFromTenor = async (cmd) => {
         const tenorQueryMap = {
-          kickanime: 'anime kick',
-          bite_head: 'anime bite',
-          handhold: 'anime handhold',
-          fox_girl: 'anime fox girl',
-          meow: 'anime neko',
-          slurp: 'anime lick',
-          impregnate: 'anime seduce',
-          woof: 'anime dog'
+          kill: ['anime kill', 'anime attack', 'anime punch', 'anime sword'],
+          spit: ['anime spit', 'anime spit out', 'anime disgust'],
+          smoke: ['anime smoke', 'anime smoking', 'anime cigarette'],
+          trip: ['anime trip', 'anime stumble', 'anime fall'],
+          splash: ['anime splash', 'anime water splash', 'anime water'],
+          seduce: ['anime seduce', 'anime flirt', 'anime wink'],
+          scared: ['anime scared', 'anime fear', 'anime frightened'],
+          shy: ['anime shy', 'anime blush', 'anime embarrassed'],
+          walk: ['anime walk', 'anime strolling', 'anime walking'],
+          wink: ['anime wink', 'anime tease'],
+          handhold: ['anime handhold', 'anime holding hands'],
+          bite_head: ['anime bite', 'anime bite head'],
+          kickanime: ['anime kick', 'anime kick anime']
         }
 
-        const query = tenorQueryMap[cmd] || `anime ${cmd.replace(/_/g, ' ')}`
-        const url = `https://g.tenor.com/v1/search?q=${encodeURIComponent(query)}&key=LIVDSRZULELA&limit=6`
+        const queries = tenorQueryMap[cmd] || [`anime ${cmd.replace(/_/g, ' ')}`]
+        const candidates = []
 
-        try {
-          const res = await fetch(url, { timeout: 5000 })
-          if (!res.ok) return null
-          const json = await res.json().catch(() => ({}))
-          const results = Array.isArray(json?.results) ? json.results : []
-          for (const item of results) {
-            const gifUrl = item?.media?.[0]?.gif?.url
-            if (typeof gifUrl === 'string' && gifUrl.includes('tenor.com')) return gifUrl
+        for (const query of queries) {
+          const url = `https://g.tenor.com/v1/search?q=${encodeURIComponent(query)}&key=LIVDSRZULELA&limit=6`
+          try {
+            const res = await fetch(url, { timeout: 5000 })
+            if (!res.ok) continue
+            const json = await res.json().catch(() => ({}))
+            const results = Array.isArray(json?.results) ? json.results : []
+            for (const item of results) {
+              const gifUrl = item?.media?.[0]?.gif?.url
+              if (typeof gifUrl === 'string' && gifUrl.includes('tenor.com')) {
+                candidates.push(gifUrl)
+              }
+            }
+          } catch {
+            // seguir con la siguiente query
           }
-        } catch {
-          return null
         }
 
-        return null
+        if (!candidates.length) return null
+        return candidates[Math.floor(Math.random() * candidates.length)]
       }
 
+
+      const animatedSources = []
 
       // 0) Cache local animada exacta por comando
-      mediaBuffer = await getLocalAnimatedBuffer(currentCommand)
+      const localBuffer = await getLocalAnimatedBuffer(currentCommand)
+      if (localBuffer) animatedSources.push({ type: 'buffer', value: localBuffer })
 
-      // 1) Ruta especial por comando/API con coherencia visual
-      if (!mediaBuffer) {
-        mediaUrl = await fetchDirectReaction(currentCommand)
-      }
+      // 1) Reacción exacta por API
+      const directUrl = await fetchDirectReaction(currentCommand)
+      if (directUrl) animatedSources.push({ type: 'url', value: directUrl })
 
-      // Fallback general
-      if (!mediaBuffer && !mediaUrl) {
-        mediaUrl = await fetchFromPurrBot(currentCommand)
-      }
+      // 2) PurrBot estricto
+      const purrbotUrl = await fetchFromPurrBot(currentCommand)
+      if (purrbotUrl) animatedSources.push({ type: 'url', value: purrbotUrl })
 
-      // Último fallback animado y semántico.
-      if (!mediaBuffer && !mediaUrl) {
-        mediaUrl = await fetchFromTenor(currentCommand)
-      }
+      // 3) Variantes semánticas animadas de Tenor
+      const tenorUrl = await fetchFromTenor(currentCommand)
+      if (tenorUrl) animatedSources.push({ type: 'url', value: tenorUrl })
 
-      if (!mediaBuffer && !mediaUrl) throw new Error('No se pudo obtener reacción animada coherente para ese comando')
+      if (!animatedSources.length) throw new Error('No se pudo obtener reacción animada coherente para ese comando')
 
-      // Descargar desde URL obtenida (si no vino de local)
-      if (!mediaBuffer && mediaUrl) {
-        const mediaRes = await fetch(mediaUrl)
+      const selectedSource = animatedSources[Math.floor(Math.random() * animatedSources.length)]
+
+      if (selectedSource.type === 'buffer') {
+        mediaBuffer = selectedSource.value
+      } else {
+        const mediaRes = await fetch(selectedSource.value)
         const arrayBuf = await mediaRes.arrayBuffer()
         mediaBuffer = Buffer.from(arrayBuf)
       }
