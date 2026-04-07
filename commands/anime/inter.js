@@ -292,61 +292,17 @@ export default {
       let mediaBuffer = null
       let mediaUrl = null
 
-      // 🎬 DUAL API FALLBACK: fuentes directas por comando + PurrBot v2 → v1
-      // PurrBot v2 (Primario): 19 comandos disponibles
-      // PurrBot v1 (Fallback): 14 comandos disponibles
-      // Para comandos sin endpoint directo en v2, se priorizan APIs con reacción real.
-      
-      // Mapeos para v2
-      const purbotv2Map = {
-        'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'smile', 'smile': 'smile',
-        'kill': 'angry',
-        'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle',
-        'angry': 'angry', 'fluff': 'fluff', 'lick': 'lick', 'pout': 'pout', 'tail': 'tail', 'comfy': 'comfy',
-        'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'comfy',
-        'feed': 'lay', 'meow': 'smile', 'neko': 'tail', 'lizard': 'pout', 'woof': 'dance',
-        'fox_girl': 'tail', 'smug': 'smile', 'lewd': 'lick', 'spank': 'slap', 'gasm': 'pout', 'gecko': 'tail',
-        'highfive': 'smile', 'handhold': 'hug', 'nom': 'comfy', 'laugh': 'smile',
-        'yeet': 'dance', 'shrug': 'pout', 'stare': 'pout', 'think': 'pout', 'peck': 'kiss',
-
-        // Extras agregados
-        'bite_head': 'bite', 'bleh': 'pout', 'bonk': 'slap', 'bored': 'comfy',
-        'bully': 'angry', 'celebrate': 'smile', 'clap': 'smile', 'coffee': 'comfy',
-        'comfort': 'hug', 'confused': 'pout', 'cringe': 'pout', 'dramatic': 'pout',
-        'drunk': 'smile', 'flick': 'slap', 'freeze': 'pout', 'grab': 'hug',
-        'happy': 'smile', 'impregnate': 'pout', 'knead': 'pat', 'love': 'cuddle',
-        'sad': 'cry', 'scared': 'pout', 'seduce': 'wink', 'shock': 'pout',
-        'shy': 'blush', 'sing': 'dance', 'sleep': 'comfy', 'slurp': 'lick',
-        'smoke': 'smug', 'spit': 'pout', 'splash': 'wave', 'trip': 'run',
-        'walk': 'run', 'peek': 'stare'
-      }
-      
-      // Mapeos para v1 (fallback cuando v2 falla)
-      const purbotv1Map = {
-        // Directos (disponibles en v1)
-        'kiss': 'kiss', 'hug': 'hug', 'pat': 'pat', 'poke': 'poke', 'slap': 'slap',
-        'bite': 'bite', 'cuddle': 'cuddle', 'dance': 'dance', 'run': 'smile', 'smile': 'smile', 'kill': 'slap',
-        'blush': 'blush', 'cry': 'cry', 'tickle': 'tickle', 'feed': 'feed', 'neko': 'neko',
-        
-        // Mapeados (no existen en v1 exacto)
-        'angry': 'smile', 'fluff': 'smile', 'lick': 'smile', 'pout': 'smile', 'tail': 'neko', 'comfy': 'smile',
-        'punch': 'slap', 'kickanime': 'slap', 'wave': 'smile', 'wink': 'smile', 'eat': 'smile',
-        'meow': 'smile', 'lizard': 'smile', 'woof': 'dance', 'fox_girl': 'neko',
-        'smug': 'smile', 'lewd': 'smile', 'spank': 'slap', 'gasm': 'smile', 'gecko': 'neko',
-        'highfive': 'smile', 'handhold': 'hug', 'nom': 'smile', 'laugh': 'smile',
-        'yeet': 'dance', 'shrug': 'smile', 'stare': 'smile', 'think': 'smile', 'peck': 'kiss',
-
-        // Extras agregados
-        'bite_head': 'bite', 'bleh': 'smile', 'bonk': 'slap', 'bored': 'smile',
-        'bully': 'slap', 'celebrate': 'smile', 'clap': 'smile', 'coffee': 'smile',
-        'comfort': 'hug', 'confused': 'smile', 'cringe': 'smile', 'dramatic': 'smile',
-        'drunk': 'smile', 'flick': 'slap', 'freeze': 'smile', 'grab': 'hug',
-        'happy': 'smile', 'impregnate': 'smile', 'knead': 'pat', 'love': 'hug',
-        'sad': 'cry', 'scared': 'smile', 'seduce': 'smile', 'shock': 'smile',
-        'shy': 'blush', 'sing': 'dance', 'sleep': 'smile', 'slurp': 'smile',
-        'smoke': 'smile', 'spit': 'smile', 'splash': 'smile', 'trip': 'smile',
-        'walk': 'smile', 'peek': 'smile'
+      // Fallback estricto: solo alias semánticos cercanos (sin remapeos genéricos tipo smile/pout)
+      const strictEndpointAlias = {
+        kickanime: 'kick',
+        bite_head: 'bite',
+        peck: 'kiss',
+        handhold: 'hug',
+        nom: 'bite',
+        meow: 'neko',
+        fox_girl: 'neko',
+        slurp: 'lick',
+        impregnate: 'seduce'
       }
 
       const directReactionApis = {
@@ -575,35 +531,55 @@ export default {
         return null
       }
 
-      // Función para intentar ambas APIs de PurrBot
-      const fetchFromPurrBot = async (cmd) => {
-        const v2Candidates = [...new Set([cmd, purbotv2Map[cmd]].filter(Boolean))]
-        const v1Candidates = [...new Set([cmd, purbotv1Map[cmd]].filter(Boolean))]
+      const getLocalAnimatedBuffer = async (cmd) => {
+        try {
+          if (!fs.existsSync(INTERACTIONS_JSON)) return null
+          const raw = await fs.promises.readFile(INTERACTIONS_JSON, 'utf8')
+          const data = JSON.parse(raw)
+          const entry = data?.[cmd]
+          const files = Array.isArray(entry?.local) ? entry.local : []
+          if (!files.length) return null
 
-        // 1️⃣ Intenta PurrBot v2 primero: comando real -> mapeo
-        for (const v2Endpoint of v2Candidates) {
+          const animatedCandidates = files.filter((f) => /\.(gif|mp4|webm)$/i.test(f))
+          if (!animatedCandidates.length) return null
+
+          const pick = animatedCandidates[Math.floor(Math.random() * animatedCandidates.length)]
+          const resolved = path.resolve(__dirname, '../../', pick)
+          if (!fs.existsSync(resolved)) return null
+          return await fs.promises.readFile(resolved)
+        } catch {
+          return null
+        }
+      }
+
+      // Función para intentar PurrBot de forma estricta (comando exacto -> alias cercano)
+      const fetchFromPurrBot = async (cmd) => {
+        const candidates = [...new Set([cmd, strictEndpointAlias[cmd]].filter(Boolean))]
+
+        // 1️⃣ Intenta PurrBot v2 primero
+        for (const endpoint of candidates) {
           try {
-            const res = await fetch(`https://api.purrbot.site/v2/img/sfw/${v2Endpoint}/gif`, { timeout: 5000 })
+            const res = await fetch(`https://api.purrbot.site/v2/img/sfw/${endpoint}/gif`, { timeout: 5000 })
             if (!res.ok) continue
             const json = await res.json().catch(() => ({}))
             if (json?.link) return json.link
           } catch (e) {
-            console.warn(`[Anime] v2 intento falló para ${cmd} (${v2Endpoint}): ${e.message}`)
+            console.warn(`[Anime] v2 intento falló para ${cmd} (${endpoint}): ${e.message}`)
           }
         }
 
-        // 2️⃣ Fallback a PurrBot v1: comando real -> mapeo
-        for (const v1Endpoint of v1Candidates) {
+        // 2️⃣ Fallback a PurrBot v1
+        for (const endpoint of candidates) {
           try {
-            const res = await fetch(`https://purrbot.site/api/img/sfw/${v1Endpoint}/gif`, { timeout: 5000 })
+            const res = await fetch(`https://purrbot.site/api/img/sfw/${endpoint}/gif`, { timeout: 5000 })
             if (!res.ok) continue
             const json = await res.json().catch(() => ({}))
             if (json?.link) {
-              console.log(`[Anime] ${cmd} obtenido desde PurrBot v1 (${v1Endpoint})`)
+              console.log(`[Anime] ${cmd} obtenido desde PurrBot v1 (${endpoint})`)
               return json.link
             }
           } catch (e) {
-            console.warn(`[Anime] v1 intento falló para ${cmd} (${v1Endpoint}): ${e.message}`)
+            console.warn(`[Anime] v1 intento falló para ${cmd} (${endpoint}): ${e.message}`)
           }
         }
 
@@ -611,20 +587,27 @@ export default {
       }
 
 
-      // Ruta especial para comandos con endpoint directo (coherencia visual del comando)
-      mediaUrl = await fetchDirectReaction(currentCommand)
+      // 0) Cache local animada exacta por comando
+      mediaBuffer = await getLocalAnimatedBuffer(currentCommand)
+
+      // 1) Ruta especial por comando/API con coherencia visual
+      if (!mediaBuffer) {
+        mediaUrl = await fetchDirectReaction(currentCommand)
+      }
 
       // Fallback general
-      if (!mediaUrl && (purbotv2Map[currentCommand] || purbotv1Map[currentCommand])) {
+      if (!mediaBuffer && !mediaUrl) {
         mediaUrl = await fetchFromPurrBot(currentCommand)
       }
 
-      if (!mediaUrl) throw new Error('No se pudo obtener GIF de PurrBot v2 o v1')
+      if (!mediaBuffer && !mediaUrl) throw new Error('No se pudo obtener reacción animada coherente para ese comando')
 
-      // Descargar desde URL obtenida
-      const mediaRes = await fetch(mediaUrl)
-      const arrayBuf = await mediaRes.arrayBuffer()
-      mediaBuffer = Buffer.from(arrayBuf)
+      // Descargar desde URL obtenida (si no vino de local)
+      if (!mediaBuffer && mediaUrl) {
+        const mediaRes = await fetch(mediaUrl)
+        const arrayBuf = await mediaRes.arrayBuffer()
+        mediaBuffer = Buffer.from(arrayBuf)
+      }
 
       if (!mediaBuffer) throw new Error('Buffer vacío')
       
