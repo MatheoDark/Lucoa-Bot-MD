@@ -19,46 +19,46 @@ function getPostUniqueId(post) {
 }
 
 function selectWithoutRecentRepeats(chatId, tag, filterType, posts, count = 5) {
-    // Si el pool es pequeño, no tiene sentido llevar historial "seen".
-    // Solo barajamos para variar y evitamos el mensaje de reciclado constante.
-    if (posts.length <= count) {
-        const selected = [...posts].sort(() => 0.5 - Math.random()).slice(0, count)
-        return { selected, recycled: false }
-    }
-
     const key = buildRecentKey(chatId, tag, filterType)
-    const seen = r34RecentByQuery.get(key) || new Set()
+    const uniqueMap = new Map()
+    for (const post of posts) {
+        const uid = getPostUniqueId(post)
+        if (!uniqueMap.has(uid)) uniqueMap.set(uid, post)
+    }
 
-    const shuffled = [...posts].sort(() => 0.5 - Math.random())
-    const fresh = shuffled.filter(post => !seen.has(getPostUniqueId(post)))
+    const uniqueIds = Array.from(uniqueMap.keys())
+    if (!uniqueIds.length) return { selected: [], recycled: false }
 
-    let selected = fresh.slice(0, count)
+    const fingerprint = uniqueIds.slice().sort().join('||')
+    let state = r34RecentByQuery.get(key)
+
+    // Si cambió el set de resultados, reiniciar baraja para esa búsqueda.
+    if (!state || state.fingerprint !== fingerprint || !Array.isArray(state.deck) || state.deck.length === 0) {
+        state = {
+            fingerprint,
+            deck: [...uniqueIds].sort(() => 0.5 - Math.random()),
+            cursor: 0
+        }
+    }
+
+    const selected = []
     let recycled = false
+    const maxTake = Math.min(count, uniqueIds.length)
 
-    // Si se agotaron resultados nuevos, reiniciamos historial de esta búsqueda
-    if (selected.length === 0 && shuffled.length > 0) {
-        selected = shuffled.slice(0, count)
-        seen.clear()
-        recycled = true
-    } else if (selected.length < count) {
-        // Completar el pack con los que falten sin repetir dentro del mismo envío
-        const already = new Set(selected.map(getPostUniqueId))
-        const fallback = shuffled.filter(post => !already.has(getPostUniqueId(post)))
-        selected = selected.concat(fallback.slice(0, count - selected.length))
+    while (selected.length < maxTake) {
+        if (state.cursor >= state.deck.length) {
+            state.deck = [...uniqueIds].sort(() => 0.5 - Math.random())
+            state.cursor = 0
+            recycled = true
+        }
+
+        const uid = state.deck[state.cursor]
+        state.cursor += 1
+        const post = uniqueMap.get(uid)
+        if (post) selected.push(post)
     }
 
-    for (const post of selected) {
-        seen.add(getPostUniqueId(post))
-    }
-
-    // Limitar tamaño del historial para evitar crecimiento indefinido
-    if (seen.size > 500) {
-        const keep = new Set(Array.from(seen).slice(-250))
-        r34RecentByQuery.set(key, keep)
-    } else {
-        r34RecentByQuery.set(key, seen)
-    }
-
+    r34RecentByQuery.set(key, state)
     return { selected, recycled }
 }
 
@@ -400,7 +400,7 @@ async function convertToMp4(url, originalName = '') {
         // Perfil de seguridad para GIFs muy grandes o con timings raros (evita conversiones de varios minutos).
         const durationLimit = inputExt === 'gif' ? '-t 20' : ''
         const fpsFilter = inputExt === 'gif' ? 'fps=20,' : ''
-        const scaleFilter = 'scale=if(gt(iw,960),960,iw):-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2'
+        const scaleFilter = "scale='if(gt(iw,960),960,iw)':-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2"
         const vf = `${fpsFilter}${scaleFilter}`
 
         const cmd = `ffmpeg -y ${inputFlags} ${durationLimit} -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 30 ${audioFlags} -vf "${vf}" -movflags +faststart "${outputPath}"`
