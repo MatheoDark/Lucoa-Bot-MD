@@ -6,6 +6,54 @@ import { join } from 'path'
 import os from 'os'
 
 const execAsync = promisify(exec)
+const r34RecentByQuery = new Map()
+
+function buildRecentKey(chatId, tag, filterType) {
+    return `${chatId}|${tag}|${filterType}`
+}
+
+function getPostUniqueId(post) {
+    const id = String(post?.id || '')
+    const url = String(post?.file_url || '').trim().toLowerCase()
+    return `${id}|${url}`
+}
+
+function selectWithoutRecentRepeats(chatId, tag, filterType, posts, count = 5) {
+    const key = buildRecentKey(chatId, tag, filterType)
+    const seen = r34RecentByQuery.get(key) || new Set()
+
+    const shuffled = [...posts].sort(() => 0.5 - Math.random())
+    const fresh = shuffled.filter(post => !seen.has(getPostUniqueId(post)))
+
+    let selected = fresh.slice(0, count)
+    let recycled = false
+
+    // Si se agotaron resultados nuevos, reiniciamos historial de esta búsqueda
+    if (selected.length === 0 && shuffled.length > 0) {
+        selected = shuffled.slice(0, count)
+        seen.clear()
+        recycled = true
+    } else if (selected.length < count) {
+        // Completar el pack con los que falten sin repetir dentro del mismo envío
+        const already = new Set(selected.map(getPostUniqueId))
+        const fallback = shuffled.filter(post => !already.has(getPostUniqueId(post)))
+        selected = selected.concat(fallback.slice(0, count - selected.length))
+    }
+
+    for (const post of selected) {
+        seen.add(getPostUniqueId(post))
+    }
+
+    // Limitar tamaño del historial para evitar crecimiento indefinido
+    if (seen.size > 500) {
+        const keep = new Set(Array.from(seen).slice(-250))
+        r34RecentByQuery.set(key, keep)
+    } else {
+        r34RecentByQuery.set(key, seen)
+    }
+
+    return { selected, recycled }
+}
 
 export default {
     command: ['r34', 'rule34'],
@@ -118,9 +166,11 @@ export default {
 
             // --- MODO PACK: 5 AL AZAR ---
             const count = 5
-            const selected = filtered
-                .sort(() => 0.5 - Math.random())
-                .slice(0, count)
+            const { selected, recycled } = selectWithoutRecentRepeats(chatId, combinedTag, filterType, filtered, count)
+
+            if (recycled) {
+                await m.reply('ℹ️ Ya se enviaron todos los resultados recientes de esa búsqueda. Reinicié la lista para seguir mostrando contenido.')
+            }
 
             console.log(`[R34] Enviando pack de ${selected.length} archivos para "${combinedTag}" (filtro: ${filterType})`)
 
