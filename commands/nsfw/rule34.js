@@ -177,39 +177,52 @@ export default {
                 posts = await pahealSearch(combinedTag, 100, 1)
             }
 
-            // 2. Si no hay resultados (o hay pocos animados), ampliar con cada palabra por separado.
-            let shouldExpandByWord = posts.length === 0
+            // 2. Si no hay resultados (o hay pocos animados), ampliar con variantes
+            // que conserven TODOS los tags solicitados (sin abrir a palabras sueltas).
+            let shouldExpandStrict = posts.length === 0
             if (filterType === 'video' && posts.length > 0) {
                 const currentAnimatedCount = posts.filter(p => {
                     const t = getMediaType(p)
                     return t === 'video' || t === 'gif' || t === 'webm'
                 }).length
-                if (currentAnimatedCount < 25) shouldExpandByWord = true
+                if (currentAnimatedCount < 25) shouldExpandStrict = true
             }
 
-            if (shouldExpandByWord && searchWords.length > 1) {
-                for (const word of searchWords) {
-                    if (filterType === 'video') {
-                        const videoWordQueries = [`${word}+animated`, `${word}+webm`, `${word}+mp4`, word]
-                        const pages = [1, 2, 3]
-                        for (const q of videoWordQueries) {
-                            for (const page of pages) {
-                                const found = await pahealSearch(q, 80, page)
-                                posts = mergeUniquePosts(posts, found)
-                            }
-                        }
+            if (shouldExpandStrict && searchWords.length > 1) {
+                const plusTag = searchWords.join('+')
+                const spaceTag = searchWords.join(' ')
 
-                        const dapiWordQueries = [`${word} animated`, `${word} webm`, `${word} video`, word]
-                        for (const q of dapiWordQueries) {
-                            for (const pid of [0, 1, 2]) {
-                                const found = await r34ApiSearch(q, 80, pid)
-                                posts = mergeUniquePosts(posts, found)
-                            }
+                if (filterType === 'video') {
+                    const pahealStrictQueries = [
+                        `${plusTag}+animated`,
+                        `${plusTag}+webm`,
+                        `${plusTag}+mp4`,
+                        plusTag
+                    ]
+
+                    for (const q of pahealStrictQueries) {
+                        for (const page of [1, 2, 3, 4, 5, 6]) {
+                            const found = await pahealSearch(q, 100, page)
+                            posts = mergeUniquePosts(posts, found)
                         }
-                    } else {
-                        posts = await pahealSearch(word, 100, 1)
-                        if (posts.length > 0) break
                     }
+
+                    const dapiStrictQueries = [
+                        `${spaceTag} animated`,
+                        `${spaceTag} webm`,
+                        `${spaceTag} video`,
+                        spaceTag
+                    ]
+
+                    for (const q of dapiStrictQueries) {
+                        for (const pid of [0, 1, 2, 3, 4, 5]) {
+                            const found = await r34ApiSearch(q, 100, pid)
+                            posts = mergeUniquePosts(posts, found)
+                        }
+                    }
+                } else {
+                    const strictFound = await pahealSearch(plusTag, 100, 1)
+                    posts = mergeUniquePosts(posts, strictFound)
                 }
             }
 
@@ -237,7 +250,7 @@ export default {
                     // Mantener variedad real de formato (mp4/gif/webm) para no repetir siempre lo mismo.
                     filtered = animatedFiltered
                 } else {
-                    m.reply('⚠️ No encontré videos, enviando imágenes...')
+                    return m.reply('⚠️ No encontré videos para esos tags exactos. Prueba con otro tag o quita una palabra.')
                 }
             } else if (filterType === 'image') {
                 const imgFiltered = filtered.filter(p => getMediaType(p) === 'image')
