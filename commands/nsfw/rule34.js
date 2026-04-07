@@ -6,7 +6,8 @@ import { join } from 'path'
 import os from 'os'
 
 const execAsync = promisify(exec)
-const r34RecentByQuery = new Map()
+const r34RecentByQuery = globalThis.__r34RecentByQuery || new Map()
+globalThis.__r34RecentByQuery = r34RecentByQuery
 
 function buildRecentKey(chatId, tag, filterType) {
     return `${chatId}|${tag}|${filterType}`
