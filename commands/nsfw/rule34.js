@@ -38,34 +38,35 @@ function selectWithoutRecentRepeats(chatId, tag, filterType, posts, count = 5) {
     const uniqueIds = Array.from(uniqueMap.keys())
     if (!uniqueIds.length) return { selected: [], recycled: false }
 
-    const fingerprint = uniqueIds.slice().sort().join('||')
     let state = r34RecentByQuery.get(key)
-
-    // Si cambió el set de resultados, reiniciar baraja para esa búsqueda.
-    if (!state || state.fingerprint !== fingerprint || !Array.isArray(state.deck) || state.deck.length === 0) {
-        state = {
-            fingerprint,
-            deck: [...uniqueIds].sort(() => 0.5 - Math.random()),
-            cursor: 0
-        }
+    if (!state || !Array.isArray(state.recentIds)) {
+        state = { recentIds: [] }
     }
 
-    const selected = []
-    let recycled = false
     const maxTake = Math.min(count, uniqueIds.length)
+    const recentWindow = Math.max(maxTake * 4, 12)
+    const recentSet = new Set(state.recentIds)
 
-    while (selected.length < maxTake) {
-        if (state.cursor >= state.deck.length) {
-            state.deck = [...uniqueIds].sort(() => 0.5 - Math.random())
-            state.cursor = 0
-            recycled = true
-        }
+    // 1) Priorizar IDs que no se hayan enviado recientemente.
+    let candidateIds = uniqueIds.filter(uid => !recentSet.has(uid))
+    let recycled = false
 
-        const uid = state.deck[state.cursor]
-        state.cursor += 1
-        const post = uniqueMap.get(uid)
-        if (post) selected.push(post)
+    // 2) Si el pool es pequeño, permitir reciclaje gradual (evita quedarse sin resultados).
+    if (candidateIds.length < maxTake) {
+        recycled = true
+        const missing = maxTake - candidateIds.length
+        const fallbackIds = uniqueIds.filter(uid => recentSet.has(uid)).slice(0, missing)
+        candidateIds = candidateIds.concat(fallbackIds)
     }
+
+    // 3) Barajar candidatos y tomar un pack sin repetidos.
+    const shuffled = candidateIds.slice().sort(() => 0.5 - Math.random())
+    const selectedIds = shuffled.slice(0, maxTake)
+    const selected = selectedIds.map(uid => uniqueMap.get(uid)).filter(Boolean)
+
+    // 4) Guardar historial reciente para bloquear repeticiones inmediatas.
+    const nextRecent = state.recentIds.concat(selectedIds)
+    state.recentIds = nextRecent.slice(-recentWindow)
 
     r34RecentByQuery.set(key, state)
     return { selected, recycled }
