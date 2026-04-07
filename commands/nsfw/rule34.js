@@ -19,6 +19,14 @@ function getPostUniqueId(post) {
     return `${id}|${url}`
 }
 
+function mergeUniquePosts(base = [], incoming = []) {
+    const map = new Map(base.map(p => [getPostUniqueId(p), p]))
+    for (const post of incoming) {
+        map.set(getPostUniqueId(post), post)
+    }
+    return Array.from(map.values())
+}
+
 function selectWithoutRecentRepeats(chatId, tag, filterType, posts, count = 5) {
     const key = buildRecentKey(chatId, tag, filterType)
     const uniqueMap = new Map()
@@ -120,10 +128,19 @@ export default {
             // 1. Intentar con todos los tags juntos como un solo tag (ej: mushoku_tensei)
             const combinedTag = searchWords.join('_')
 
-            // Si el usuario pidió videos, buscar directamente con tag "animated" en Paheal
+            // Si el usuario pidió videos, combinar varias consultas para ampliar pool y reducir repetición.
             if (filterType === 'video') {
-                posts = await pahealSearch(`${combinedTag}+animated`, 100)
-                if (posts.length === 0) posts = await pahealSearch(`${combinedTag}+webm`, 100)
+                const videoQueries = [
+                    `${combinedTag}+animated`,
+                    `${combinedTag}+webm`,
+                    `${combinedTag}+mp4`,
+                    combinedTag
+                ]
+
+                for (const q of videoQueries) {
+                    const found = await pahealSearch(q, 120)
+                    posts = mergeUniquePosts(posts, found)
+                }
             }
 
             // Búsqueda normal (o si no encontró videos)
@@ -132,10 +149,18 @@ export default {
             }
 
             // 2. Si no hay resultados y hay múltiples palabras, probar solo la primera
-            if (posts.length === 0 && searchWords.length > 1) {
+            if ((posts.length === 0 || (filterType === 'video' && posts.length < 25)) && searchWords.length > 1) {
                 for (const word of searchWords) {
-                    posts = await pahealSearch(word, 100)
-                    if (posts.length > 0) break
+                    if (filterType === 'video') {
+                        const videoWordQueries = [`${word}+animated`, `${word}+webm`, `${word}+mp4`, word]
+                        for (const q of videoWordQueries) {
+                            const found = await pahealSearch(q, 80)
+                            posts = mergeUniquePosts(posts, found)
+                        }
+                    } else {
+                        posts = await pahealSearch(word, 100)
+                        if (posts.length > 0) break
+                    }
                 }
             }
 
