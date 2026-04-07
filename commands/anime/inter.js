@@ -586,6 +586,38 @@ export default {
         return null
       }
 
+      // Fallback animado por búsqueda semántica (GIF), manteniendo concordancia del comando.
+      const fetchFromTenor = async (cmd) => {
+        const tenorQueryMap = {
+          kickanime: 'anime kick',
+          bite_head: 'anime bite',
+          handhold: 'anime handhold',
+          fox_girl: 'anime fox girl',
+          meow: 'anime neko',
+          slurp: 'anime lick',
+          impregnate: 'anime seduce',
+          woof: 'anime dog'
+        }
+
+        const query = tenorQueryMap[cmd] || `anime ${cmd.replace(/_/g, ' ')}`
+        const url = `https://g.tenor.com/v1/search?q=${encodeURIComponent(query)}&key=LIVDSRZULELA&limit=6`
+
+        try {
+          const res = await fetch(url, { timeout: 5000 })
+          if (!res.ok) return null
+          const json = await res.json().catch(() => ({}))
+          const results = Array.isArray(json?.results) ? json.results : []
+          for (const item of results) {
+            const gifUrl = item?.media?.[0]?.gif?.url
+            if (typeof gifUrl === 'string' && gifUrl.includes('tenor.com')) return gifUrl
+          }
+        } catch {
+          return null
+        }
+
+        return null
+      }
+
 
       // 0) Cache local animada exacta por comando
       mediaBuffer = await getLocalAnimatedBuffer(currentCommand)
@@ -598,6 +630,11 @@ export default {
       // Fallback general
       if (!mediaBuffer && !mediaUrl) {
         mediaUrl = await fetchFromPurrBot(currentCommand)
+      }
+
+      // Último fallback animado y semántico.
+      if (!mediaBuffer && !mediaUrl) {
+        mediaUrl = await fetchFromTenor(currentCommand)
       }
 
       if (!mediaBuffer && !mediaUrl) throw new Error('No se pudo obtener reacción animada coherente para ese comando')
@@ -631,7 +668,7 @@ export default {
       await client.sendMessage(m.chat, msgOptions, { quoted: m })
 
     } catch (e) {
-      console.error(e)
+      console.warn(`[Anime] ${currentCommand} falló: ${e.message}`)
       // Mensaje de error discreto
       await m.reply('🐲 No se pudo cargar la reacción. (╥﹏╥)')
     }
