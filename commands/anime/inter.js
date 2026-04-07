@@ -514,21 +514,62 @@ export default {
         ]
       }
 
-      // Prioriza reacción real cuando existe endpoint dedicado.
-      const fetchDirectReaction = async (cmd) => {
-        const apis = directReactionApis[cmd]
-        if (!apis?.length) return null
+      // Para mantener coherencia, primero intentamos la reacción real por nombre.
+      const reactionAliasMap = {
+        kickanime: 'kick',
+        bite_head: 'bite',
+        impregnate: 'seduce',
+        slurp: 'lick'
+      }
 
+      const extractReactionUrl = (json = {}) => json?.results?.[0]?.url || json?.url || json?.link
+
+      const tryReactionApiByName = async (reactionName) => {
+        const endpoints = [
+          `https://api.otakugifs.xyz/gif?reaction=${reactionName}`,
+          `https://nekos.best/api/v2/${reactionName}`
+        ]
+
+        for (const endpoint of endpoints) {
+          try {
+            const res = await fetch(endpoint, { timeout: 5000 })
+            if (!res.ok) continue
+            const json = await res.json().catch(() => ({}))
+            const url = extractReactionUrl(json)
+            if (url) return url
+          } catch {
+            // Si falla una fuente, seguimos con la siguiente.
+          }
+        }
+
+        return null
+      }
+
+      const fetchDirectReaction = async (cmd) => {
+        const apis = directReactionApis[cmd] || []
+
+        // 1) Endpoints explícitos conocidos para ese comando.
         for (const api of apis) {
           try {
             const res = await fetch(api, { timeout: 5000 })
             if (!res.ok) continue
             const json = await res.json().catch(() => ({}))
-            const url = json?.results?.[0]?.url || json?.url || json?.link
+            const url = extractReactionUrl(json)
             if (url) return url
           } catch (e) {
             console.warn(`[Anime] API directa falló para ${cmd} (${api}): ${e.message}`)
           }
+        }
+
+        // 2) Intento genérico con el nombre real del comando.
+        let url = await tryReactionApiByName(cmd)
+        if (url) return url
+
+        // 3) Intento con alias de reacción cuando el nombre interno difiere.
+        const altReaction = reactionAliasMap[cmd]
+        if (altReaction) {
+          url = await tryReactionApiByName(altReaction)
+          if (url) return url
         }
 
         return null
