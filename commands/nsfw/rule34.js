@@ -19,6 +19,13 @@ function getPostUniqueId(post) {
 }
 
 function selectWithoutRecentRepeats(chatId, tag, filterType, posts, count = 5) {
+    // Si el pool es pequeño, no tiene sentido llevar historial "seen".
+    // Solo barajamos para variar y evitamos el mensaje de reciclado constante.
+    if (posts.length <= count) {
+        const selected = [...posts].sort(() => 0.5 - Math.random()).slice(0, count)
+        return { selected, recycled: false }
+    }
+
     const key = buildRecentKey(chatId, tag, filterType)
     const seen = r34RecentByQuery.get(key) || new Set()
 
@@ -152,10 +159,8 @@ export default {
                     return t === 'video' || t === 'gif' || t === 'webm'
                 })
                 if (animatedFiltered.length > 0) {
-                    // Priorizar MP4 > GIF > WebM
-                    const mp4 = animatedFiltered.filter(p => getMediaType(p) === 'video')
-                    if (mp4.length >= 5) filtered = mp4
-                    else filtered = animatedFiltered
+                    // Mantener variedad real de formato (mp4/gif/webm) para no repetir siempre lo mismo.
+                    filtered = animatedFiltered
                 } else {
                     m.reply('⚠️ No encontré videos, enviando imágenes...')
                 }
@@ -391,10 +396,17 @@ async function convertToMp4(url, originalName = '') {
         const noAudio = inputExt === 'gif' || !hasAudio
         const audioFlags = noAudio ? '-an' : '-c:a aac -b:a 128k'
         const inputFlags = inputExt === 'gif' ? '-ignore_loop 0' : ''
-        const cmd = `ffmpeg -y ${inputFlags} -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 28 ${audioFlags} -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -movflags +faststart "${outputPath}"`
-        
+
+        // Perfil de seguridad para GIFs muy grandes o con timings raros (evita conversiones de varios minutos).
+        const durationLimit = inputExt === 'gif' ? '-t 20' : ''
+        const fpsFilter = inputExt === 'gif' ? 'fps=20,' : ''
+        const scaleFilter = 'scale=if(gt(iw,960),960,iw):-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2'
+        const vf = `${fpsFilter}${scaleFilter}`
+
+        const cmd = `ffmpeg -y ${inputFlags} ${durationLimit} -i "${inputPath}" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 30 ${audioFlags} -vf "${vf}" -movflags +faststart "${outputPath}"`
+
         await execAsync(cmd, {
-            timeout: 300000
+            timeout: 120000
         })
         
         const mp4Buffer = readFileSync(outputPath)

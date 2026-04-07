@@ -726,17 +726,25 @@ export default {
 
       if (!animatedSources.length) throw new Error('No se pudo obtener reacción animada coherente para ese comando')
 
-      const selectedSource = animatedSources[Math.floor(Math.random() * animatedSources.length)]
+      // Mezclar fuentes y probar hasta conseguir contenido realmente animado.
+      const shuffledSources = [...animatedSources].sort(() => Math.random() - 0.5)
+      for (const source of shuffledSources) {
+        try {
+          const candidateBuffer = source.type === 'buffer'
+            ? source.value
+            : Buffer.from(await (await fetch(source.value)).arrayBuffer())
 
-      if (selectedSource.type === 'buffer') {
-        mediaBuffer = selectedSource.value
-      } else {
-        const mediaRes = await fetch(selectedSource.value)
-        const arrayBuf = await mediaRes.arrayBuffer()
-        mediaBuffer = Buffer.from(arrayBuf)
+          const candidateType = getBufferType(candidateBuffer)
+          if (candidateType === 'gif' || candidateType === 'mp4' || candidateType === 'webm') {
+            mediaBuffer = candidateBuffer
+            break
+          }
+        } catch {
+          // Ignorar fuente rota y probar la siguiente.
+        }
       }
 
-      if (!mediaBuffer) throw new Error('Buffer vacío')
+      if (!mediaBuffer) throw new Error('No se encontró media animada en las fuentes disponibles')
       
       const mentions = [...new Set([who, m.sender])].filter(Boolean)
       const type = getBufferType(mediaBuffer)
