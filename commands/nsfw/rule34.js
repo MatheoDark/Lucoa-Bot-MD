@@ -137,9 +137,13 @@ export default {
                     combinedTag
                 ]
 
+                const pages = [1, 2, 3, 4]
+
                 for (const q of videoQueries) {
-                    const found = await pahealSearch(q, 120)
-                    posts = mergeUniquePosts(posts, found)
+                    for (const page of pages) {
+                        const found = await pahealSearch(q, 100, page)
+                        posts = mergeUniquePosts(posts, found)
+                    }
                 }
             }
 
@@ -153,12 +157,15 @@ export default {
                 for (const word of searchWords) {
                     if (filterType === 'video') {
                         const videoWordQueries = [`${word}+animated`, `${word}+webm`, `${word}+mp4`, word]
+                        const pages = [1, 2, 3]
                         for (const q of videoWordQueries) {
-                            const found = await pahealSearch(q, 80)
-                            posts = mergeUniquePosts(posts, found)
+                            for (const page of pages) {
+                                const found = await pahealSearch(q, 80, page)
+                                posts = mergeUniquePosts(posts, found)
+                            }
                         }
                     } else {
-                        posts = await pahealSearch(word, 100)
+                        posts = await pahealSearch(word, 100, 1)
                         if (posts.length > 0) break
                     }
                 }
@@ -305,11 +312,12 @@ export default {
  * Busca posts en Rule34 Paheal (rule34.paheal.net) - API funcional sin autenticación.
  * Devuelve un array de objetos { id, file_url, file_name, tags }.
  */
-async function pahealSearch(tag, limit = 100) {
+async function pahealSearch(tag, limit = 100, page = 1) {
     try {
         // Escapar cada tag individualmente pero mantener el + como separador de tags
         const encodedTag = tag.split('+').map(t => encodeURIComponent(t)).join('+')
-        const url = `https://rule34.paheal.net/api/danbooru/find_posts?tags=${encodedTag}&limit=${limit}`
+        const pageParam = Number.isInteger(page) && page > 1 ? `&page=${page}` : ''
+        const url = `https://rule34.paheal.net/api/danbooru/find_posts?tags=${encodedTag}&limit=${limit}${pageParam}`
         const res = await fetch(url)
         if (!res.ok) return []
         const xml = await res.text()
