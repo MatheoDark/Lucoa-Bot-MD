@@ -88,7 +88,16 @@ export default {
 
         if (!text) return m.reply(`🐲 Falta el nombre. (◕ᴗ◕✿)\n> Ejemplo: *${usedPrefix + command} lucoa*`)
 
-        const input = text.trim().toLowerCase()
+        let input = text.trim().toLowerCase()
+        
+        // Intentar corregir typos en el tag principal (primera palabra)
+        const firstWord = input.split(/\s+/)[0]
+        const corrected = correctTagTypo(firstWord)
+        if (corrected) {
+            input = input.replace(firstWord, corrected.tag)
+            console.log(`[R34 Typo Correction] "${firstWord}" → "${corrected.tag}" (${corrected.similarity}% similitud)`)
+        }
+        
         const words = input.split(/\s+/)
         
         // Detectar si el usuario quiere solo videos/imágenes
@@ -128,7 +137,7 @@ export default {
             // 1. Intentar con todos los tags juntos como un solo tag (ej: mushoku_tensei)
             const combinedTag = searchWords.join('_')
 
-            // Si el usuario pidió videos, combinar varias consultas para ampliar pool y reducir repetición.
+            // Si el usuario pidió videos, combinar varias consultas/fuentes para ampliar pool y reducir repetición.
             if (filterType === 'video') {
                 const videoQueries = [
                     `${combinedTag}+animated`,
@@ -145,11 +154,26 @@ export default {
                         posts = mergeUniquePosts(posts, found)
                     }
                 }
+
+                // Fuente extra: Rule34 DAPI (suele traer items distintos a Paheal)
+                const dapiQueries = [
+                    `${combinedTag} animated`,
+                    `${combinedTag} webm`,
+                    `${combinedTag} video`,
+                    combinedTag.replace(/_/g, ' ')
+                ]
+                const dapiPages = [0, 1, 2, 3]
+                for (const q of dapiQueries) {
+                    for (const pid of dapiPages) {
+                        const found = await r34ApiSearch(q, 100, pid)
+                        posts = mergeUniquePosts(posts, found)
+                    }
+                }
             }
 
             // Búsqueda normal (o si no encontró videos)
             if (posts.length === 0) {
-                posts = await pahealSearch(combinedTag, 100)
+                posts = await pahealSearch(combinedTag, 100, 1)
             }
 
             // 2. Si no hay resultados y hay múltiples palabras, probar solo la primera
@@ -161,6 +185,14 @@ export default {
                         for (const q of videoWordQueries) {
                             for (const page of pages) {
                                 const found = await pahealSearch(q, 80, page)
+                                posts = mergeUniquePosts(posts, found)
+                            }
+                        }
+
+                        const dapiWordQueries = [`${word} animated`, `${word} webm`, `${word} video`, word]
+                        for (const q of dapiWordQueries) {
+                            for (const pid of [0, 1, 2]) {
+                                const found = await r34ApiSearch(q, 80, pid)
                                 posts = mergeUniquePosts(posts, found)
                             }
                         }
@@ -336,6 +368,41 @@ async function pahealSearch(tag, limit = 100, page = 1) {
                 posts.push({ id, file_url, file_name: file_name || '', tags })
             }
         }
+        return posts
+    } catch {
+        return []
+    }
+}
+
+/**
+ * Busca posts en Rule34.xxx DAPI (fuente extra para ampliar variedad).
+ * Devuelve un array de objetos { id, file_url, file_name, tags }.
+ */
+async function r34ApiSearch(tag, limit = 100, pid = 0) {
+    try {
+        const encodedTag = encodeURIComponent(tag.trim().replace(/\s+/g, ' '))
+        const safePid = Number.isInteger(pid) && pid >= 0 ? pid : 0
+        const url = `https://rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodedTag}&limit=${limit}&pid=${safePid}`
+        const res = await fetch(url)
+        if (!res.ok) return []
+        const xml = await res.text()
+
+        const posts = []
+        const tagRegex = /<post\s+([^>]+?)\s*\/?>(?:<\/post>)?/g
+        let match
+        while ((match = tagRegex.exec(xml)) !== null) {
+            const attrs = match[1]
+            const id = getAttr(attrs, 'id')
+            const file_url = getAttr(attrs, 'file_url')
+            const sample_url = getAttr(attrs, 'sample_url')
+            const preview_url = getAttr(attrs, 'preview_url')
+            const tags = getAttr(attrs, 'tags') || ''
+            const chosen = file_url || sample_url || preview_url
+            if (!chosen) continue
+            const fileName = chosen.split('/').pop() || ''
+            posts.push({ id, file_url: chosen, file_name: fileName, tags })
+        }
+
         return posts
     } catch {
         return []
@@ -527,4 +594,85 @@ function getAttr(attrs, name) {
     if (m) return m[1]
     const m2 = attrs.match(new RegExp(`${name}="([^"]*)"`))
     return m2 ? m2[1] : null
+}
+
+/**
+ * Calcula la distancia de Levenshtein entre dos strings (similitud).
+ * Menor distancia = más similitud
+ */
+function levenshteinDistance(a, b) {
+    const matrix = []
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i]
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j
+    
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1]
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,  // substitución
+                    matrix[i][j - 1] + 1,      // inserción
+                    matrix[i - 1][j] + 1       // eliminación
+                )
+            }
+        }
+    }
+    return matrix[b.length][a.length]
+}
+
+/**
+ * Calcula porcentaje de similitud (0-100%) entre dos strings.
+ */
+function stringSimilarity(a, b) {
+    const maxLen = Math.max(a.length, b.length)
+    if (maxLen === 0) return 100
+    const distance = levenshteinDistance(a, b)
+    return Math.round(((maxLen - distance) / maxLen) * 100)
+}
+
+/**
+ * Diccionario de tags populares para corrección de typos.
+ * Incluye personajes y series más buscados.
+ */
+const POPULAR_TAGS = [
+    // Personajes populares
+    'lucoa', 'makima', 'yennefer', 'triss', 'ciri', 'jinx', 'katarina',
+    'asuna', 'zelda', 'naruto', 'hinata', 'sakura', 'ino', 'tenten',
+    'mitsuri', 'nezuko', 'rem', 'emilia', 'subaru',
+    'tohru', 'kobayashi', 'kanna', 'quetzalcoatl', 'fafnir', 'lucifer',
+    'shinobu', 'tanjiro', 'angel_devil', 'power', 'himeno',
+    'aki_hayakawa', 'kobeni', 'denji', 'aqua', 'megumin',
+    'darkness', 'lalatina', 'eris',
+    // Videojuegos
+    'samus', 'peach', 'daisy', 'rosalina', 'pauline', 'lara_croft',
+    'jill', 'ada', 'chun_li', 'cammy', 'juri',
+    // Otros personajes
+    'mercy', 'dva', 'symmetra', 'pharah', 'tracer', 'lara', 'tomb_raider',
+    'elf', 'succubus', 'fox_girl', 'catgirl', 'maid', 'nurse'
+]
+
+/**
+ * Intenta corregir un tag más frecuente de popularTags.
+ * Retorna { tag: corregido, similarity: % } o null.
+ */
+function correctTagTypo(input) {
+    let bestMatch = null
+    let bestSimilarity = 0
+    
+    for (const tag of POPULAR_TAGS) {
+        const similarity = stringSimilarity(input, tag)
+        // Solo considerar si tiene al menos 60% de similitud
+        if (similarity > bestSimilarity && similarity >= 60) {
+            bestSimilarity = similarity
+            bestMatch = tag
+        }
+    }
+    
+    // Si la similitud es >= 85%, corregir automáticamente
+    if (bestMatch && bestSimilarity >= 85) {
+        return { tag: bestMatch, similarity: bestSimilarity }
+    }
+    
+    return null
 }
