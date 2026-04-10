@@ -198,6 +198,12 @@ async function loadDatabaseSafe() {
 }
 
 export async function uPLoader() {
+  // En PM2/no-TTY no hay input interactivo: forzar QR para permitir relink automático.
+  if (!process.stdin.isTTY) {
+    console.log(chalk.yellow('🛠️ Entorno no interactivo detectado (PM2). Usando QR automáticamente.'))
+    return '1'
+  }
+
   const TOTAL_TIME = 1500
   const STEPS = 10
   const BAR_SIZE = 20
