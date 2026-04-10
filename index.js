@@ -680,7 +680,7 @@ async function startBot() {
       if (reason === DisconnectReason.loggedOut) {
         const errorMsg = String(lastDisconnect?.error?.message || lastDisconnect?.error || '').toLowerCase()
         const isRealLogout = errorMsg.includes('logged out')
-        const MAX_401_BEFORE_RELINK = 6
+        const MAX_401_BEFORE_RELINK = process.stdin.isTTY ? 6 : 3
 
         if (isRealLogout) {
           log.error(`❌ WhatsApp confirmó cierre de sesión. Se requiere nueva vinculación.`)
@@ -692,6 +692,9 @@ async function startBot() {
           disconnectTracker.consecutive401 += 1
           if (disconnectTracker.consecutive401 >= MAX_401_BEFORE_RELINK) {
             log.error(`❌ 401 persistente (${disconnectTracker.consecutive401}x). Forzando nueva vinculación...`)
+            if (!process.stdin.isTTY) {
+              log.warn('🛠️ Modo PM2/no-TTY: se activará relink automático por QR en logs.')
+            }
             disconnectTracker.consecutive401 = 0
             purgeSession()
             LOGIN_METHOD = await uPLoader()
