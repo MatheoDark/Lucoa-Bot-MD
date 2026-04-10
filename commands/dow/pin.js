@@ -4,6 +4,7 @@ import path from 'path'
 import fs from 'fs'
 import { pipeline } from 'stream'
 import { promisify } from 'util'
+import sharp from 'sharp'
 
 const streamPipeline = promisify(pipeline)
 
@@ -180,6 +181,17 @@ function detectMediaKind({ mime = '', buffer, url = '', preferVideo = false }) {
   return preferVideo ? 'video' : 'unknown'
 }
 
+async function normalizeImageBuffer(buffer) {
+  try {
+    return await sharp(buffer, { failOnError: false })
+      .rotate()
+      .jpeg({ quality: 92, mozjpeg: true })
+      .toBuffer()
+  } catch {
+    return null
+  }
+}
+
 // ===== 1. MOTOR DE BÚSQUEDA (DUCKDUCKGO) =====
 async function searchPinterest(query) {
   const searchQuery = `site:pinterest.com ${query}`
@@ -315,8 +327,14 @@ export default {
         } else {
           const { buffer, mime, finalUrl } = await downloadMediaBuffer(item.url)
           const kind = detectMediaKind({ mime, buffer, url: finalUrl })
-          if (kind !== 'image') throw new Error('El enlace no devolvió una imagen válida.')
-          await client.sendMessage(chatId, { image: buffer, caption }, { quoted: m })
+          if (kind === 'image') {
+            const normalized = await normalizeImageBuffer(buffer)
+            await client.sendMessage(chatId, { image: normalized || buffer, caption }, { quoted: m })
+          } else {
+            const normalized = await normalizeImageBuffer(buffer)
+            if (!normalized) throw new Error('El enlace no devolvió una imagen válida.')
+            await client.sendMessage(chatId, { image: normalized, caption }, { quoted: m })
+          }
         }
         return m.react('✅')
       }
@@ -355,14 +373,20 @@ export default {
               await client.sendMessage(chatId, { video: media.buffer, mimetype: media.mime || 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
             }
           } else if (kind === 'image') {
-            await client.sendMessage(chatId, { image: media.buffer, caption }, { quoted: m })
+            const normalized = await normalizeImageBuffer(media.buffer)
+            await client.sendMessage(chatId, { image: normalized || media.buffer, caption }, { quoted: m })
           } else {
-            await client.sendMessage(chatId, {
-              document: media.buffer,
-              mimetype: media.mime || 'application/octet-stream',
-              fileName: `pinterest_${Date.now()}.bin`,
-              caption
-            }, { quoted: m })
+            const normalized = await normalizeImageBuffer(media.buffer)
+            if (normalized) {
+              await client.sendMessage(chatId, { image: normalized, caption }, { quoted: m })
+            } else {
+              await client.sendMessage(chatId, {
+                document: media.buffer,
+                mimetype: media.mime || 'application/octet-stream',
+                fileName: `pinterest_${Date.now()}.bin`,
+                caption
+              }, { quoted: m })
+            }
           }
         }
         return m.react('✅')
@@ -389,7 +413,8 @@ export default {
       if (kind !== 'image') {
         throw new Error('Pinterest no devolvió una imagen válida en el primer resultado.')
       }
-      await client.sendMessage(chatId, { image: buffer, caption }, { quoted: m })
+      const normalized = await normalizeImageBuffer(buffer)
+      await client.sendMessage(chatId, { image: normalized || buffer, caption }, { quoted: m })
       await m.react('✅')
 
     } catch (e) {
