@@ -117,6 +117,31 @@ async function fixVideoCodec(url) {
   })
 }
 
+async function downloadMediaBuffer(url) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': UA,
+      'Referer': 'https://www.pinterest.com/'
+    },
+    timeout: 20000,
+    redirect: 'follow'
+  })
+
+  if (!res.ok) {
+    throw new Error('No se pudo descargar el archivo de Pinterest.')
+  }
+
+  const mime = String(res.headers.get('content-type') || '').toLowerCase()
+  const arr = await res.arrayBuffer()
+  const buffer = Buffer.from(arr)
+
+  if (!buffer.length) {
+    throw new Error('Pinterest devolvió un archivo vacío.')
+  }
+
+  return { buffer, mime }
+}
+
 // ===== 1. MOTOR DE BÚSQUEDA (DUCKDUCKGO) =====
 async function searchPinterest(query) {
   const searchQuery = `site:pinterest.com ${query}`
@@ -250,7 +275,11 @@ export default {
             await client.sendMessage(chatId, { video: { url: item.url }, mimetype: 'video/mp4', caption }, { quoted: m })
           }
         } else {
-          await client.sendMessage(chatId, { image: { url: item.url }, caption }, { quoted: m })
+          const { buffer, mime } = await downloadMediaBuffer(item.url)
+          if (!mime.startsWith('image/')) {
+            throw new Error('El enlace no devolvió una imagen válida.')
+          }
+          await client.sendMessage(chatId, { image: buffer, caption }, { quoted: m })
         }
         return m.react('✅')
       }
@@ -273,7 +302,11 @@ export default {
             await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
           }
         } else {
-          await client.sendMessage(chatId, { image: { url: result.url }, caption }, { quoted: m })
+          const { buffer, mime } = await downloadMediaBuffer(result.url)
+          if (!mime.startsWith('image/')) {
+            throw new Error('El enlace no devolvió una imagen válida.')
+          }
+          await client.sendMessage(chatId, { image: buffer, caption }, { quoted: m })
         }
         return m.react('✅')
       }
@@ -294,7 +327,11 @@ export default {
         `╰━━━━━━━━━━━━━━━━━━━━⬣\n` +
         `👉 Responde con *#pin 2* para ver el siguiente.`
 
-      await client.sendMessage(chatId, { image: { url: first.url }, caption }, { quoted: m })
+      const { buffer, mime } = await downloadMediaBuffer(first.url)
+      if (!mime.startsWith('image/')) {
+        throw new Error('Pinterest no devolvió una imagen válida en el primer resultado.')
+      }
+      await client.sendMessage(chatId, { image: buffer, caption }, { quoted: m })
       await m.react('✅')
 
     } catch (e) {
