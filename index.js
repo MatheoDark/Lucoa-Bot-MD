@@ -507,7 +507,7 @@ cleanTmpFolder()
 // 🔧 FIX v8: Limpiar SOLO pre-keys antiguas en exceso (mantener las últimas 30).
 // Las pre-keys son NECESARIAS para el handshake de Signal/Noise de WhatsApp.
 // Borrarlas TODAS causa desconexión 401/515 al siguiente handshake.
-function purgePreKeys() {
+function purgePreKeys(forceAll = false) {
   try {
     const sessionDir = global.sessionName
     if (!fs.existsSync(sessionDir)) return
@@ -518,6 +518,15 @@ function purgePreKeys() {
         const numB = parseInt(b.replace('pre-key-', '')) || 0
         return numA - numB
       })
+    
+    if (forceAll && files.length > 0) {
+      for (const file of files) {
+        try { fs.unlinkSync(path.join(sessionDir, file)) } catch {}
+      }
+      console.log(chalk.yellow(`🧹 🔥 PURGA FORZADA: ${files.length} pre-keys eliminadas (saneamiento 515)`))
+      return
+    }
+
     // Mantener las últimas 30 pre-keys, solo borrar el exceso
     const MAX_PREKEYS = 30
     if (files.length <= MAX_PREKEYS) return
@@ -707,10 +716,23 @@ async function startBot() {
         log.warn(`⚠️ Error 428: Rate limit. Reconectando...`)
         requestBotRestart(8000, 'rate limit 428')
       }
-      // TODOS LOS DEMÁS (515, 408, timedOut, connectionLost, etc.) - reconectar directo
+      // 515 - Stream Errored (restart required)
+      else if (reason === 515) {
+        disconnectTracker.consecutive515 = (disconnectTracker.consecutive515 || 0) + 1
+        if (disconnectTracker.consecutive515 >= 5) {
+          log.error(`❌ 515 persistente (${disconnectTracker.consecutive515}x). Purgando pre-keys para sanear sesión...`)
+          purgePreKeys(true) // Forzamos purga agresiva si pasamos un booleano (lo implementamos ahora)
+          disconnectTracker.consecutive515 = 0
+          requestBotRestart(5000, '515 persistente - prekeys purgados')
+        } else {
+          log.warn(`⚠️ 515 Stream Errored - Reconectando directo (x${disconnectTracker.consecutive515})...`)
+          requestBotRestart(2000, '515 Stream Errored') // Wait corto para 515, como recomienda Baileys
+        }
+      }
+      // TODOS LOS DEMÁS (408, timedOut, connectionLost, etc.) - reconectar directo
       else {
         // Guardar creds por seguridad en errores de stream
-        if (reason === 515 || reason === 408) {
+        if (reason === 408) {
           if (global._saveCreds) { try { await global._saveCreds() } catch {} }
         }
         log.warn(`⚠️ Desconexión (${reason}). Reconectando...`)

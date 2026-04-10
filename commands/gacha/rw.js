@@ -16,9 +16,10 @@ const normalizeTag = (value = '') => String(value)
 const buildTagCandidates = (personaje = {}) => {
   const raw = [
     personaje.keyword,
-    personaje.name,
-    personaje.source,
+    personaje.name && personaje.source ? `${personaje.name} (${personaje.source})` : null, // MÁS ESPECÍFICO PRIMERO
     personaje.name && personaje.source ? `${personaje.name} ${personaje.source}` : null,
+    personaje.name,
+    // Eliminado: personaje.source - Esto causaba que, como último recurso, se trajera *cualquier* personaje del mismo anime/juego.
   ].filter(Boolean)
 
   const set = new Set()
