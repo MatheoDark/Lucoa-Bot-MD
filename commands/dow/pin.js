@@ -325,16 +325,10 @@ export default {
             await client.sendMessage(chatId, { video: { url: item.url }, mimetype: 'video/mp4', caption }, { quoted: m })
           }
         } else {
-          const { buffer, mime, finalUrl } = await downloadMediaBuffer(item.url)
-          const kind = detectMediaKind({ mime, buffer, url: finalUrl })
-          if (kind === 'image') {
-            const normalized = await normalizeImageBuffer(buffer)
-            await client.sendMessage(chatId, { image: normalized || buffer, caption }, { quoted: m })
-          } else {
-            const normalized = await normalizeImageBuffer(buffer)
-            if (!normalized) throw new Error('El enlace no devolvió una imagen válida.')
-            await client.sendMessage(chatId, { image: normalized, caption }, { quoted: m })
-          }
+          const { buffer } = await downloadMediaBuffer(item.url)
+          const normalized = await normalizeImageBuffer(buffer)
+          const finalImage = normalized || buffer
+          await client.sendMessage(chatId, { image: finalImage, mimetype: 'image/jpeg', caption }, { quoted: m })
         }
         return m.react('✅')
       }
@@ -358,36 +352,9 @@ export default {
           }
         } else {
           const media = await downloadMediaBuffer(result.url)
-          const kind = detectMediaKind({
-            mime: media.mime,
-            buffer: media.buffer,
-            url: media.finalUrl,
-            preferVideo: result.isVideo
-          })
-
-          if (kind === 'video') {
-            const fixedBuffer = await fixVideoCodec(result.url)
-            if (fixedBuffer) {
-              await client.sendMessage(chatId, { video: fixedBuffer, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
-            } else {
-              await client.sendMessage(chatId, { video: media.buffer, mimetype: media.mime || 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
-            }
-          } else if (kind === 'image') {
-            const normalized = await normalizeImageBuffer(media.buffer)
-            await client.sendMessage(chatId, { image: normalized || media.buffer, caption }, { quoted: m })
-          } else {
-            const normalized = await normalizeImageBuffer(media.buffer)
-            if (normalized) {
-              await client.sendMessage(chatId, { image: normalized, caption }, { quoted: m })
-            } else {
-              await client.sendMessage(chatId, {
-                document: media.buffer,
-                mimetype: media.mime || 'application/octet-stream',
-                fileName: `pinterest_${Date.now()}.bin`,
-                caption
-              }, { quoted: m })
-            }
-          }
+          const normalized = await normalizeImageBuffer(media.buffer)
+          const finalImage = normalized || media.buffer
+          await client.sendMessage(chatId, { image: finalImage, mimetype: 'image/jpeg', caption }, { quoted: m })
         }
         return m.react('✅')
       }
@@ -408,13 +375,12 @@ export default {
         `╰━━━━━━━━━━━━━━━━━━━━⬣\n` +
         `👉 Responde con *#pin 2* para ver el siguiente.`
 
-      const { buffer, mime, finalUrl } = await downloadMediaBuffer(first.url)
-      const kind = detectMediaKind({ mime, buffer, url: finalUrl })
-      if (kind !== 'image') {
+      const { buffer } = await downloadMediaBuffer(first.url)
+      const normalized = await normalizeImageBuffer(buffer)
+      if (!normalized && !buffer.length) {
         throw new Error('Pinterest no devolvió una imagen válida en el primer resultado.')
       }
-      const normalized = await normalizeImageBuffer(buffer)
-      await client.sendMessage(chatId, { image: normalized || buffer, caption }, { quoted: m })
+      await client.sendMessage(chatId, { image: normalized || buffer, mimetype: 'image/jpeg', caption }, { quoted: m })
       await m.react('✅')
 
     } catch (e) {

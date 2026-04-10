@@ -155,9 +155,28 @@ function restoreSession() {
   return false
 }
 
+function teardownClient() {
+  try {
+    if (disconnectTracker._credsAutoSaveInterval) {
+      clearInterval(disconnectTracker._credsAutoSaveInterval)
+      disconnectTracker._credsAutoSaveInterval = null
+    }
+    if (disconnectTracker._reconnectTimer) {
+      clearTimeout(disconnectTracker._reconnectTimer)
+      disconnectTracker._reconnectTimer = null
+    }
+    if (global.client) {
+      try { global.client.ev.removeAllListeners() } catch {}
+      try { global.client.end() } catch {}
+      global.client = null
+    }
+  } catch {}
+}
+
 function purgeSession() {
   try {
     global._saveCreds = null // Evitar que el shutdown hook vuelva a guardar la sesión muerta
+    teardownClient()
     // No hacer backup de una sesión que sabemos que está mala (401/403/Forbidden)
     const backupPath = path.join(global.sessionName, 'creds.backup.json')
     if (fs.existsSync(backupPath)) fs.unlinkSync(backupPath)
