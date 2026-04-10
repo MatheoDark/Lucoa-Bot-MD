@@ -139,7 +139,45 @@ async function downloadMediaBuffer(url) {
     throw new Error('Pinterest devolvió un archivo vacío.')
   }
 
-  return { buffer, mime }
+  return { buffer, mime, finalUrl: res.url || url }
+}
+
+function detectBufferKind(buffer) {
+  if (!buffer || buffer.length < 12) return 'unknown'
+
+  // JPEG
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'image'
+  // PNG
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image'
+  // GIF
+  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return 'image'
+  // WEBP (RIFF....WEBP)
+  if (
+    buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+    buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+  ) return 'image'
+
+  // MP4 (....ftyp)
+  const box = buffer.toString('ascii', 4, 8)
+  if (box === 'ftyp') return 'video'
+
+  return 'unknown'
+}
+
+function detectMediaKind({ mime = '', buffer, url = '', preferVideo = false }) {
+  const m = String(mime || '').toLowerCase()
+  const u = String(url || '').toLowerCase()
+
+  if (m.startsWith('image/')) return 'image'
+  if (m.startsWith('video/')) return 'video'
+
+  if (/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(u)) return 'image'
+  if (/\.(mp4|mov|m4v|webm)(\?|$)/i.test(u) || /video\//i.test(u)) return 'video'
+
+  const bySig = detectBufferKind(buffer)
+  if (bySig !== 'unknown') return bySig
+
+  return preferVideo ? 'video' : 'unknown'
 }
 
 // ===== 1. MOTOR DE BÚSQUEDA (DUCKDUCKGO) =====
@@ -275,10 +313,9 @@ export default {
             await client.sendMessage(chatId, { video: { url: item.url }, mimetype: 'video/mp4', caption }, { quoted: m })
           }
         } else {
-          const { buffer, mime } = await downloadMediaBuffer(item.url)
-          if (!mime.startsWith('image/')) {
-            throw new Error('El enlace no devolvió una imagen válida.')
-          }
+          const { buffer, mime, finalUrl } = await downloadMediaBuffer(item.url)
+          const kind = detectMediaKind({ mime, buffer, url: finalUrl })
+          if (kind !== 'image') throw new Error('El enlace no devolvió una imagen válida.')
           await client.sendMessage(chatId, { image: buffer, caption }, { quoted: m })
         }
         return m.react('✅')
@@ -302,11 +339,31 @@ export default {
             await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
           }
         } else {
-          const { buffer, mime } = await downloadMediaBuffer(result.url)
-          if (!mime.startsWith('image/')) {
-            throw new Error('El enlace no devolvió una imagen válida.')
+          const media = await downloadMediaBuffer(result.url)
+          const kind = detectMediaKind({
+            mime: media.mime,
+            buffer: media.buffer,
+            url: media.finalUrl,
+            preferVideo: result.isVideo
+          })
+
+          if (kind === 'video') {
+            const fixedBuffer = await fixVideoCodec(result.url)
+            if (fixedBuffer) {
+              await client.sendMessage(chatId, { video: fixedBuffer, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+            } else {
+              await client.sendMessage(chatId, { video: media.buffer, mimetype: media.mime || 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+            }
+          } else if (kind === 'image') {
+            await client.sendMessage(chatId, { image: media.buffer, caption }, { quoted: m })
+          } else {
+            await client.sendMessage(chatId, {
+              document: media.buffer,
+              mimetype: media.mime || 'application/octet-stream',
+              fileName: `pinterest_${Date.now()}.bin`,
+              caption
+            }, { quoted: m })
           }
-          await client.sendMessage(chatId, { image: buffer, caption }, { quoted: m })
         }
         return m.react('✅')
       }
@@ -327,8 +384,9 @@ export default {
         `╰━━━━━━━━━━━━━━━━━━━━⬣\n` +
         `👉 Responde con *#pin 2* para ver el siguiente.`
 
-      const { buffer, mime } = await downloadMediaBuffer(first.url)
-      if (!mime.startsWith('image/')) {
+      const { buffer, mime, finalUrl } = await downloadMediaBuffer(first.url)
+      const kind = detectMediaKind({ mime, buffer, url: finalUrl })
+      if (kind !== 'image') {
         throw new Error('Pinterest no devolvió una imagen válida en el primer resultado.')
       }
       await client.sendMessage(chatId, { image: buffer, caption }, { quoted: m })
