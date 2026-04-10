@@ -1,4 +1,11 @@
 import fetch from 'node-fetch'
+import { exec } from 'child_process'
+import path from 'path'
+import fs from 'fs'
+import { pipeline } from 'stream'
+import { promisify } from 'util'
+
+const streamPipeline = promisify(pipeline)
 
 // 🐲 LUCOA • Pinterest (DuckDuckGo Image Search)
 // Busca imágenes de Pinterest via DuckDuckGo para evitar APIs muertas.
@@ -40,6 +47,39 @@ function pickFromMeta(html, propertyName) {
 function findMp4InHtml(html) {
   const match = html.match(/https?:\\\/\\\/[^"'\\s]+\\.mp4[^"'\\s]*/i) || html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/i)
   return decodeHtml(match?.[0] || '')
+}
+
+async function fixVideoCodec(url) {
+  const tmpDir = path.join(process.cwd(), 'tmp')
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir)
+
+  const timestamp = Date.now()
+  const inputPath = path.join(tmpDir, `pin_${timestamp}.mp4`)
+  const outputPath = path.join(tmpDir, `pin_${timestamp}_fixed.mp4`)
+
+  // Descargar el video primero
+  const response = await fetch(url, {
+    headers: { 'User-Agent': UA }
+  })
+  
+  if (!response.ok) throw new Error('Error al descargar el video de Pinterest.')
+  await streamPipeline(response.body, fs.createWriteStream(inputPath))
+
+  // Arreglar el codec con FFmpeg para WhatsApp
+  return new Promise((resolve) => {
+    const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "${outputPath}"`
+    exec(cmd, (error) => {
+      try { fs.unlinkSync(inputPath) } catch {} // Borrar original
+      if (error) {
+        // En caso de fallo de FFmpeg, intentamos devolver el buffer desde lo que haya o fallamos
+        resolve(null)
+      } else {
+        const buffer = fs.readFileSync(outputPath)
+        try { fs.unlinkSync(outputPath) } catch {} // Borrar procesado
+        resolve(buffer)
+      }
+    })
+  })
 }
 
 // ===== 1. MOTOR DE BÚSQUEDA (DUCKDUCKGO) =====
@@ -157,7 +197,13 @@ export default {
         const caption = `🐲 *${idx + 1}/${cache.results.length}* • ${item.desc.substring(0, 50)}...`
         
         if (item.isVideo) {
-          await client.sendMessage(chatId, { video: { url: item.url }, mimetype: 'video/mp4', caption }, { quoted: m })
+          const fixedBuffer = await fixVideoCodec(item.url)
+          if (fixedBuffer) {
+            await client.sendMessage(chatId, { video: fixedBuffer, mimetype: 'video/mp4', caption }, { quoted: m })
+          } else {
+            // Fallback (por si no hay FFmpeg)
+            await client.sendMessage(chatId, { video: { url: item.url }, mimetype: 'video/mp4', caption }, { quoted: m })
+          }
         } else {
           await client.sendMessage(chatId, { image: { url: item.url }, caption }, { quoted: m })
         }
@@ -171,8 +217,13 @@ export default {
         const caption = `🐲 *Descarga completada*\n📝 ${result.desc}`
 
         if (result.isVideo) {
+          const fixedBuffer = await fixVideoCodec(result.url)
           try {
-            await client.sendMessage(chatId, { video: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+            if (fixedBuffer) {
+              await client.sendMessage(chatId, { video: fixedBuffer, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+            } else {
+              await client.sendMessage(chatId, { video: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+            }
           } catch {
             await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
           }
