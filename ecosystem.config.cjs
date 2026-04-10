@@ -2,6 +2,7 @@ module.exports = {
   apps: [{
     name: 'Lucoa',
     script: 'index.js',
+    node_args: '--no-deprecation',
     kill_timeout: 8000,
     wait_ready: false,
     listen_timeout: 10000,

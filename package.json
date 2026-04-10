@@ -12,7 +12,7 @@
   },
   "scripts": {
     "format": "prettier --write .",
-    "start": "node index.js"
+    "start": "node --no-deprecation index.js"
   },
   "keywords": [
     "whatsapp-bot",
