@@ -36,7 +36,21 @@ async function gracefulShutdown(signal) {
         if (global._gracefulSaveDB) {
             try { global._gracefulSaveDB(); console.log(chalk.green('✅ DB guardada.')) } catch {}
         }
-        // 2. Guardar credenciales
+        
+        // 2. Cerrar conexión de WhatsApp LIMPIAMENTE ANTES de forzar credenciales finales
+        if (global.client) {
+            try {
+                // Desuscribir solo connection.update para evitar bucle de reconexión, preservando creds.update
+                global.client.ev.removeAllListeners('connection.update')
+                // 🔧 FIX v8: Usar end() que envía close frame al servidor de WA
+                try { global.client.end(new Error('Graceful Shutdown')) } catch {}
+            } catch {}
+        }
+        
+        // Esperar 2s para que WA registre el close frame
+        await new Promise(r => setTimeout(r, 2000))
+        
+        // 3. Guardar credenciales AL FINAL
         if (global._saveCreds) {
             try {
                 await global._saveCreds()
@@ -45,17 +59,6 @@ async function gracefulShutdown(signal) {
                 console.error('⚠️ Error guardando credenciales:', e.message)
             }
         }
-        // 3. Cerrar conexión de WhatsApp LIMPIAMENTE
-        if (global.client) {
-            try {
-                // Desuscribir eventos para evitar que el close trigger reconexión
-                global.client.ev.removeAllListeners()
-                // 🔧 FIX v8: Usar end() que envía close frame al servidor de WA
-                try { global.client.end() } catch {}
-            } catch {}
-        }
-        // Esperar 2s para que WA registre el close frame
-        await new Promise(r => setTimeout(r, 2000))
     } catch {}
     console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
     process.exit(0)
