@@ -412,6 +412,8 @@ export function patchInteractive(client) {
 }
 
 let LOGIN_METHOD = null
+let _isStartingBot = false
+let _pendingRestart = false
 
 // ✅ Control de desconexiones - v5 ANTI-DISCONNECT
 const disconnectTracker = {
@@ -462,6 +464,16 @@ async function delayedReconnect(delayMs, reason = '') {
     disconnectTracker._reconnectTimer = null
     startBot()
   }, finalDelay)
+}
+
+function requestBotRestart(delayMs, reason = '') {
+  if (_isShuttingDown) return
+  if (_isStartingBot) {
+    _pendingRestart = true
+    log.warn(`⏳ Reinicio pendiente: ${reason || 'startBot en progreso'}`)
+    return
+  }
+  delayedReconnect(delayMs, reason)
 }
 
 // 🧹 Limpieza automática de carpeta tmp
@@ -519,6 +531,13 @@ function purgePreKeys() {
 setInterval(purgePreKeys, 30 * 60 * 1000) // Cada 30 minutos (no cada 10)
 
 async function startBot() {
+  if (_isStartingBot) {
+    _pendingRestart = true
+    return
+  }
+  _isStartingBot = true
+
+  try {
   // Limpiar interval de auto-save anterior
   if (disconnectTracker._credsAutoSaveInterval) {
     clearInterval(disconnectTracker._credsAutoSaveInterval)
@@ -632,6 +651,7 @@ async function startBot() {
 
     if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
+      disconnectTracker._lastReasonCode = reason
       console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
       
       // 401 - loggedOut: distinguir logout real de "Connection Failure" temporal
@@ -643,22 +663,24 @@ async function startBot() {
           log.error(`❌ WhatsApp confirmó cierre de sesión. Se requiere nueva vinculación.`)
           purgeSession()
           LOGIN_METHOD = await uPLoader()
-          startBot()
+          requestBotRestart(1500, 'nueva vinculación tras logout real')
         } else {
           // "Connection Failure" = temporal, reconectar directo como Megumin
-          log.warn(`⚠️ 401 "Connection Failure" - Reconectando...`)
-          startBot()
+          disconnectTracker.consecutive401 += 1
+          const wait401 = Math.min(4000 + ((disconnectTracker.consecutive401 - 1) * 3000), 30000)
+          log.warn(`⚠️ 401 "Connection Failure" - Reconectando en ${Math.round(wait401 / 1000)}s (x${disconnectTracker.consecutive401})...`)
+          requestBotRestart(wait401, `401 Connection Failure x${disconnectTracker.consecutive401}`)
         }
       }
       // badSession (500)
       else if (reason === DisconnectReason.badSession) {
         log.warn("⚠️ badSession - Reconectando...")
-        startBot()
+        requestBotRestart(8000, 'badSession')
       }
       // multideviceMismatch (411)
       else if (reason === DisconnectReason.multideviceMismatch) {
         log.warn("⚠️ multideviceMismatch - Reconectando...")
-        startBot()
+        requestBotRestart(10000, 'multideviceMismatch')
       }
       // connectionReplaced - NO reconectar (como Megumin)
       else if (reason === DisconnectReason.connectionReplaced) {
@@ -669,12 +691,12 @@ async function startBot() {
         log.error("❌ Conexión prohibida. Purgando sesión...")
         purgeSession()
         LOGIN_METHOD = await uPLoader()
-        startBot()
+        requestBotRestart(1500, 'forbidden con sesión purgada')
       }
       // 428: Rate limit - reconectar directo (el queue ya maneja retry interno)
       else if (reason === 428) {
         log.warn(`⚠️ Error 428: Rate limit. Reconectando...`)
-        startBot()
+        requestBotRestart(8000, 'rate limit 428')
       }
       // TODOS LOS DEMÁS (515, 408, timedOut, connectionLost, etc.) - reconectar directo
       else {
@@ -683,7 +705,7 @@ async function startBot() {
           if (global._saveCreds) { try { await global._saveCreds() } catch {} }
         }
         log.warn(`⚠️ Desconexión (${reason}). Reconectando...`)
-        startBot()
+        requestBotRestart(5000, `desconexión ${reason}`)
       }
     }
 
@@ -694,6 +716,10 @@ async function startBot() {
       disconnectTracker.consecutiveOther = 0
       disconnectTracker._lastReasonCode = 0
       disconnectTracker.count = 0
+      if (disconnectTracker._reconnectTimer) {
+        clearTimeout(disconnectTracker._reconnectTimer)
+        disconnectTracker._reconnectTimer = null
+      }
       // 🔧 FIX v8: Resetear 515/428/408 inmediatamente al conectar (antes esperaba 5 min)
       // Si se desconectaba antes de 5 min, los contadores se acumulaban incorrectamente
       disconnectTracker.consecutive515 = 0
@@ -865,6 +891,13 @@ async function startBot() {
         // Silencio errores menores de mensajes para no ensuciar consola
     }
   })
+  } finally {
+    _isStartingBot = false
+    if (_pendingRestart && !_isShuttingDown) {
+      _pendingRestart = false
+      requestBotRestart(2000, 'reinicio pendiente')
+    }
+  }
 }
 
 ;(async () => {

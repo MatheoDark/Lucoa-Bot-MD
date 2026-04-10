@@ -11,6 +11,37 @@ global.__lucoaPinCache = global.__lucoaPinCache || Object.create(null)
 // Detección de Links
 const isPinterestUrl = (s = '') => /(https?:\/\/)?(www\.)?pinterest\.(com|cl|es)\/.+/i.test(s) || /pin\.it\//i.test(s)
 
+const extractUrlFromText = (text = '') => {
+  const match = String(text || '').match(/https?:\/\/[^\s]+/i)
+  return match ? match[0].replace(/[<>]/g, '') : null
+}
+
+function getQuotedText(m) {
+  return (
+    m?.quoted?.text ||
+    m?.quoted?.caption ||
+    m?.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation ||
+    m?.message?.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text ||
+    m?.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage?.caption ||
+    m?.message?.extendedTextMessage?.contextInfo?.quotedMessage?.videoMessage?.caption ||
+    ''
+  )
+}
+
+const decodeHtml = (s = '') => String(s || '').replace(/&amp;/g, '&').replace(/\\u002F/g, '/')
+
+function pickFromMeta(html, propertyName) {
+  const escaped = propertyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const reg = new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`, 'i')
+  const match = html.match(reg)
+  return decodeHtml(match?.[1] || '')
+}
+
+function findMp4InHtml(html) {
+  const match = html.match(/https?:\\\/\\\/[^"'\\s]+\\.mp4[^"'\\s]*/i) || html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/i)
+  return decodeHtml(match?.[0] || '')
+}
+
 // ===== 1. MOTOR DE BÚSQUEDA (DUCKDUCKGO) =====
 async function searchPinterest(query) {
   const searchQuery = `site:pinterest.com ${query}`
@@ -72,18 +103,24 @@ async function downloadPinterestLink(url) {
 
   const html = await res.text()
 
-  // Buscar og:image o og:video en el HTML
-  const ogVideo = html.match(/<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i)
-  const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-  const ogTitle = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
+  // Pinterest a veces publica video en propiedades distintas según región/dispositivo.
+  const mediaUrl =
+    pickFromMeta(html, 'og:video:secure_url') ||
+    pickFromMeta(html, 'og:video:url') ||
+    pickFromMeta(html, 'og:video') ||
+    pickFromMeta(html, 'twitter:player:stream') ||
+    findMp4InHtml(html) ||
+    pickFromMeta(html, 'og:image')
 
-  const mediaUrl = ogVideo?.[1] || ogImage?.[1]
+  const title = pickFromMeta(html, 'og:title') || 'Pinterest Media'
   if (!mediaUrl) throw new Error('No se pudo extraer la imagen/video del enlace.')
+
+  const isVideo = /\.mp4(\?|$)|mime=video|video\//i.test(mediaUrl)
 
   return {
     url: mediaUrl,
-    desc: ogTitle?.[1] || 'Pinterest Media',
-    isVideo: !!ogVideo
+    desc: title,
+    isVideo
   }
 }
 
@@ -91,9 +128,10 @@ async function downloadPinterestLink(url) {
 export default {
   command: ['pin', 'pinterest', 'pinvideo', 'pindl', 'pinterestdl'],
   category: 'downloader',
-  run: async ({ client, m, args }) => {
-    const input = args.join(' ').trim()
+  run: async ({ client, m, args, text }) => {
+    const input = (String(text || '').trim() || args.join(' ').trim())
     const chatId = m.chat
+    const quoted = getQuotedText(m)
 
     if (!input) {
       return m.reply(
@@ -118,18 +156,26 @@ export default {
         const item = cache.results[idx]
         const caption = `🐲 *${idx + 1}/${cache.results.length}* • ${item.desc.substring(0, 50)}...`
         
-        await client.sendMessage(chatId, { image: { url: item.url }, caption }, { quoted: m })
+        if (item.isVideo) {
+          await client.sendMessage(chatId, { video: { url: item.url }, mimetype: 'video/mp4', caption }, { quoted: m })
+        } else {
+          await client.sendMessage(chatId, { image: { url: item.url }, caption }, { quoted: m })
+        }
         return m.react('✅')
       }
 
       // CASO B: El usuario envía un LINK (Descarga directa)
-      if (isPinterestUrl(input)) {
-        const result = await downloadPinterestLink(input)
+      const directUrl = extractUrlFromText(input) || extractUrlFromText(quoted) || input
+      if (isPinterestUrl(directUrl)) {
+        const result = await downloadPinterestLink(directUrl)
         const caption = `🐲 *Descarga completada*\n📝 ${result.desc}`
 
         if (result.isVideo) {
-          // ✅ Usar document en lugar de video para mejor compatibilidad móvil
-          await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: 'pinterest_video.mp4', caption }, { quoted: m })
+          try {
+            await client.sendMessage(chatId, { video: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+          } catch {
+            await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+          }
         } else {
           await client.sendMessage(chatId, { image: { url: result.url }, caption }, { quoted: m })
         }
