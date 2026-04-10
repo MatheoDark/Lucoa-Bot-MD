@@ -37,6 +37,13 @@ function getQuotedText(m) {
 
 const decodeHtml = (s = '') => String(s || '').replace(/&amp;/g, '&').replace(/\\u002F/g, '/')
 
+function decodeJsonEscapes(s = '') {
+  return String(s || '')
+    .replace(/\\\//g, '/')
+    .replace(/\\u002F/gi, '/')
+    .replace(/\\u0026/gi, '&')
+}
+
 function pickFromMeta(html, propertyName) {
   const escaped = propertyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const reg = new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`, 'i')
@@ -47,6 +54,34 @@ function pickFromMeta(html, propertyName) {
 function findMp4InHtml(html) {
   const match = html.match(/https?:\\\/\\\/[^"'\\s]+\\.mp4[^"'\\s]*/i) || html.match(/https?:\/\/[^"'\s]+\.mp4[^"'\s]*/i)
   return decodeHtml(match?.[0] || '')
+}
+
+function collectMediaCandidatesFromHtml(html = '') {
+  const patterns = [
+    /"contentUrl"\s*:\s*"(https?:\\\/\\\/[^"\\]+\\.mp4[^"\\]*)"/gi,
+    /"video_url"\s*:\s*"(https?:\\\/\\\/[^"\\]+\\.mp4[^"\\]*)"/gi,
+    /"url"\s*:\s*"(https?:\\\/\\\/[^"\\]+\\.mp4[^"\\]*)"/gi,
+    /"image"\s*:\s*"(https?:\\\/\\\/[^"\\]+(?:pinimg\\.com|pinimg\\.cn)[^"\\]*)"/gi,
+    /"url"\s*:\s*"(https?:\\\/\\\/[^"\\]+(?:pinimg\\.com|pinimg\\.cn)[^"\\]*)"/gi,
+    /(https?:\/\/[^"'\s]+\.mp4[^"'\s]*)/gi,
+    /(https?:\/\/[^"'\s]+(?:pinimg\.com|pinimg\.cn)[^"'\s]*)/gi
+  ]
+
+  const out = []
+  for (const reg of patterns) {
+    let m
+    while ((m = reg.exec(html)) !== null) {
+      const raw = m[1] || m[0]
+      if (!raw) continue
+      const decoded = decodeJsonEscapes(decodeHtml(raw))
+      if (!/^https?:\/\//i.test(decoded)) continue
+      if (/\.(mp4|m3u8)(\?|$)/i.test(decoded) || /pinimg\.(com|cn)/i.test(decoded)) {
+        out.push(decoded)
+      }
+    }
+  }
+
+  return [...new Set(out)]
 }
 
 async function fixVideoCodec(url) {
@@ -137,20 +172,30 @@ async function searchPinterest(query) {
 // ===== 2. DESCARGA DIRECTA POR LINK =====
 async function downloadPinterestLink(url) {
   // Intentar resolver el link de Pinterest y extraer la imagen OG
-  const headers = { 'User-Agent': UA }
+  const headers = {
+    'User-Agent': UA,
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Referer': 'https://www.pinterest.com/'
+  }
   const res = await fetch(url, { headers, timeout: 15000, redirect: 'follow' })
   if (!res.ok) throw new Error('No se pudo acceder al enlace de Pinterest.')
 
   const html = await res.text()
 
   // Pinterest a veces publica video en propiedades distintas según región/dispositivo.
-  const mediaUrl =
-    pickFromMeta(html, 'og:video:secure_url') ||
-    pickFromMeta(html, 'og:video:url') ||
-    pickFromMeta(html, 'og:video') ||
-    pickFromMeta(html, 'twitter:player:stream') ||
-    findMp4InHtml(html) ||
-    pickFromMeta(html, 'og:image')
+  const candidates = [
+    pickFromMeta(html, 'og:video:secure_url'),
+    pickFromMeta(html, 'og:video:url'),
+    pickFromMeta(html, 'og:video'),
+    pickFromMeta(html, 'twitter:player:stream'),
+    findMp4InHtml(html),
+    ...collectMediaCandidatesFromHtml(html),
+    pickFromMeta(html, 'og:image'),
+    pickFromMeta(html, 'twitter:image')
+  ].filter(Boolean)
+
+  const mediaUrl = candidates.find(u => /\.mp4(\?|$)|mime=video|video\//i.test(u)) || candidates[0]
 
   const title = pickFromMeta(html, 'og:title') || 'Pinterest Media'
   if (!mediaUrl) throw new Error('No se pudo extraer la imagen/video del enlace.')
