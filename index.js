@@ -154,10 +154,14 @@ function restoreSession() {
 
 function purgeSession() {
   try {
-    backupSession()
+    global._saveCreds = null // Evitar que el shutdown hook vuelva a guardar la sesión muerta
+    // No hacer backup de una sesión que sabemos que está mala (401/403/Forbidden)
+    const backupPath = path.join(global.sessionName, 'creds.backup.json')
+    if (fs.existsSync(backupPath)) fs.unlinkSync(backupPath)
+    
     fs.rmSync(global.sessionName, { recursive: true, force: true })
     fs.mkdirSync(global.sessionName, { recursive: true })
-    console.log(chalk.cyan("♻️ Sesión reiniciada."))
+    console.log(chalk.cyan("♻️ Sesión reiniciada y purgada por completo."))
   } catch {}
 }
 
