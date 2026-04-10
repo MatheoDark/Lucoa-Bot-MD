@@ -658,6 +658,7 @@ async function startBot() {
       if (reason === DisconnectReason.loggedOut) {
         const errorMsg = String(lastDisconnect?.error?.message || lastDisconnect?.error || '').toLowerCase()
         const isRealLogout = errorMsg.includes('logged out')
+        const MAX_401_BEFORE_RELINK = 6
 
         if (isRealLogout) {
           log.error(`❌ WhatsApp confirmó cierre de sesión. Se requiere nueva vinculación.`)
@@ -667,6 +668,14 @@ async function startBot() {
         } else {
           // "Connection Failure" = temporal, reconectar directo como Megumin
           disconnectTracker.consecutive401 += 1
+          if (disconnectTracker.consecutive401 >= MAX_401_BEFORE_RELINK) {
+            log.error(`❌ 401 persistente (${disconnectTracker.consecutive401}x). Forzando nueva vinculación...`)
+            disconnectTracker.consecutive401 = 0
+            purgeSession()
+            LOGIN_METHOD = await uPLoader()
+            requestBotRestart(1500, '401 persistente - relink forzado')
+            return
+          }
           const wait401 = Math.min(4000 + ((disconnectTracker.consecutive401 - 1) * 3000), 30000)
           log.warn(`⚠️ 401 "Connection Failure" - Reconectando en ${Math.round(wait401 / 1000)}s (x${disconnectTracker.consecutive401})...`)
           requestBotRestart(wait401, `401 Connection Failure x${disconnectTracker.consecutive401}`)
