@@ -13,9 +13,14 @@ const streamPipeline = promisify(pipeline)
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 const PIN_DEBUG = process.env.PIN_DEBUG === '1'
+const PIN_VERBOSE = process.env.PIN_VERBOSE === '1'
 
 function debugLog(message) {
   if (PIN_DEBUG) console.log(message)
+}
+
+function verboseLog(message) {
+  if (PIN_DEBUG || PIN_VERBOSE) console.log(message)
 }
 
 // Cache global para paginación (#pin 2)
@@ -120,7 +125,7 @@ function collectMediaCandidatesFromHtml(html = '') {
   }
 
   const ranked = [...out].sort((a, b) => scoreCandidate(b) - scoreCandidate(a))
-  console.log(`[PIN-COLLECT] Total URLs encontradas: ${ranked.length}`)
+  verboseLog(`[PIN-COLLECT] Total URLs encontradas: ${ranked.length}`)
   return ranked
 }
 
@@ -179,7 +184,7 @@ async function downloadMediaBuffer(url, maxRetries = 3) {
   let lastError
   for (let i = 0; i < maxRetries; i++) {
     try {
-      console.log(`[PIN] Intento ${i + 1}/${maxRetries} descargar: ${url.substring(0, 80)}...`)
+      debugLog(`[PIN] Intento ${i + 1}/${maxRetries} descargar: ${url.substring(0, 80)}...`)
       
       const headers = {
         'User-Agent': UA,
@@ -206,29 +211,29 @@ async function downloadMediaBuffer(url, maxRetries = 3) {
 
       if (!res.ok) {
         lastError = `HTTP ${res.status} ${res.statusText}`
-        console.log(`[PIN] Error descarga: ${lastError}, reintentando...`)
+        debugLog(`[PIN] Error descarga: ${lastError}, reintentando...`)
         if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)))
         continue
       }
 
       const mime = String(res.headers.get('content-type') || '').toLowerCase()
-      console.log(`[PIN] Mime type detectado: ${mime}`)
+      debugLog(`[PIN] Mime type detectado: ${mime}`)
       
       const arr = await res.arrayBuffer()
       const buffer = Buffer.from(arr)
 
       if (!buffer.length) {
         lastError = 'Buffer vacío'
-        console.log(`[PIN] Buffer vacío, reintentando...`)
+        debugLog(`[PIN] Buffer vacío, reintentando...`)
         if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)))
         continue
       }
 
-      console.log(`[PIN] ✅ Descargado: ${buffer.length} bytes, tipo: ${mime}`)
+      debugLog(`[PIN] ✅ Descargado: ${buffer.length} bytes, tipo: ${mime}`)
       return { buffer, mime, finalUrl: res.url || url }
     } catch (e) {
       lastError = e.message
-      console.log(`[PIN] Error intento ${i + 1}: ${lastError}`)
+      debugLog(`[PIN] Error intento ${i + 1}: ${lastError}`)
       if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)))
     }
   }
@@ -276,12 +281,12 @@ function detectMediaKind({ mime = '', buffer, url = '', preferVideo = false }) {
 
 async function normalizeImageBuffer(buffer) {
   if (!buffer || !buffer.length) {
-    console.log(`[PIN] Buffer vacío en normalización`)
+    debugLog(`[PIN] Buffer vacío en normalización`)
     return null
   }
 
   const kind = detectBufferKind(buffer)
-  console.log(`[PIN] Normalizando imagen (tipo detectado: ${kind}, tamaño: ${buffer.length} bytes)`)
+  debugLog(`[PIN] Normalizando imagen (tipo detectado: ${kind}, tamaño: ${buffer.length} bytes)`)
 
   try {
     const normalized = await sharp(buffer, { failOnError: false })
@@ -289,10 +294,10 @@ async function normalizeImageBuffer(buffer) {
       .jpeg({ quality: 92, mozjpeg: true })
       .toBuffer()
     
-    console.log(`[PIN] ✅ Imagen normalizada: ${normalized.length} bytes`)
+    debugLog(`[PIN] ✅ Imagen normalizada: ${normalized.length} bytes`)
     return normalized
   } catch (e) {
-    console.log(`[PIN] ⚠️ Error normalizando: ${e.message}. Devolviendo buffer original.`)
+    debugLog(`[PIN] ⚠️ Error normalizando: ${e.message}. Devolviendo buffer original.`)
     return buffer
   }
 }
@@ -351,7 +356,7 @@ async function searchPinterest(query) {
 
 // ===== 2. DESCARGA DIRECTA POR LINK =====
 async function downloadPinterestLink(url) {
-  console.log(`[PIN-LINK] Resolviendo enlace: ${url}`)
+  debugLog(`[PIN-LINK] Resolviendo enlace: ${url}`)
   
   // Intentar resolver el link de Pinterest y extraer la imagen OG
   const headers = {
@@ -366,14 +371,14 @@ async function downloadPinterestLink(url) {
   try {
     res = await fetch(url, { headers, timeout: 15000, redirect: 'follow' })
     if (!res.ok) {
-      console.log(`[PIN-LINK] ❌ HTTP ${res.status} al acceder a ${url}`)
+      debugLog(`[PIN-LINK] ❌ HTTP ${res.status} al acceder a ${url}`)
       throw new Error(`HTTP ${res.status} al acceder al enlace`)
     }
     
     html = await res.text()
-    console.log(`[PIN-LINK] HTML descargado: ${html.length} bytes`)
+    debugLog(`[PIN-LINK] HTML descargado: ${html.length} bytes`)
   } catch (e) {
-    console.log(`[PIN-LINK] ❌ Error descargando HTML: ${e.message}`)
+    debugLog(`[PIN-LINK] ❌ Error descargando HTML: ${e.message}`)
     throw new Error(`No se pudo acceder al enlace: ${e.message}`)
   }
 
@@ -392,10 +397,10 @@ async function downloadPinterestLink(url) {
     pickFromMeta(html, 'twitter:image')
   ].filter(Boolean)
 
-  console.log(`[PIN-LINK] Videos encontrados: ${videoUrls.length}, Imágenes: ${imageUrls.length}`)
+  verboseLog(`[PIN-LINK] Videos encontrados: ${videoUrls.length}, Imágenes: ${imageUrls.length}`)
   
   if (videoUrls.length > 0) {
-    console.log(`[PIN-LINK] Video URL #1: ${videoUrls[0].substring(0, 80)}...`)
+    debugLog(`[PIN-LINK] Video URL #1: ${videoUrls[0].substring(0, 80)}...`)
     return {
       url: videoUrls[0],
       desc: pickFromMeta(html, 'og:title') || 'Pinterest Video',
@@ -407,7 +412,7 @@ async function downloadPinterestLink(url) {
     // Intentar descargar cada imagen hasta encontrar una válida
     for (let i = 0; i < imageUrls.length; i++) {
       const imgUrl = imageUrls[i]
-      console.log(`[PIN-LINK] Intentando imagen ${i + 1}/${imageUrls.length}: ${imgUrl.substring(0, 80)}...`)
+      debugLog(`[PIN-LINK] Intentando imagen ${i + 1}/${imageUrls.length}: ${imgUrl.substring(0, 80)}...`)
       
       try {
         const testRes = await fetch(imgUrl, {
@@ -424,38 +429,38 @@ async function downloadPinterestLink(url) {
           if (/^image\//.test(mime)) {
             // Evitar assets de interfaz aunque sean imagen
             if (/s\.pinimg\.(com|cn)\/webapp\//i.test(lowUrl) || /(logo|favicon|avatar|profile|icon|sprite|badge|header|footer)/i.test(lowUrl)) {
-              console.log(`[PIN-LINK] ⚠️ URL imagen descartada por UI/logo: ${imgUrl.substring(0, 80)}...`)
+              debugLog(`[PIN-LINK] ⚠️ URL imagen descartada por UI/logo: ${imgUrl.substring(0, 80)}...`)
               continue
             }
 
             // Si viene tamaño declarado muy pequeño, suele ser icono/logo
             const contentLength = Number(size || 0)
             if (Number.isFinite(contentLength) && contentLength > 0 && contentLength < 20000) {
-              console.log(`[PIN-LINK] ⚠️ URL imagen descartada por tamaño bajo (${contentLength} bytes)`)
+              debugLog(`[PIN-LINK] ⚠️ URL imagen descartada por tamaño bajo (${contentLength} bytes)`)
               continue
             }
 
-            console.log(`[PIN-LINK] ✅ Imagen válida: ${mime} (${size} bytes)`)
+            verboseLog(`[PIN-LINK] ✅ Imagen válida: ${mime} (${size} bytes)`)
             return {
               url: imgUrl,
               desc: pickFromMeta(html, 'og:title') || 'Pinterest Image',
               isVideo: false
             }
           } else {
-            console.log(`[PIN-LINK] ⚠️ URL rechazada: es ${mime}, no imagen`)
+            debugLog(`[PIN-LINK] ⚠️ URL rechazada: es ${mime}, no imagen`)
             continue
           }
         }
       } catch (e) {
-        console.log(`[PIN-LINK] Imagen ${i + 1} no accesible: ${e.message}`)
+        debugLog(`[PIN-LINK] Imagen ${i + 1} no accesible: ${e.message}`)
       }
     }
     
-    console.log(`[PIN-LINK] ❌ No se encontró ninguna imagen válida entre ${imageUrls.length} URLs`)
+    debugLog(`[PIN-LINK] ❌ No se encontró ninguna imagen válida entre ${imageUrls.length} URLs`)
     throw new Error('No se encontraron imágenes válidas en el enlace de Pinterest')
   }
 
-  console.log(`[PIN-LINK] ❌ No se encontró ni video ni imagen en el HTML`)
+  debugLog(`[PIN-LINK] ❌ No se encontró ni video ni imagen en el HTML`)
   throw new Error('No se pudo extraer imagen/video del enlace (Pinterest cambió su estructura)')
 }
 
@@ -510,11 +515,11 @@ export default {
       // CASO B: El usuario envía un LINK (Descarga directa)
       const directUrl = extractUrlFromText(input) || extractUrlFromText(quoted) || input
       if (isPinterestUrl(directUrl)) {
-        console.log(`[PIN] Detectado link de Pinterest: ${directUrl}`)
+        verboseLog(`[PIN] Link de Pinterest detectado`)
         const result = await downloadPinterestLink(directUrl)
 
         if (result.isVideo) {
-          console.log(`[PIN] Procesando VIDEO`)
+          verboseLog(`[PIN] Procesando video`)
           const fixedBuffer = await fixVideoCodec(result.url)
           try {
             if (fixedBuffer) {
@@ -523,11 +528,11 @@ export default {
               await client.sendMessage(chatId, { video: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4` }, { quoted: m })
             }
           } catch (e) {
-            console.log(`[PIN] Error enviando video, intentando como documento: ${e.message}`)
+            debugLog(`[PIN] Error enviando video, intentando como documento: ${e.message}`)
             await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4` }, { quoted: m })
           }
         } else {
-          console.log(`[PIN] Procesando IMAGEN`)
+          verboseLog(`[PIN] Procesando imagen`)
           const media = await downloadMediaBuffer(result.url, 5)
           const normalized = await normalizeImageBuffer(media.buffer)
           const finalImage = normalized || media.buffer
@@ -536,7 +541,7 @@ export default {
             throw new Error('Imagen descargada vacía')
           }
           
-          console.log(`[PIN] Enviando imagen de ${finalImage.length} bytes`)
+          verboseLog(`[PIN] ✅ Imagen lista (${finalImage.length} bytes)`)
           await client.sendMessage(chatId, { image: finalImage }, { quoted: m })
         }
         return m.react('✅')
