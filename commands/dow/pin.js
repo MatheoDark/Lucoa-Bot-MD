@@ -123,31 +123,47 @@ async function downloadMediaBuffer(url, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     try {
       console.log(`[PIN] Intento ${i + 1}/${maxRetries} descargar: ${url.substring(0, 80)}...`)
+      
+      const headers = {
+        'User-Agent': UA,
+        'Referer': 'https://www.pinterest.com/',
+        'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+      
+      // Para URLs de pinimg (CDN), agregar headers específicos
+      if (/pinimg\.(com|cn)/i.test(url)) {
+        headers['Cache-Control'] = 'max-age=3600'
+        headers['Accept'] = 'image/*'
+      }
+      
       const res = await fetch(url, {
-        headers: {
-          'User-Agent': UA,
-          'Referer': 'https://www.pinterest.com/',
-          'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8'
-        },
-        timeout: 20000,
-        redirect: 'follow'
+        headers,
+        timeout: 25000,
+        redirect: 'follow',
+        // Algunos servidores requieren que indiques que aceptas compresión
+        compress: true
       })
 
       if (!res.ok) {
         lastError = `HTTP ${res.status} ${res.statusText}`
         console.log(`[PIN] Error descarga: ${lastError}, reintentando...`)
-        if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+        if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)))
         continue
       }
 
       const mime = String(res.headers.get('content-type') || '').toLowerCase()
+      console.log(`[PIN] Mime type detectado: ${mime}`)
+      
       const arr = await res.arrayBuffer()
       const buffer = Buffer.from(arr)
 
       if (!buffer.length) {
         lastError = 'Buffer vacío'
         console.log(`[PIN] Buffer vacío, reintentando...`)
-        if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+        if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)))
         continue
       }
 
@@ -156,7 +172,7 @@ async function downloadMediaBuffer(url, maxRetries = 3) {
     } catch (e) {
       lastError = e.message
       console.log(`[PIN] Error intento ${i + 1}: ${lastError}`)
-      if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+      if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)))
     }
   }
 
@@ -278,42 +294,95 @@ async function searchPinterest(query) {
 
 // ===== 2. DESCARGA DIRECTA POR LINK =====
 async function downloadPinterestLink(url) {
+  console.log(`[PIN-LINK] Resolviendo enlace: ${url}`)
+  
   // Intentar resolver el link de Pinterest y extraer la imagen OG
   const headers = {
     'User-Agent': UA,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     'Accept-Language': 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Referer': 'https://www.pinterest.com/'
+    'Referer': 'https://www.pinterest.com/',
+    'Cookie': '_pinterest_sess=session_value; coming_from=home'
   }
-  const res = await fetch(url, { headers, timeout: 15000, redirect: 'follow' })
-  if (!res.ok) throw new Error('No se pudo acceder al enlace de Pinterest.')
-
-  const html = await res.text()
+  
+  let res, html
+  try {
+    res = await fetch(url, { headers, timeout: 15000, redirect: 'follow' })
+    if (!res.ok) {
+      console.log(`[PIN-LINK] ❌ HTTP ${res.status} al acceder a ${url}`)
+      throw new Error(`HTTP ${res.status} al acceder al enlace`)
+    }
+    
+    html = await res.text()
+    console.log(`[PIN-LINK] HTML descargado: ${html.length} bytes`)
+  } catch (e) {
+    console.log(`[PIN-LINK] ❌ Error descargando HTML: ${e.message}`)
+    throw new Error(`No se pudo acceder al enlace: ${e.message}`)
+  }
 
   // Pinterest a veces publica video en propiedades distintas según región/dispositivo.
-  const candidates = [
+  const videoUrls = [
     pickFromMeta(html, 'og:video:secure_url'),
     pickFromMeta(html, 'og:video:url'),
     pickFromMeta(html, 'og:video'),
     pickFromMeta(html, 'twitter:player:stream'),
-    findMp4InHtml(html),
+    findMp4InHtml(html)
+  ].filter(Boolean)
+
+  const imageUrls = [
     ...collectMediaCandidatesFromHtml(html),
     pickFromMeta(html, 'og:image'),
     pickFromMeta(html, 'twitter:image')
   ].filter(Boolean)
 
-  const mediaUrl = candidates.find(u => /\.mp4(\?|$)|mime=video|video\//i.test(u)) || candidates[0]
-
-  const title = pickFromMeta(html, 'og:title') || 'Pinterest Media'
-  if (!mediaUrl) throw new Error('No se pudo extraer la imagen/video del enlace.')
-
-  const isVideo = /\.mp4(\?|$)|mime=video|video\//i.test(mediaUrl)
-
-  return {
-    url: mediaUrl,
-    desc: title,
-    isVideo
+  console.log(`[PIN-LINK] Videos encontrados: ${videoUrls.length}, Imágenes: ${imageUrls.length}`)
+  
+  if (videoUrls.length > 0) {
+    console.log(`[PIN-LINK] Video URL #1: ${videoUrls[0].substring(0, 80)}...`)
+    return {
+      url: videoUrls[0],
+      desc: pickFromMeta(html, 'og:title') || 'Pinterest Video',
+      isVideo: true
+    }
   }
+
+  if (imageUrls.length > 0) {
+    // Intentar descargar cada imagen hasta encontrar una válida
+    for (let i = 0; i < imageUrls.length; i++) {
+      const imgUrl = imageUrls[i]
+      console.log(`[PIN-LINK] Intentando imagen ${i + 1}/${imageUrls.length}: ${imgUrl.substring(0, 80)}...`)
+      
+      try {
+        const testRes = await fetch(imgUrl, {
+          headers: { 'User-Agent': UA },
+          timeout: 8000
+        })
+        
+        if (testRes.ok) {
+          const size = testRes.headers.get('content-length')
+          console.log(`[PIN-LINK] ✅ Imagen válida (${size} bytes)`)
+          return {
+            url: imgUrl,
+            desc: pickFromMeta(html, 'og:title') || 'Pinterest Image',
+            isVideo: false
+          }
+        }
+      } catch (e) {
+        console.log(`[PIN-LINK] Imagen ${i + 1} no accesible: ${e.message}`)
+      }
+    }
+    
+    // Si llegamos aquí, al menos devolver la primera URL
+    console.log(`[PIN-LINK] ⚠️ Ninguna imagen validada, usando primera URL`)
+    return {
+      url: imageUrls[0],
+      desc: pickFromMeta(html, 'og:title') || 'Pinterest Image',
+      isVideo: false
+    }
+  }
+
+  console.log(`[PIN-LINK] ❌ No se encontró ni video ni imagen en el HTML`)
+  throw new Error('No se pudo extraer imagen/video del enlace (Pinterest cambió su estructura)')
 }
 
 // ===== COMANDO PRINCIPAL =====
@@ -368,10 +437,12 @@ export default {
       // CASO B: El usuario envía un LINK (Descarga directa)
       const directUrl = extractUrlFromText(input) || extractUrlFromText(quoted) || input
       if (isPinterestUrl(directUrl)) {
+        console.log(`[PIN] Detectado link de Pinterest: ${directUrl}`)
         const result = await downloadPinterestLink(directUrl)
         const caption = `🐲 *Descarga completada*\n📝 ${result.desc}`
 
         if (result.isVideo) {
+          console.log(`[PIN] Procesando VIDEO`)
           const fixedBuffer = await fixVideoCodec(result.url)
           try {
             if (fixedBuffer) {
@@ -379,13 +450,21 @@ export default {
             } else {
               await client.sendMessage(chatId, { video: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
             }
-          } catch {
+          } catch (e) {
+            console.log(`[PIN] Error enviando video, intentando como documento: ${e.message}`)
             await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
           }
         } else {
-          const media = await downloadMediaBuffer(result.url)
+          console.log(`[PIN] Procesando IMAGEN`)
+          const media = await downloadMediaBuffer(result.url, 5)
           const normalized = await normalizeImageBuffer(media.buffer)
           const finalImage = normalized || media.buffer
+          
+          if (!finalImage || !finalImage.length) {
+            throw new Error('Imagen descargada vacía')
+          }
+          
+          console.log(`[PIN] Enviando imagen de ${finalImage.length} bytes`)
           await client.sendMessage(chatId, { image: finalImage, mimetype: 'image/jpeg', caption }, { quoted: m })
         }
         return m.react('✅')
