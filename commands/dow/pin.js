@@ -69,20 +69,48 @@ function collectMediaCandidatesFromHtml(html = '') {
   ]
 
   const out = []
+  const BLOCKED_EXTENSIONS = /\.(mjs|js|css|woff2?|ttf|svg|map|json|html|txt|xml)(\?|$)/i
+  const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|bmp|tiff|avif)(\?|$)/i
+  
   for (const reg of patterns) {
     let m
     while ((m = reg.exec(html)) !== null) {
       const raw = m[1] || m[0]
       if (!raw) continue
+      
       const decoded = decodeJsonEscapes(decodeHtml(raw))
       if (!/^https?:\/\//i.test(decoded)) continue
-      if (/\.(mp4|m3u8)(\?|$)/i.test(decoded) || /pinimg\.(com|cn)/i.test(decoded)) {
+      
+      // Excluir archivos que definitivamente no son imágenes
+      if (BLOCKED_EXTENSIONS.test(decoded)) {
+        console.log(`[PIN-COLLECT] Ignorando no-imagen: ${decoded.substring(0, 60)}...`)
+        continue
+      }
+      
+      // Priorizar URLs que terminan en extensión de imagen
+      if (IMAGE_EXTENSIONS.test(decoded)) {
         out.push(decoded)
+        console.log(`[PIN-COLLECT] Imagen (extensión): ${decoded.substring(0, 60)}...`)
+        continue
+      }
+      
+      // Incluir URLs de pinimg aunque no tengan extensión visible (pueden estar ofuscadas)
+      if (/pinimg\.(com|cn)/i.test(decoded) && /[a-z0-9]{20,}/i.test(decoded)) {
+        out.push(decoded)
+        console.log(`[PIN-COLLECT] Imagen (pinimg): ${decoded.substring(0, 60)}...`)
+        continue
+      }
+      
+      // MP4s
+      if (/\.mp4(\?|$)/i.test(decoded) || /mime=video|video\//i.test(decoded)) {
+        out.push(decoded)
+        console.log(`[PIN-COLLECT] Video: ${decoded.substring(0, 60)}...`)
       }
     }
   }
 
-  return [...new Set(out)]
+  console.log(`[PIN-COLLECT] Total URLs encontradas: ${out.length}`)
+  return out
 }
 
 async function fixVideoCodec(url) {
@@ -359,12 +387,20 @@ async function downloadPinterestLink(url) {
         })
         
         if (testRes.ok) {
+          const mime = String(testRes.headers.get('content-type') || '').toLowerCase()
           const size = testRes.headers.get('content-length')
-          console.log(`[PIN-LINK] ✅ Imagen válida (${size} bytes)`)
-          return {
-            url: imgUrl,
-            desc: pickFromMeta(html, 'og:title') || 'Pinterest Image',
-            isVideo: false
+          
+          // IMPORTANTE: Validar que sea REALMENTE una imagen
+          if (/^image\//.test(mime)) {
+            console.log(`[PIN-LINK] ✅ Imagen válida: ${mime} (${size} bytes)`)
+            return {
+              url: imgUrl,
+              desc: pickFromMeta(html, 'og:title') || 'Pinterest Image',
+              isVideo: false
+            }
+          } else {
+            console.log(`[PIN-LINK] ⚠️ URL rechazada: es ${mime}, no imagen`)
+            continue
           }
         }
       } catch (e) {
@@ -372,13 +408,8 @@ async function downloadPinterestLink(url) {
       }
     }
     
-    // Si llegamos aquí, al menos devolver la primera URL
-    console.log(`[PIN-LINK] ⚠️ Ninguna imagen validada, usando primera URL`)
-    return {
-      url: imageUrls[0],
-      desc: pickFromMeta(html, 'og:title') || 'Pinterest Image',
-      isVideo: false
-    }
+    console.log(`[PIN-LINK] ❌ No se encontró ninguna imagen válida entre ${imageUrls.length} URLs`)
+    throw new Error('No se encontraron imágenes válidas en el enlace de Pinterest')
   }
 
   console.log(`[PIN-LINK] ❌ No se encontró ni video ni imagen en el HTML`)
