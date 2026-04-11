@@ -65,12 +65,16 @@ function collectMediaCandidatesFromHtml(html = '') {
     /"image"\s*:\s*"(https?:\\\/\\\/[^"\\]+(?:pinimg\\.com|pinimg\\.cn)[^"\\]*)"/gi,
     /"url"\s*:\s*"(https?:\\\/\\\/[^"\\]+(?:pinimg\\.com|pinimg\\.cn)[^"\\]*)"/gi,
     /(https?:\/\/[^"'\s]+\.mp4[^"'\s]*)/gi,
-    /(https?:\/\/[^"'\s]+(?:pinimg\.com|pinimg\.cn)[^"'\s]*)/gi
+    /(https?:\/\/[^"'\s]+(?:pinimg\.com|pinimg\.cn)[^"'\s]*)/gi,
+    /(https?:\/\/i\.pinimg\.com\/originals\/[^"'\s]+)/gi,
+    /(https?:\/\/i\.pinimg\.com\/736x\/[^"'\s]+)/gi,
+    /(https?:\/\/i\.pinimg\.com\/1200x\/[^"'\s]+)/gi
   ]
 
-  const out = []
+  const out = new Set()
   const BLOCKED_EXTENSIONS = /\.(mjs|js|css|woff2?|ttf|svg|map|json|html|txt|xml)(\?|$)/i
   const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|bmp|tiff|avif)(\?|$)/i
+  const UI_ELEMENTS = /(logo|favicon|avatar|profile|icon|button|header|footer|sprite|badge)/i
   
   for (const reg of patterns) {
     let m
@@ -80,6 +84,7 @@ function collectMediaCandidatesFromHtml(html = '') {
       
       const decoded = decodeJsonEscapes(decodeHtml(raw))
       if (!/^https?:\/\//i.test(decoded)) continue
+      if (UI_ELEMENTS.test(decoded)) continue
       
       // Excluir archivos que definitivamente no son imágenes
       if (BLOCKED_EXTENSIONS.test(decoded)) {
@@ -89,28 +94,47 @@ function collectMediaCandidatesFromHtml(html = '') {
       
       // Priorizar URLs que terminan en extensión de imagen
       if (IMAGE_EXTENSIONS.test(decoded)) {
-        out.push(decoded)
+        out.add(decoded)
         console.log(`[PIN-COLLECT] Imagen (extensión): ${decoded.substring(0, 60)}...`)
         continue
       }
       
       // Incluir URLs de pinimg aunque no tengan extensión visible (pueden estar ofuscadas)
       if (/pinimg\.(com|cn)/i.test(decoded) && /[a-z0-9]{20,}/i.test(decoded)) {
-        out.push(decoded)
+        out.add(decoded)
         console.log(`[PIN-COLLECT] Imagen (pinimg): ${decoded.substring(0, 60)}...`)
         continue
       }
       
       // MP4s
       if (/\.mp4(\?|$)/i.test(decoded) || /mime=video|video\//i.test(decoded)) {
-        out.push(decoded)
+        out.add(decoded)
         console.log(`[PIN-COLLECT] Video: ${decoded.substring(0, 60)}...`)
       }
     }
   }
 
-  console.log(`[PIN-COLLECT] Total URLs encontradas: ${out.length}`)
-  return out
+  const ranked = [...out].sort((a, b) => scoreCandidate(b) - scoreCandidate(a))
+  console.log(`[PIN-COLLECT] Total URLs encontradas: ${ranked.length}`)
+  return ranked
+}
+
+function scoreCandidate(url = '') {
+  const u = String(url || '').toLowerCase()
+  let score = 0
+
+  if (/i\.pinimg\.(com|cn)\//.test(u)) score += 80
+  if (/\/originals\//.test(u)) score += 40
+  if (/\/1200x\//.test(u)) score += 30
+  if (/\/736x\//.test(u)) score += 20
+  if (/\.(jpg|jpeg|png|webp)(\?|$)/.test(u)) score += 15
+  if (/\.mp4(\?|$)|mime=video|video\//.test(u)) score += 10
+
+  if (/s\.pinimg\.(com|cn)\/webapp\//.test(u)) score -= 100
+  if (/(logo|favicon|avatar|profile|icon|sprite|badge|header|footer)/.test(u)) score -= 120
+  if (/\.(mjs|js|css|woff2?|ttf|svg|map|json|html|txt|xml)(\?|$)/.test(u)) score -= 150
+
+  return score
 }
 
 async function fixVideoCodec(url) {
@@ -389,9 +413,23 @@ async function downloadPinterestLink(url) {
         if (testRes.ok) {
           const mime = String(testRes.headers.get('content-type') || '').toLowerCase()
           const size = testRes.headers.get('content-length')
+          const lowUrl = String(imgUrl || '').toLowerCase()
           
           // IMPORTANTE: Validar que sea REALMENTE una imagen
           if (/^image\//.test(mime)) {
+            // Evitar assets de interfaz aunque sean imagen
+            if (/s\.pinimg\.(com|cn)\/webapp\//i.test(lowUrl) || /(logo|favicon|avatar|profile|icon|sprite|badge|header|footer)/i.test(lowUrl)) {
+              console.log(`[PIN-LINK] ⚠️ URL imagen descartada por UI/logo: ${imgUrl.substring(0, 80)}...`)
+              continue
+            }
+
+            // Si viene tamaño declarado muy pequeño, suele ser icono/logo
+            const contentLength = Number(size || 0)
+            if (Number.isFinite(contentLength) && contentLength > 0 && contentLength < 20000) {
+              console.log(`[PIN-LINK] ⚠️ URL imagen descartada por tamaño bajo (${contentLength} bytes)`)
+              continue
+            }
+
             console.log(`[PIN-LINK] ✅ Imagen válida: ${mime} (${size} bytes)`)
             return {
               url: imgUrl,
