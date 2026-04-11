@@ -446,21 +446,20 @@ export default {
         if (idx < 0 || idx >= cache.results.length) return m.reply(`🐲 *Solo tengo ${cache.results.length} resultados.*`)
 
         const item = cache.results[idx]
-        const caption = `🐲 *${idx + 1}/${cache.results.length}* • ${item.desc.substring(0, 50)}...`
         
         if (item.isVideo) {
           const fixedBuffer = await fixVideoCodec(item.url)
           if (fixedBuffer) {
-            await client.sendMessage(chatId, { video: fixedBuffer, mimetype: 'video/mp4', caption }, { quoted: m })
+            await client.sendMessage(chatId, { video: fixedBuffer, mimetype: 'video/mp4' }, { quoted: m })
           } else {
             // Fallback (por si no hay FFmpeg)
-            await client.sendMessage(chatId, { video: { url: item.url }, mimetype: 'video/mp4', caption }, { quoted: m })
+            await client.sendMessage(chatId, { video: { url: item.url }, mimetype: 'video/mp4' }, { quoted: m })
           }
         } else {
           const { buffer } = await downloadMediaBuffer(item.url)
           const normalized = await normalizeImageBuffer(buffer)
           const finalImage = normalized || buffer
-          await client.sendMessage(chatId, { image: finalImage, mimetype: 'image/jpeg', caption }, { quoted: m })
+          await client.sendMessage(chatId, { image: finalImage }, { quoted: m })
         }
         return m.react('✅')
       }
@@ -470,20 +469,19 @@ export default {
       if (isPinterestUrl(directUrl)) {
         console.log(`[PIN] Detectado link de Pinterest: ${directUrl}`)
         const result = await downloadPinterestLink(directUrl)
-        const caption = `🐲 *Descarga completada*\n📝 ${result.desc}`
 
         if (result.isVideo) {
           console.log(`[PIN] Procesando VIDEO`)
           const fixedBuffer = await fixVideoCodec(result.url)
           try {
             if (fixedBuffer) {
-              await client.sendMessage(chatId, { video: fixedBuffer, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+              await client.sendMessage(chatId, { video: fixedBuffer, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4` }, { quoted: m })
             } else {
-              await client.sendMessage(chatId, { video: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+              await client.sendMessage(chatId, { video: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4` }, { quoted: m })
             }
           } catch (e) {
             console.log(`[PIN] Error enviando video, intentando como documento: ${e.message}`)
-            await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4`, caption }, { quoted: m })
+            await client.sendMessage(chatId, { document: { url: result.url }, mimetype: 'video/mp4', fileName: `pinterest_${Date.now()}.mp4` }, { quoted: m })
           }
         } else {
           console.log(`[PIN] Procesando IMAGEN`)
@@ -496,7 +494,7 @@ export default {
           }
           
           console.log(`[PIN] Enviando imagen de ${finalImage.length} bytes`)
-          await client.sendMessage(chatId, { image: finalImage, mimetype: 'image/jpeg', caption }, { quoted: m })
+          await client.sendMessage(chatId, { image: finalImage }, { quoted: m })
         }
         return m.react('✅')
       }
@@ -508,21 +506,13 @@ export default {
       global.__lucoaPinCache[chatId] = { query: input, results, ts: Date.now() }
       
       const first = results[0]
-      const caption = 
-        `╭━━━〔 🐲 𝗟𝗨𝗖𝗢𝗔 • Pinterest 〕━━━⬣\n` +
-        `🔎 *Búsqueda:* ${input}\n` +
-        `📝 *Desc:* ${first.desc}\n` +
-        `👤 *Autor:* ${first.author}\n` +
-        `💾 *Guardados:* ${first.saves}\n` +
-        `╰━━━━━━━━━━━━━━━━━━━━⬣\n` +
-        `👉 Responde con *#pin 2* para ver el siguiente.`
 
       const { buffer } = await downloadMediaBuffer(first.url)
       const normalized = await normalizeImageBuffer(buffer)
       if (!normalized && !buffer.length) {
         throw new Error('Pinterest no devolvió una imagen válida en el primer resultado.')
       }
-      await client.sendMessage(chatId, { image: normalized || buffer, mimetype: 'image/jpeg', caption }, { quoted: m })
+      await client.sendMessage(chatId, { image: normalized || buffer }, { quoted: m })
       await m.react('✅')
 
     } catch (e) {
