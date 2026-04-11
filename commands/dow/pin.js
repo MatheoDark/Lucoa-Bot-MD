@@ -12,6 +12,11 @@ const streamPipeline = promisify(pipeline)
 // Busca imágenes de Pinterest via DuckDuckGo para evitar APIs muertas.
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+const PIN_DEBUG = process.env.PIN_DEBUG === '1'
+
+function debugLog(message) {
+  if (PIN_DEBUG) console.log(message)
+}
 
 // Cache global para paginación (#pin 2)
 global.__lucoaPinCache = global.__lucoaPinCache || Object.create(null)
@@ -88,28 +93,28 @@ function collectMediaCandidatesFromHtml(html = '') {
       
       // Excluir archivos que definitivamente no son imágenes
       if (BLOCKED_EXTENSIONS.test(decoded)) {
-        console.log(`[PIN-COLLECT] Ignorando no-imagen: ${decoded.substring(0, 60)}...`)
+        debugLog(`[PIN-COLLECT] Ignorando no-imagen: ${decoded.substring(0, 60)}...`)
         continue
       }
       
       // Priorizar URLs que terminan en extensión de imagen
       if (IMAGE_EXTENSIONS.test(decoded)) {
         out.add(decoded)
-        console.log(`[PIN-COLLECT] Imagen (extensión): ${decoded.substring(0, 60)}...`)
+        debugLog(`[PIN-COLLECT] Imagen (extensión): ${decoded.substring(0, 60)}...`)
         continue
       }
       
       // Incluir URLs de pinimg aunque no tengan extensión visible (pueden estar ofuscadas)
       if (/pinimg\.(com|cn)/i.test(decoded) && /[a-z0-9]{20,}/i.test(decoded)) {
         out.add(decoded)
-        console.log(`[PIN-COLLECT] Imagen (pinimg): ${decoded.substring(0, 60)}...`)
+        debugLog(`[PIN-COLLECT] Imagen (pinimg): ${decoded.substring(0, 60)}...`)
         continue
       }
       
       // MP4s
       if (/\.mp4(\?|$)/i.test(decoded) || /mime=video|video\//i.test(decoded)) {
         out.add(decoded)
-        console.log(`[PIN-COLLECT] Video: ${decoded.substring(0, 60)}...`)
+        debugLog(`[PIN-COLLECT] Video: ${decoded.substring(0, 60)}...`)
       }
     }
   }
