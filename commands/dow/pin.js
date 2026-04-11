@@ -118,29 +118,49 @@ async function fixVideoCodec(url) {
   })
 }
 
-async function downloadMediaBuffer(url) {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': UA,
-      'Referer': 'https://www.pinterest.com/'
-    },
-    timeout: 20000,
-    redirect: 'follow'
-  })
+async function downloadMediaBuffer(url, maxRetries = 3) {
+  let lastError
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      console.log(`[PIN] Intento ${i + 1}/${maxRetries} descargar: ${url.substring(0, 80)}...`)
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': UA,
+          'Referer': 'https://www.pinterest.com/',
+          'Accept': 'image/avif,image/webp,image/*,*/*;q=0.8'
+        },
+        timeout: 20000,
+        redirect: 'follow'
+      })
 
-  if (!res.ok) {
-    throw new Error('No se pudo descargar el archivo de Pinterest.')
+      if (!res.ok) {
+        lastError = `HTTP ${res.status} ${res.statusText}`
+        console.log(`[PIN] Error descarga: ${lastError}, reintentando...`)
+        if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+        continue
+      }
+
+      const mime = String(res.headers.get('content-type') || '').toLowerCase()
+      const arr = await res.arrayBuffer()
+      const buffer = Buffer.from(arr)
+
+      if (!buffer.length) {
+        lastError = 'Buffer vacío'
+        console.log(`[PIN] Buffer vacío, reintentando...`)
+        if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+        continue
+      }
+
+      console.log(`[PIN] ✅ Descargado: ${buffer.length} bytes, tipo: ${mime}`)
+      return { buffer, mime, finalUrl: res.url || url }
+    } catch (e) {
+      lastError = e.message
+      console.log(`[PIN] Error intento ${i + 1}: ${lastError}`)
+      if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+    }
   }
 
-  const mime = String(res.headers.get('content-type') || '').toLowerCase()
-  const arr = await res.arrayBuffer()
-  const buffer = Buffer.from(arr)
-
-  if (!buffer.length) {
-    throw new Error('Pinterest devolvió un archivo vacío.')
-  }
-
-  return { buffer, mime, finalUrl: res.url || url }
+  throw new Error(`No se pudo descargar después de ${maxRetries} intentos. Último error: ${lastError}`)
 }
 
 function detectBufferKind(buffer) {
@@ -182,13 +202,25 @@ function detectMediaKind({ mime = '', buffer, url = '', preferVideo = false }) {
 }
 
 async function normalizeImageBuffer(buffer) {
+  if (!buffer || !buffer.length) {
+    console.log(`[PIN] Buffer vacío en normalización`)
+    return null
+  }
+
+  const kind = detectBufferKind(buffer)
+  console.log(`[PIN] Normalizando imagen (tipo detectado: ${kind}, tamaño: ${buffer.length} bytes)`)
+
   try {
-    return await sharp(buffer, { failOnError: false })
+    const normalized = await sharp(buffer, { failOnError: false })
       .rotate()
       .jpeg({ quality: 92, mozjpeg: true })
       .toBuffer()
-  } catch {
-    return null
+    
+    console.log(`[PIN] ✅ Imagen normalizada: ${normalized.length} bytes`)
+    return normalized
+  } catch (e) {
+    console.log(`[PIN] ⚠️ Error normalizando: ${e.message}. Devolviendo buffer original.`)
+    return buffer
   }
 }
 
@@ -384,9 +416,10 @@ export default {
       await m.react('✅')
 
     } catch (e) {
-      console.error(e)
+      console.error(`[PIN] ❌ ERROR COMPLETO:`, e)
       await m.react('❌')
-      m.reply(`🐲 *Error:* ${e.message}`)
+      const errorMsg = e.message || String(e)
+      m.reply(`🐲 *Error Pinterest:*\n\n${errorMsg}\n\n💡 *Alternativa:* Prueba con #img o usa links directos de imágenes.`)
     }
   }
 }
