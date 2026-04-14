@@ -606,6 +606,15 @@ async function startBot() {
     state = freshAuth.state
     saveCreds = freshAuth.saveCreds
   }
+
+  // Si la sesión tiene identidad y claves, forzar el estado de registro.
+  // Algunas instalaciones dejan `registered=false` aunque la sesión sea reutilizable.
+  if (state.creds.me && state.creds.noiseKey && state.creds.signedIdentityKey && !state.creds.registered) {
+    state.creds.registered = true
+    try {
+      await saveCreds()
+    } catch {}
+  }
   
   const { version } = await fetchLatestBaileysVersion()
   const logger = pino({ level: "silent" })
@@ -699,7 +708,6 @@ async function startBot() {
       if (reason === DisconnectReason.loggedOut) {
         const errorMsg = String(lastDisconnect?.error?.message || lastDisconnect?.error || '').toLowerCase()
         const isRealLogout = errorMsg.includes('logged out')
-        const MAX_401_BEFORE_RELINK = process.stdin.isTTY ? 6 : 3
 
         if (isRealLogout) {
           log.error(`❌ WhatsApp confirmó cierre de sesión. Se requiere nueva vinculación.`)
@@ -707,20 +715,9 @@ async function startBot() {
           LOGIN_METHOD = await uPLoader()
           requestBotRestart(1500, 'nueva vinculación tras logout real')
         } else {
-          // "Connection Failure" = temporal, reconectar directo como Megumin
+          // "Connection Failure" = temporal. No forzar relink automático.
           disconnectTracker.consecutive401 += 1
-          if (disconnectTracker.consecutive401 >= MAX_401_BEFORE_RELINK) {
-            log.error(`❌ 401 persistente (${disconnectTracker.consecutive401}x). Forzando nueva vinculación...`)
-            if (!process.stdin.isTTY) {
-              log.warn('🛠️ Modo PM2/no-TTY: se activará relink automático por QR en logs.')
-            }
-            disconnectTracker.consecutive401 = 0
-            purgeSession()
-            LOGIN_METHOD = await uPLoader()
-            requestBotRestart(1500, '401 persistente - relink forzado')
-            return
-          }
-          const wait401 = Math.min(4000 + ((disconnectTracker.consecutive401 - 1) * 3000), 30000)
+          const wait401 = Math.min(5000 + ((disconnectTracker.consecutive401 - 1) * 5000), 60000)
           log.warn(`⚠️ 401 "Connection Failure" - Reconectando en ${Math.round(wait401 / 1000)}s (x${disconnectTracker.consecutive401})...`)
           requestBotRestart(wait401, `401 Connection Failure x${disconnectTracker.consecutive401}`)
         }
@@ -748,8 +745,10 @@ async function startBot() {
       }
       // 428: Rate limit - reconectar directo (el queue ya maneja retry interno)
       else if (reason === 428) {
-        log.warn(`⚠️ Error 428: Rate limit. Reconectando...`)
-        requestBotRestart(8000, 'rate limit 428')
+        disconnectTracker.consecutive428 = (disconnectTracker.consecutive428 || 0) + 1
+        const wait428 = Math.min(10000 + ((disconnectTracker.consecutive428 - 1) * 10000), 120000)
+        log.warn(`⚠️ Error 428: Rate limit. Reconectando en ${Math.round(wait428 / 1000)}s (x${disconnectTracker.consecutive428})...`)
+        requestBotRestart(wait428, 'rate limit 428')
       }
       // 515 - Stream Errored (restart required)
       else if (reason === 515) {
