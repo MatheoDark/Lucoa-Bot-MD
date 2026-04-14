@@ -447,13 +447,16 @@ let LOGIN_METHOD = null
 let _isStartingBot = false
 let _pendingRestart = false
 
-// ✅ Sistema SIMPLE de reconexión (sin contadores, sin throttling complejo)
+// ✅ Sistema de reconexión con detección de bucles 428
 const disconnectTracker = {
   _reconnectTimer: null,
-  _credsAutoSaveInterval: null
+  _credsAutoSaveInterval: null,
+  consecutive428: 0,
+  consecutive401: 0,
+  last428Time: 0
 }
 
-// Reconectar directo sin esperas largas (modelo Ellen-Joe)
+// Reconectar con delays inteligentes
 function requestBotRestart(delayMs = 1000, reason = '') {
   if (_isShuttingDown) return
   if (_isStartingBot) {
@@ -462,14 +465,54 @@ function requestBotRestart(delayMs = 1000, reason = '') {
     return
   }
   
-  // Cancelar timer anterior para evitar reconexiones duplicadas
+  // Cancelar timer anterior
   if (disconnectTracker._reconnectTimer) {
     clearTimeout(disconnectTracker._reconnectTimer)
     disconnectTracker._reconnectTimer = null
   }
   
-  // Espera BREVE (máximo 2-3 segundos para cualquier error)
-  const finalDelay = Math.min(delayMs, 3000)
+  // 🔧 FIX: Detectar bucles persistentes
+  let finalDelay = delayMs
+  
+  if (reason.includes('428')) {
+    // Bucle 428 (Rate limit)
+    const now = Date.now()
+    if (now - disconnectTracker.last428Time < 30000) {
+      disconnectTracker.consecutive428++
+    } else {
+      disconnectTracker.consecutive428 = 1
+    }
+    disconnectTracker.last428Time = now
+    
+    if (disconnectTracker.consecutive428 >= 3) {
+      finalDelay = 20000  // ← Esperar 20s si detecta bucle
+      log.error(`🛑 BUCLE 428 DETECTADO (${disconnectTracker.consecutive428}x). Esperando 20s...`)
+    } else if (disconnectTracker.consecutive428 >= 2) {
+      finalDelay = Math.max(delayMs, 10000)  // Mínimo 10s
+    } else {
+      finalDelay = Math.max(delayMs, 8000)  // Mínimo 8s
+    }
+  } 
+  else if (reason.includes('401')) {
+    // Bucle 401 (Connection Failure)
+    disconnectTracker.consecutive401++
+    if (disconnectTracker.consecutive401 >= 10) {
+      // Después de 10 intentos fallidos de 401, la sesión probablemente está corrupta
+      log.error(`🛑 BUCLE 401 PERSISTENTE (${disconnectTracker.consecutive401}x). Purgando sesión...`)
+      purgeSession()
+      LOGIN_METHOD = '1'  // Forzar QR
+      disconnectTracker.consecutive401 = 0
+      finalDelay = 3000
+    } else if (disconnectTracker.consecutive401 >= 5) {
+      finalDelay = 10000  // Después de 5 intentos, esperar 10s
+    } else {
+      finalDelay = Math.max(delayMs, 5000)  // Mínimo 5s
+    }
+  } else {
+    disconnectTracker.consecutive428 = 0
+    disconnectTracker.consecutive401 = 0
+    finalDelay = Math.max(delayMs, 3000)
+  }
   
   console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(finalDelay / 1000)}s... (${reason})`))
   disconnectTracker._reconnectTimer = setTimeout(() => {
@@ -549,16 +592,21 @@ async function startBot() {
   _isStartingBot = true
 
   try {
-  // Limpiar interval de auto-save anterior
+  // 🔧 CRITICO: Cerrar socket VIEJO antes de crear uno nuevo (como Ellen-Joe)
+  if (global.client) {
+    try {
+      // Usar end() en lugar de ws.close() para cierre limpio
+      global.client.end?.()
+    } catch {}
+    try {
+      global.client.ev?.removeAllListeners()  // Limpia listeners
+    } catch {}
+    global.client = null
+  }
+
   if (disconnectTracker._credsAutoSaveInterval) {
     clearInterval(disconnectTracker._credsAutoSaveInterval)
     disconnectTracker._credsAutoSaveInterval = null
-  }
-
-  // Limpiar listeners del cliente anterior (no esperar, como hace Megumin)
-  if (global.client) {
-    try { global.client.ev.removeAllListeners() } catch {}
-    global.client = null
   }
 
   await loadDatabaseSafe()
@@ -671,7 +719,6 @@ async function startBot() {
 
     if (connection === "close") {
       const reason = lastDisconnect?.error?.output?.statusCode || 0
-      disconnectTracker._lastReasonCode = reason
       console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
       
       // 401 - loggedOut: distinguir logout real de "Connection Failure" temporal
@@ -683,21 +730,21 @@ async function startBot() {
           log.error(`❌ WhatsApp confirmó cierre de sesión. Se requiere nueva vinculación.`)
           purgeSession()
           LOGIN_METHOD = await uPLoader()
-          requestBotRestart(1000, 'nueva vinculación tras logout real')
+          requestBotRestart(3000, 'nueva vinculación tras logout real')
         } else {
-          // "Connection Failure" = temporal. Reconectar rápido sin relink
+          // "Connection Failure" = temporal. Reconectar con espera
           log.warn(`⚠️ 401 Connection Failure - Reconectando...`)
-          requestBotRestart(1000, '401 Connection Failure')
+          requestBotRestart(5000, '401 Connection Failure')
         }
       }
-      // Todos los demás errores temporales - reconectar directo y rápido
+      // Todos los demás errores temporales
       else if (reason === DisconnectReason.badSession) {
         log.warn("⚠️ badSession - Reconectando...")
-        requestBotRestart(1500, 'badSession')
+        requestBotRestart(5000, 'badSession')
       }
       else if (reason === DisconnectReason.multideviceMismatch) {
         log.warn("⚠️ multideviceMismatch - Reconectando...")
-        requestBotRestart(1500, 'multideviceMismatch')
+        requestBotRestart(6000, 'multideviceMismatch')
       }
       else if (reason === DisconnectReason.connectionReplaced) {
         log.warn("⚠️ Conexión reemplazada por otra sesión. No se reconecta.")
@@ -706,26 +753,30 @@ async function startBot() {
         log.error("❌ Conexión prohibida. Purgando sesión...")
         purgeSession()
         LOGIN_METHOD = await uPLoader()
-        requestBotRestart(1000, 'forbidden con sesión purgada')
+        requestBotRestart(3000, 'forbidden con sesión purgada')
       }
       else if (reason === 428) {
-        // Rate limit - reconectar rápido (sin contadores, sin esperas largas)
+        // Rate limit - con backoff inteligente
         log.warn(`⚠️ Error 428: Rate limit. Reconectando...`)
-        requestBotRestart(1500, 'rate limit 428')
+        requestBotRestart(5000, 'rate limit 428')
       }
       else if (reason === 515) {
-        // Stream error - reconectar rápido
+        // Stream error
         log.warn(`⚠️ 515 Stream Errored - Reconectando...`)
-        requestBotRestart(1500, '515 Stream Errored')
+        requestBotRestart(5000, '515 Stream Errored')
       }
       else {
-        // Todos los demás errores (408, timedOut, connectionLost, etc.)
+        // Todos los demás errores
         log.warn(`⚠️ Desconexión (${reason}). Reconectando...`)
-        requestBotRestart(1000, `desconexión ${reason}`)
+        requestBotRestart(4000, `desconexión ${reason}`)
       }
     }
 
     if (connection === "open") {
+      // Resetear contadores de error al conectar
+      disconnectTracker.consecutive428 = 0
+      disconnectTracker.consecutive401 = 0
+      
       // Limpiar timer si aún existe
       if (disconnectTracker._reconnectTimer) {
         clearTimeout(disconnectTracker._reconnectTimer)
