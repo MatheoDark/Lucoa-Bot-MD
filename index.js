@@ -746,7 +746,7 @@ async function startBot() {
       // 428: Rate limit - reconectar directo (el queue ya maneja retry interno)
       else if (reason === 428) {
         disconnectTracker.consecutive428 = (disconnectTracker.consecutive428 || 0) + 1
-        const wait428 = Math.min(4000 + ((disconnectTracker.consecutive428 - 1) * 2000), 15000)
+        const wait428 = Math.min(3000 + ((disconnectTracker.consecutive428 - 1) * 1000), 8000)
         log.warn(`⚠️ Error 428: Rate limit. Reconectando en ${Math.round(wait428 / 1000)}s (x${disconnectTracker.consecutive428})...`)
         requestBotRestart(wait428, 'rate limit 428')
       }
