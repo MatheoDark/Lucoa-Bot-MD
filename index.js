@@ -518,7 +518,37 @@ const disconnectTracker = {
   _credsAutoSaveInterval: null,
   consecutive428: 0,
   consecutive401: 0,
-  last428Time: 0
+  last428Time: 0,
+  last401Time: 0,
+  failureTimestamps: []  // Para detectar patrón de fallos rápidos
+}
+
+// ⚠️ IMPORTANTE: Circuit Breaker para bucles infinitos
+// Si hay 5+ fallos en 30 segundos, entra en "modo espera" exponencial
+function updateFailurePattern(errorType) {
+  const now = Date.now()
+  disconnectTracker.failureTimestamps.push(now)
+  
+  // Limpiar timestamps más antiguos de 30s
+  disconnectTracker.failureTimestamps = disconnectTracker.failureTimestamps.filter(
+    ts => now - ts < 30000
+  )
+  
+  const recentFailures = disconnectTracker.failureTimestamps.length
+  
+  if (recentFailures >= 5) {
+    // Espera exponencial: 10s, 20s, 40s, 80s... máximo 2 min
+    const timeInCircuitBreaker = Math.min(
+      Math.pow(2, recentFailures - 5) * 10000,
+      120000
+    )
+    log.error(`🛑 CIRCUIT BREAKER ACTIVADO: ${recentFailures} fallos en 30s`)
+    log.error(`⏳ Esperando ${Math.round(timeInCircuitBreaker / 1000)}s antes de reintentar...`)
+    log.error(`💡 Consejo: Revisa que el número NO esté conectado en otro dispositivo/navegador`)
+    return timeInCircuitBreaker
+  }
+  
+  return null  // Sin circuit breaker
 }
 
 // Reconectar con delays inteligentes
@@ -536,46 +566,51 @@ function requestBotRestart(delayMs = 1000, reason = '') {
     disconnectTracker._reconnectTimer = null
   }
   
-  // 🔧 FIX: Detectar bucles persistentes
   let finalDelay = delayMs
   
-  if (reason.includes('428')) {
-    // Bucle 428 (Rate limit)
-    const now = Date.now()
-    if (now - disconnectTracker.last428Time < 30000) {
-      disconnectTracker.consecutive428++
+  // 🔧 Verificar Circuit Breaker primero (detecta bucles RÁPIDO)
+  if (reason.includes('401') || reason.includes('428')) {
+    const circuitDelay = updateFailurePattern(reason.includes('401') ? '401' : '428')
+    if (circuitDelay) {
+      finalDelay = circuitDelay
     } else {
-      disconnectTracker.consecutive428 = 1
-    }
-    disconnectTracker.last428Time = now
-    
-    if (disconnectTracker.consecutive428 >= 3) {
-      finalDelay = 20000  // ← Esperar 20s si detecta bucle
-      log.error(`🛑 BUCLE 428 DETECTADO (${disconnectTracker.consecutive428}x). Esperando 20s...`)
-    } else if (disconnectTracker.consecutive428 >= 2) {
-      finalDelay = Math.max(delayMs, 10000)  // Mínimo 10s
-    } else {
-      finalDelay = Math.max(delayMs, 8000)  // Mínimo 8s
-    }
-  } 
-  else if (reason.includes('401')) {
-    // Bucle 401 (Connection Failure)
-    disconnectTracker.consecutive401++
-    if (disconnectTracker.consecutive401 >= 10) {
-      // Después de 10 intentos fallidos de 401, la sesión probablemente está corrupta
-      log.error(`🛑 BUCLE 401 PERSISTENTE (${disconnectTracker.consecutive401}x). Purgando sesión...`)
-      purgeSession()
-      LOGIN_METHOD = '1'  // Forzar QR
-      disconnectTracker.consecutive401 = 0
-      finalDelay = 3000
-    } else if (disconnectTracker.consecutive401 >= 5) {
-      finalDelay = 10000  // Después de 5 intentos, esperar 10s
-    } else {
-      finalDelay = Math.max(delayMs, 5000)  // Mínimo 5s
+      // Sin circuit breaker activado, aplicar lógica normal por tipo de error
+      if (reason.includes('428')) {
+        const now = Date.now()
+        if (now - disconnectTracker.last428Time < 30000) {
+          disconnectTracker.consecutive428++
+        } else {
+          disconnectTracker.consecutive428 = 1
+        }
+        disconnectTracker.last428Time = now
+        
+        if (disconnectTracker.consecutive428 >= 3) {
+          finalDelay = 20000
+          log.error(`🛑 BUCLE 428 DETECTADO (${disconnectTracker.consecutive428}x). Esperando 20s...`)
+        } else if (disconnectTracker.consecutive428 >= 2) {
+          finalDelay = Math.max(delayMs, 10000)
+        } else {
+          finalDelay = Math.max(delayMs, 8000)
+        }
+      } 
+      else if (reason.includes('401')) {
+        disconnectTracker.consecutive401++
+        if (disconnectTracker.consecutive401 >= 8) {
+          log.error(`⚠️ 401 PERSISTENTE (${disconnectTracker.consecutive401}x)`)
+          log.error(`💡 Verifica: ¿El número está conectado en otro dispositivo/WhatsApp Web?`)
+          finalDelay = 30000  // Esperar más si hay 401 persistente
+        } else if (disconnectTracker.consecutive401 >= 5) {
+          finalDelay = 10000
+        } else {
+          finalDelay = Math.max(delayMs, 5000)
+        }
+      }
     }
   } else {
+    // Resetear en caso de conectar exitosamente
     disconnectTracker.consecutive428 = 0
     disconnectTracker.consecutive401 = 0
+    disconnectTracker.failureTimestamps = []
     finalDelay = Math.max(delayMs, 3000)
   }
   
@@ -911,9 +946,10 @@ async function startBot() {
     }
 
     if (connection === "open") {
-      // Resetear contadores de error al conectar
+      // ✅ CONEXIÓN EXITOSA - Resetear TODOS los contadores
       disconnectTracker.consecutive428 = 0
       disconnectTracker.consecutive401 = 0
+      disconnectTracker.failureTimestamps = []  // Resetear circuit breaker
       
       // Limpiar timer si aún existe
       if (disconnectTracker._reconnectTimer) {
