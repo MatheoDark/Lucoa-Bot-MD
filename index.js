@@ -447,65 +447,35 @@ let LOGIN_METHOD = null
 let _isStartingBot = false
 let _pendingRestart = false
 
-// ✅ Control de desconexiones - v5 ANTI-DISCONNECT
+// ✅ Sistema SIMPLE de reconexión (sin contadores, sin throttling complejo)
 const disconnectTracker = {
-  lastDisconnect: 0,
-  count: 0,
-  maxDisconnectsPerMinute: 5,
-  consecutive428: 0,
-  consecutiveBadSession: 0,
-  consecutive401: 0,
-  consecutive515: 0,
-  consecutive408: 0,
-  consecutiveOther: 0,
   _reconnectTimer: null,
-  _lastReasonCode: 0,
-  _credsAutoSaveInterval: null // Interval para auto-save de credenciales
+  _credsAutoSaveInterval: null
 }
 
-async function delayedReconnect(delayMs, reason = '') {
-  // Cancelar timer anterior para evitar reconexiones duplicadas
-  if (disconnectTracker._reconnectTimer) {
-    clearTimeout(disconnectTracker._reconnectTimer)
-    disconnectTracker._reconnectTimer = null
-  }
-
-  let finalDelay = delayMs
-
-  // Solo aplicar throttle para errores que NO son 401 (401 es temporal y esperado en restarts)
-  if (disconnectTracker._lastReasonCode !== 401) {
-    const now = Date.now()
-    const timeSinceLastDisconnect = now - disconnectTracker.lastDisconnect
-
-    if (timeSinceLastDisconnect > 120000) {
-      disconnectTracker.count = 0
-    }
-
-    disconnectTracker.count++
-    if (disconnectTracker.count >= disconnectTracker.maxDisconnectsPerMinute) {
-      finalDelay = Math.max(delayMs, 60000)
-      log.warn(`🛑 Muchas desconexiones rápidas (${disconnectTracker.count}). Esperando ${Math.round(finalDelay / 1000)}s.`)
-      disconnectTracker.count = 0
-    }
-
-    disconnectTracker.lastDisconnect = now
-  }
-
-  console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(finalDelay / 1000)}s... (${reason})`))
-  disconnectTracker._reconnectTimer = setTimeout(() => {
-    disconnectTracker._reconnectTimer = null
-    startBot()
-  }, finalDelay)
-}
-
-function requestBotRestart(delayMs, reason = '') {
+// Reconectar directo sin esperas largas (modelo Ellen-Joe)
+function requestBotRestart(delayMs = 1000, reason = '') {
   if (_isShuttingDown) return
   if (_isStartingBot) {
     _pendingRestart = true
     log.warn(`⏳ Reinicio pendiente: ${reason || 'startBot en progreso'}`)
     return
   }
-  delayedReconnect(delayMs, reason)
+  
+  // Cancelar timer anterior para evitar reconexiones duplicadas
+  if (disconnectTracker._reconnectTimer) {
+    clearTimeout(disconnectTracker._reconnectTimer)
+    disconnectTracker._reconnectTimer = null
+  }
+  
+  // Espera BREVE (máximo 2-3 segundos para cualquier error)
+  const finalDelay = Math.min(delayMs, 3000)
+  
+  console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(finalDelay / 1000)}s... (${reason})`))
+  disconnectTracker._reconnectTimer = setTimeout(() => {
+    disconnectTracker._reconnectTimer = null
+    startBot()
+  }, finalDelay)
 }
 
 // 🧹 Limpieza automática de carpeta tmp
@@ -713,83 +683,54 @@ async function startBot() {
           log.error(`❌ WhatsApp confirmó cierre de sesión. Se requiere nueva vinculación.`)
           purgeSession()
           LOGIN_METHOD = await uPLoader()
-          requestBotRestart(1500, 'nueva vinculación tras logout real')
+          requestBotRestart(1000, 'nueva vinculación tras logout real')
         } else {
-          // "Connection Failure" = temporal. No forzar relink automático.
-          disconnectTracker.consecutive401 += 1
-          const wait401 = Math.min(5000 + ((disconnectTracker.consecutive401 - 1) * 5000), 60000)
-          log.warn(`⚠️ 401 "Connection Failure" - Reconectando en ${Math.round(wait401 / 1000)}s (x${disconnectTracker.consecutive401})...`)
-          requestBotRestart(wait401, `401 Connection Failure x${disconnectTracker.consecutive401}`)
+          // "Connection Failure" = temporal. Reconectar rápido sin relink
+          log.warn(`⚠️ 401 Connection Failure - Reconectando...`)
+          requestBotRestart(1000, '401 Connection Failure')
         }
       }
-      // badSession (500)
+      // Todos los demás errores temporales - reconectar directo y rápido
       else if (reason === DisconnectReason.badSession) {
         log.warn("⚠️ badSession - Reconectando...")
-        requestBotRestart(8000, 'badSession')
+        requestBotRestart(1500, 'badSession')
       }
-      // multideviceMismatch (411)
       else if (reason === DisconnectReason.multideviceMismatch) {
         log.warn("⚠️ multideviceMismatch - Reconectando...")
-        requestBotRestart(10000, 'multideviceMismatch')
+        requestBotRestart(1500, 'multideviceMismatch')
       }
-      // connectionReplaced - NO reconectar (como Megumin)
       else if (reason === DisconnectReason.connectionReplaced) {
         log.warn("⚠️ Conexión reemplazada por otra sesión. No se reconecta.")
       }
-      // forbidden - sesión inválida
       else if (reason === DisconnectReason.forbidden) {
         log.error("❌ Conexión prohibida. Purgando sesión...")
         purgeSession()
         LOGIN_METHOD = await uPLoader()
-        requestBotRestart(1500, 'forbidden con sesión purgada')
+        requestBotRestart(1000, 'forbidden con sesión purgada')
       }
-      // 428: Rate limit - reconectar directo (el queue ya maneja retry interno)
       else if (reason === 428) {
-        disconnectTracker.consecutive428 = (disconnectTracker.consecutive428 || 0) + 1
-        const wait428 = 3000
-        log.warn(`⚠️ Error 428: Rate limit. Reconectando en ${Math.round(wait428 / 1000)}s (x${disconnectTracker.consecutive428})...`)
-        requestBotRestart(wait428, 'rate limit 428')
+        // Rate limit - reconectar rápido (sin contadores, sin esperas largas)
+        log.warn(`⚠️ Error 428: Rate limit. Reconectando...`)
+        requestBotRestart(1500, 'rate limit 428')
       }
-      // 515 - Stream Errored (restart required)
       else if (reason === 515) {
-        disconnectTracker.consecutive515 = (disconnectTracker.consecutive515 || 0) + 1
-        if (disconnectTracker.consecutive515 >= 5) {
-          log.error(`❌ 515 persistente (${disconnectTracker.consecutive515}x). Purgando pre-keys para sanear sesión...`)
-          purgePreKeys(true) // Forzamos purga agresiva si pasamos un booleano (lo implementamos ahora)
-          disconnectTracker.consecutive515 = 0
-          requestBotRestart(5000, '515 persistente - prekeys purgados')
-        } else {
-          log.warn(`⚠️ 515 Stream Errored - Reconectando directo (x${disconnectTracker.consecutive515})...`)
-          requestBotRestart(2000, '515 Stream Errored') // Wait corto para 515, como recomienda Baileys
-        }
+        // Stream error - reconectar rápido
+        log.warn(`⚠️ 515 Stream Errored - Reconectando...`)
+        requestBotRestart(1500, '515 Stream Errored')
       }
-      // TODOS LOS DEMÁS (408, timedOut, connectionLost, etc.) - reconectar directo
       else {
-        // Guardar creds por seguridad en errores de stream
-        if (reason === 408) {
-          if (global._saveCreds) { try { await global._saveCreds() } catch {} }
-        }
+        // Todos los demás errores (408, timedOut, connectionLost, etc.)
         log.warn(`⚠️ Desconexión (${reason}). Reconectando...`)
-        requestBotRestart(5000, `desconexión ${reason}`)
+        requestBotRestart(1000, `desconexión ${reason}`)
       }
     }
 
     if (connection === "open") {
-      // Resetear TODOS los contadores al conectar exitosamente
-      disconnectTracker.consecutiveBadSession = 0
-      disconnectTracker.consecutive401 = 0
-      disconnectTracker.consecutiveOther = 0
-      disconnectTracker._lastReasonCode = 0
-      disconnectTracker.count = 0
+      // Limpiar timer si aún existe
       if (disconnectTracker._reconnectTimer) {
         clearTimeout(disconnectTracker._reconnectTimer)
         disconnectTracker._reconnectTimer = null
       }
-      // 🔧 FIX v8: Resetear 515/428/408 inmediatamente al conectar (antes esperaba 5 min)
-      // Si se desconectaba antes de 5 min, los contadores se acumulaban incorrectamente
-      disconnectTracker.consecutive515 = 0
-      disconnectTracker.consecutive428 = 0
-      disconnectTracker.consecutive408 = 0
       
       // Backup de sesión al conectar
       backupSession()
