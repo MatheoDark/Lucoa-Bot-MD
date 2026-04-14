@@ -447,7 +447,72 @@ let LOGIN_METHOD = null
 let _isStartingBot = false
 let _pendingRestart = false
 
-// ✅ Sistema de reconexión con detección de bucles 428
+// 🔧 FIX v10: Validar salud de sesión antes de reconectar
+function validateSessionHealth() {
+  try {
+    const credsPath = path.join(global.sessionName, 'creds.json')
+    if (!fs.existsSync(credsPath)) {
+      console.log(chalk.yellow('⚠️ creds.json no existe (sesión nueva)'))
+      return { healthy: true, isNew: true }
+    }
+    
+    const content = fs.readFileSync(credsPath, 'utf8')
+    const creds = JSON.parse(content)
+    
+    const checks = {
+      hasMe: !!creds.me,
+      hasNoiseKey: !!creds.noiseKey,
+      hasSignedIdentityKey: !!creds.signedIdentityKey,
+      hasPairingKey: !!creds.pairingEphemeralKeyPair,
+      hasRegistrationId: Number.isFinite(creds.registrationId),
+      validNextPreKeyId: Number.isFinite(creds.nextPreKeyId) && creds.nextPreKeyId > 0,
+      isRegistered: creds.registered === true
+    }
+    
+    const healthy = Object.values(checks).every(v => v === true)
+    
+    if (!healthy) {
+      console.log(chalk.yellow('⚠️ Salud de sesión:'))
+      Object.entries(checks).forEach(([key, value]) => {
+        const icon = value ? '✓' : '✗'
+        const color = value ? chalk.green : chalk.red
+        console.log(color(`   ${icon} ${key}`))
+      })
+    }
+    
+    return { healthy, checks }
+  } catch (e) {
+    console.log(chalk.red(`❌ Error validando sesión: ${e.message}`))
+    return { healthy: false, error: e.message }
+  }
+}
+
+// Ejecutar validación cada vez que startBot se llama
+global.validateSessionHealth = validateSessionHealth
+async function saveCredsWithValidation(saveCreds) {
+  try {
+    if (!saveCreds) return
+    
+    await saveCreds()
+    
+    // Validar inmediatamente que se guardó correctamente
+    const creds = fs.readFileSync(path.join(global.sessionName, 'creds.json'), 'utf8')
+    const parsed = JSON.parse(creds)
+    
+    if (!parsed.me || !parsed.noiseKey) {
+      console.log(chalk.red('⚠️ Error de integridad detectado después de guardar'))
+      throw new Error('Credenciales guardadas corruptas')
+    }
+    
+    // Silencioso si todo está bien
+    if (process.env.CREDS_DEBUG) console.log(chalk.gray('✓ Credenciales validadas'))
+  } catch (e) {
+    console.log(chalk.red(`❌ Error crítico guardando credenciales: ${e.message}`))
+    log.error('CREDS_SAVE_ERROR', e)
+  }
+}
+
+// Sistema comprimido de tracker de credenciales
 const disconnectTracker = {
   _reconnectTimer: null,
   _credsAutoSaveInterval: null,
@@ -549,9 +614,9 @@ setInterval(cleanTmpFolder, 10 * 60 * 1000)
 // Limpiar al iniciar
 cleanTmpFolder()
 
-// 🔧 FIX v8: Limpiar SOLO pre-keys antiguas en exceso (mantener las últimas 30).
-// Las pre-keys son NECESARIAS para el handshake de Signal/Noise de WhatsApp.
-// Borrarlas TODAS causa desconexión 401/515 al siguiente handshake.
+// 🔧 FIX v10: Limpiar SOLO pre-keys antiguas en exceso (mantener mínimo 30).
+// ⚠️ CRÍTICO: Las pre-keys son NECESARIAS para que WhatsApp autentique.
+// Borrarlas TODAS causa 401/515 permanente. Siempre mantener al menos 1.
 function purgePreKeys(forceAll = false) {
   try {
     const sessionDir = global.sessionName
@@ -565,22 +630,36 @@ function purgePreKeys(forceAll = false) {
       })
     
     if (forceAll && files.length > 0) {
-      for (const file of files) {
+      // Nunca borrar TODAS, mantener al menos la última
+      const keep = files.slice(-1)
+      const toDelete = files.slice(0, -1)
+      
+      for (const file of toDelete) {
         try { fs.unlinkSync(path.join(sessionDir, file)) } catch {}
       }
-      console.log(chalk.yellow(`🧹 🔥 PURGA FORZADA: ${files.length} pre-keys eliminadas (saneamiento 515)`))
+      console.log(chalk.yellow(`🧹 🔥 PURGA PARCIAL: ${toDelete.length} pre-keys eliminadas (mantuvimos 1)`))
       return
     }
 
     // Mantener las últimas 30 pre-keys, solo borrar el exceso
     const MAX_PREKEYS = 30
-    if (files.length <= MAX_PREKEYS) return
+    if (files.length <= MAX_PREKEYS) {
+      if (process.env.PREKEYS_DEBUG && files.length < 5) {
+        console.log(chalk.yellow(`⚠️ Warning: Solo ${files.length} pre-keys disponibles (ideal 30+)`))
+      }
+      return
+    }
+    
     const toDelete = files.slice(0, files.length - MAX_PREKEYS)
     for (const file of toDelete) {
       try { fs.unlinkSync(path.join(sessionDir, file)) } catch {}
     }
-    if (toDelete.length > 0) console.log(chalk.gray(`🔑 Pre-keys antiguas limpiadas: ${toDelete.length} (conservadas: ${MAX_PREKEYS})`))
-  } catch {}
+    if (toDelete.length > 0) {
+      console.log(chalk.gray(`🔑 Pre-keys antiguas limpiadas: ${toDelete.length} (conservadas: ${files.length - toDelete.length})`))
+    }
+  } catch (e) {
+    console.log(chalk.red(`❌ Error limpiando pre-keys: ${e.message}`))
+  }
 }
 setInterval(purgePreKeys, 30 * 60 * 1000) // Cada 30 minutos (no cada 10)
 
@@ -611,24 +690,70 @@ async function startBot() {
 
   await loadDatabaseSafe()
 
+  // 🔧 FIX v10: Validar salud de sesión ANTES de intentar cargar credenciales
+  const sessionHealth = validateSessionHealth()
+  if (!sessionHealth.healthy && !sessionHealth.isNew) {
+    console.log(chalk.red('⚠️ Sesión en estado anómalo. Intentando reparar...'))
+  }
+
   let { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
   
-  // 🔧 FIX: Validar que las credenciales tienen los campos críticos para login.
-  // Si faltan, la sesión está corrupta y Baileys va a crashear con 401.
-  if (state.creds.me && (!state.creds.noiseKey || !state.creds.signedIdentityKey)) {
-    console.log(chalk.red('❌ Credenciales corruptas detectadas (faltan claves de cifrado). Purgando sesión...'))
+  // 🔧 VALIDACIÓN CRÍTICA: Sesión debe tener TODOS estos campos o será rechazada
+  const requiredFields = {
+    me: 'Identidad del usuario',
+    noiseKey: 'Clave de cifrado Noise',
+    signedIdentityKey: 'Clave de identidad firmada',
+    pairingEphemeralKeyPair: 'Clave efímera de emparejamiento',
+    signedPreKey: 'Clave pre-firmada',
+    registrationId: 'ID de registro',
+    advSecretKey: 'Clave secreta de advertencia'
+  }
+  
+  let isSessionValid = true
+  const missingFields = []
+  const fieldsReport = []
+  for (const [field, description] of Object.entries(requiredFields)) {
+    const exists = !!state.creds[field]
+    fieldsReport.push(`   ${exists ? '✓' : '✗'} ${field.padEnd(25)} - ${description}`)
+    if (!exists) {
+      missingFields.push(`${field} (${description})`)
+      isSessionValid = false
+    }
+  }
+  
+  console.log(chalk.cyan('\n📋 VALIDACIÓN DE SESIÓN:'))
+  fieldsReport.forEach(r => console.log(chalk.gray(r)))
+  
+  if (!isSessionValid) {
+    console.log(chalk.red('\n❌ SESIÓN CORRUPTA - Faltan campos críticos:'))
+    missingFields.forEach(f => console.log(chalk.red(`   - ${f}`)))
+    console.log(chalk.yellow('\n🔄 Purgando sesión corrupta y requiriendo nueva vinculación...'))
     purgeSession()
     LOGIN_METHOD = await uPLoader()
-    // Recargar credenciales limpias
     const freshAuth = await useMultiFileAuthState(global.sessionName)
     state = freshAuth.state
     saveCreds = freshAuth.saveCreds
+  } else {
+    console.log(chalk.green('✅ Sesión válida - Todos los campos presentes\n'))
   }
-
-  // Si la sesión tiene identidad y claves, forzar el estado de registro.
-  // Algunas instalaciones dejan `registered=false` aunque la sesión sea reutilizable.
+  
+  // Si la sesión tiene identidad y claves, forzar estado registrado
   if (state.creds.me && state.creds.noiseKey && state.creds.signedIdentityKey && !state.creds.registered) {
+    console.log(chalk.yellow('🔧 Corrigiendo estado de registro...'))
     state.creds.registered = true
+    // Guardar inmediatamente para evitar inconsistencias
+    try {
+      await saveCreds()
+      console.log(chalk.green('✅ Estado de registro actualizado'))
+    } catch (e) {
+      console.log(chalk.red(`⚠️ Error guardando credenciales: ${e.message}`))
+    }
+  }
+  
+  // 🔧 Validar nextPreKeyId (debe ser un número válido)
+  if (!Number.isFinite(state.creds.nextPreKeyId) || state.creds.nextPreKeyId < 0) {
+    console.log(chalk.yellow(`🔧 nextPreKeyId inválido (${state.creds.nextPreKeyId}). Corrigiendo...`))
+    state.creds.nextPreKeyId = 1
     try {
       await saveCreds()
     } catch {}
@@ -639,6 +764,14 @@ async function startBot() {
 
   console.info = () => {}
   console.debug = () => {}
+  
+  // 🔧 Mostrar información de cuenta para debugging
+  if (state.creds.me) {
+    console.log(chalk.cyan(`📱 Cuenta vinculada: ${state.creds.me.name || 'Sin nombre'}`))
+    console.log(chalk.cyan(`   ID: ${state.creds.me.id.substring(0, 25)}...`))
+    console.log(chalk.cyan(`   Pre-keys disponibles: ${fs.readdirSync(global.sessionName).filter(f => f.startsWith('pre-key-')).length}`))
+    console.log(chalk.cyan(`   nextPreKeyId: ${state.creds.nextPreKeyId}\n`))
+  }
 
   const groupMetadataCache = new Map()
 
@@ -685,8 +818,13 @@ async function startBot() {
   client.public = true
 
   // 🔧 FIX: Exponer saveCreds globalmente para el shutdown handler
-  global._saveCreds = saveCreds
-  client.ev.on("creds.update", saveCreds)
+  global._saveCreds = () => saveCredsWithValidation(saveCreds)
+  
+  // Guardar credenciales cada vez que cambien (muy importante para mantener sesión viva)
+  client.ev.on("creds.update", async () => {
+    console.log(chalk.gray('[CREDS] Cambios detectados, guardando...'))
+    await saveCredsWithValidation(saveCreds)
+  })
 
   if (!client.authState.creds.registered && LOGIN_METHOD === '2') {
     setTimeout(async () => {
@@ -786,8 +924,8 @@ async function startBot() {
       // Backup de sesión al conectar
       backupSession()
       
-      // 🔧 FIX v5: Auto-save de credenciales cada 5 minutos
-      // Previene pérdida de tokens tras reinicio inesperado.
+      // 🔧 FIX v10: Auto-save de credenciales cada 3 minutos (más frecuente para más seguridad)
+      // Previene pérdida de tokens tras reinicio inesperado o cambios de sesión
       if (disconnectTracker._credsAutoSaveInterval) {
         clearInterval(disconnectTracker._credsAutoSaveInterval)
       }
@@ -795,9 +933,11 @@ async function startBot() {
         if (global._saveCreds) {
           try {
             await global._saveCreds()
-          } catch {}
+          } catch (e) {
+            console.log(chalk.red(`⚠️ Error en auto-save de credenciales: ${e.message}`))
+          }
         }
-      }, 5 * 60 * 1000) // Cada 5 minutos
+      }, 3 * 60 * 1000) // Cada 3 minutos (era 5)
       
       // Timer de estabilidad: si la conexión dura 5 min, reportar estabilidad
       if (disconnectTracker._stableTimer) clearTimeout(disconnectTracker._stableTimer)
