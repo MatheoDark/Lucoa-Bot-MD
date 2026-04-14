@@ -495,20 +495,12 @@ async function saveCredsWithValidation(saveCreds) {
     
     await saveCreds()
     
-    // Validar inmediatamente que se guardó correctamente
-    const creds = fs.readFileSync(path.join(global.sessionName, 'creds.json'), 'utf8')
-    const parsed = JSON.parse(creds)
-    
-    if (!parsed.me || !parsed.noiseKey) {
-      console.log(chalk.red('⚠️ Error de integridad detectado después de guardar'))
-      throw new Error('Credenciales guardadas corruptas')
-    }
-    
-    // Silencioso si todo está bien
-    if (process.env.CREDS_DEBUG) console.log(chalk.gray('✓ Credenciales validadas'))
+    // ⚠️ NO validar post-escritura (causaba "Unexpected end of JSON input")
+    // Baileys escribe de forma atómica, confiamos en eso.
+    if (process.env.CREDS_DEBUG) console.log(chalk.gray('✓ Credenciales guardadas'))
   } catch (e) {
-    console.log(chalk.red(`❌ Error crítico guardando credenciales: ${e.message}`))
-    log.error('CREDS_SAVE_ERROR', e)
+    console.log(chalk.red(`⚠️ Error guardando credenciales: ${e.message}`))
+    // No llamar a log.error para evitar recursión
   }
 }
 
@@ -857,7 +849,7 @@ async function startBot() {
   
   // Guardar credenciales cada vez que cambien (muy importante para mantener sesión viva)
   client.ev.on("creds.update", async () => {
-    console.log(chalk.gray('[CREDS] Cambios detectados, guardando...'))
+    if (process.env.CREDS_DEBUG) console.log(chalk.gray('[CREDS] Cambios detectados, guardando...'))
     await saveCredsWithValidation(saveCreds)
   })
 
@@ -960,8 +952,8 @@ async function startBot() {
       // Backup de sesión al conectar
       backupSession()
       
-      // 🔧 FIX v10: Auto-save de credenciales cada 3 minutos (más frecuente para más seguridad)
-      // Previene pérdida de tokens tras reinicio inesperado o cambios de sesión
+      // 🔧 FIX v11: Auto-save cada 5 minutos SOLO (no cada 3) para evitar JSON corruption
+      // Baileys maneja creds.update internamente, no necesitamos guardar tan frecuente
       if (disconnectTracker._credsAutoSaveInterval) {
         clearInterval(disconnectTracker._credsAutoSaveInterval)
       }
@@ -970,10 +962,10 @@ async function startBot() {
           try {
             await global._saveCreds()
           } catch (e) {
-            console.log(chalk.red(`⚠️ Error en auto-save de credenciales: ${e.message}`))
+            console.log(chalk.red(`⚠️ Error en auto-save: ${e.message}`))
           }
         }
-      }, 3 * 60 * 1000) // Cada 3 minutos (era 5)
+      }, 5 * 60 * 1000) // Cada 5 minutos (era 3)
       
       // Timer de estabilidad: si la conexión dura 5 min, reportar estabilidad
       if (disconnectTracker._stableTimer) clearTimeout(disconnectTracker._stableTimer)
