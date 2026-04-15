@@ -70,33 +70,40 @@ const obtenerImagenGelbooru = async (personaje) => {
   for (const currentTag of tags) {
     const tag = encodeURIComponent(currentTag)
 
-    // 1. SafeBooru (funcional y sin auth)
+    // 1. Danbooru (primero, respuestas más confiables)
+    {
+      const data = await getJsonSafe(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
+      const posts = Array.isArray(data) ? data : []
+      const url = pickRandomImageUrl(posts, (p) => {
+        if (p?.file_url) return p.file_url
+        if (p?.large_file_url) return p.large_file_url
+        if (p?.md5) return `https://danbooru.donmai.us/data/__danbooru__${p.md5}.jpg`
+        return null
+      })
+      if (url) return url
+    }
+
+    // 2. Gelbooru (más imágenes)
+    {
+      const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50&api_key=anonymous&user_id=anonymous`)
+      const posts = Array.isArray(data) ? data : (data?.post || [])
+      const url = pickRandomImageUrl(posts, (p) => {
+        if (p?.file_url) return p.file_url
+        if (p?.source) return p.source
+        return null
+      })
+      if (url) return url
+    }
+
+    // 3. SafeBooru fallback
     {
       const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : (data?.post || [])
       const url = pickRandomImageUrl(posts, (p) => {
-        if (p?.file_url) return p.file_url
+        if (p?.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
         if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
         return null
       })
-      if (url) {
-        return url.startsWith('http') ? url : `https://safebooru.org${url}`
-      }
-    }
-
-    // 2. Gelbooru fallback
-    {
-      const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-      const posts = data?.post || []
-      const url = pickRandomImageUrl(posts, (p) => p?.file_url || null)
-      if (url) return url
-    }
-
-    // 3. Danbooru fallback
-    {
-      const data = await getJsonSafe(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
-      const posts = Array.isArray(data) ? data : []
-      const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.large_file_url || null)
       if (url) return url
     }
   }
