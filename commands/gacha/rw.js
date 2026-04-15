@@ -69,48 +69,72 @@ const obtenerImagenGelbooru = async (personaje) => {
 
   for (const currentTag of tags) {
     const tag = encodeURIComponent(currentTag)
+    console.log(`[RW] Buscando imagen con tag: ${currentTag}`)
 
     // 1. API Proxy Delirius (Gelbooru - funciona)
     {
       try {
         const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${tag}`)
         const posts = Array.isArray(data?.data) ? data.data : []
+        console.log(`[RW] Delirius: ${posts.length} posts encontrados`)
         
         const url = pickRandomImageUrl(posts, (p) => {
           if (p?.image) return p.image
           return null
         })
-        if (url) return url
+        if (url) {
+          console.log(`[RW] ✅ Imagen desde Delirius`)
+          return url
+        }
       } catch (e) {
-        // Continuar
+        console.log(`[RW] ❌ Delirius error: ${e.message.slice(0, 50)}`)
       }
     }
 
     // 2. SafeBooru directo (fallback confiable)
     {
-      const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-      const posts = Array.isArray(data) ? data : (data?.post || [])
-      const url = pickRandomImageUrl(posts, (p) => {
-        if (p?.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
-        if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
-        return null
-      })
-      if (url) return url
+      try {
+        const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+        const posts = Array.isArray(data) ? data : (data?.post || [])
+        console.log(`[RW] SafeBooru: ${posts.length} posts encontrados`)
+        
+        const url = pickRandomImageUrl(posts, (p) => {
+          if (p?.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
+          if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
+          return null
+        })
+        if (url) {
+          console.log(`[RW] ✅ Imagen desde SafeBooru`)
+          return url
+        }
+      } catch (e) {
+        console.log(`[RW] ❌ SafeBooru error: ${e.message.slice(0, 50)}`)
+      }
     }
 
     // 3. Gelbooru directo (intento final)
     {
-      const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-      const posts = Array.isArray(data) ? data : (data?.post || [])
-      const url = pickRandomImageUrl(posts, (p) => {
-        if (p?.file_url) return p.file_url
-        if (p?.source) return p.source
-        return null
-      })
-      if (url) return url
+      try {
+        const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+        const posts = Array.isArray(data) ? data : (data?.post || [])
+        console.log(`[RW] Gelbooru: ${posts.length} posts encontrados`)
+        
+        const url = pickRandomImageUrl(posts, (p) => {
+          if (p?.file_url) return p.file_url
+          if (p?.source) return p.source
+          return null
+        })
+        if (url) {
+          console.log(`[RW] ✅ Imagen desde Gelbooru`)
+          return url
+        }
+      } catch (e) {
+        console.log(`[RW] ❌ Gelbooru error: ${e.message.slice(0, 50)}`)
+      }
     }
   }
 
+  console.log(`[RW] ⚠️ No se encontró imagen para ningún tag`)
   return null
 }
 
