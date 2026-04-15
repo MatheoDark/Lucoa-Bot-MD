@@ -35,7 +35,7 @@
     "keyword": "monkey_d_luffy"
   },
   {
-    "name": "Naruto Uzumaki",
+    "name": "Uzumaki Naruto",
     "value": 4000000,
     "gender": "Hombre",
     "source": "Naruto",
@@ -126,14 +126,14 @@
     "keyword": "yor_forger"
   },
   {
-    "name": "Kurumi Tokisaki",
+    "name": "Tokisaki Kurumi",
     "value": 2850000,
     "gender": "Mujer",
     "source": "Date A Live",
     "keyword": "tokisaki_kurumi"
   },
   {
-    "name": "Marin Kitagawa",
+    "name": "Kitagawa Marin",
     "value": 2800000,
     "gender": "Mujer",
     "source": "Sono Bisque Doll",
@@ -154,7 +154,7 @@
     "keyword": "furina_(genshin_impact)"
   },
   {
-    "name": "Ai Hoshino",
+    "name": "Hoshino Ai",
     "value": 2600000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
@@ -175,7 +175,7 @@
     "keyword": "emilia_(re:zero)"
   },
   {
-    "name": "Miyabi Hoshimi",
+    "name": "Hoshimi Miyabi",
     "value": 805000,
     "gender": "Mujer",
     "source": "Zenless Zone Zero",
@@ -273,7 +273,7 @@
     "keyword": "bocchi"
   },
   {
-    "name": "Nezuko Kamado",
+    "name": "Kamado Nezuko",
     "value": 870000,
     "gender": "Mujer",
     "source": "Kimetsu no Yaiba",
@@ -287,28 +287,28 @@
     "keyword": "kochou_shinobu"
   },
   {
-    "name": "Mitsuri Kanroji",
+    "name": "Kanroji Mitsuri",
     "value": 810000,
     "gender": "Mujer",
     "source": "Kimetsu no Yaiba",
     "keyword": "kanroji_mitsuri"
   },
   {
-    "name": "Kaguya Shinomiya",
+    "name": "Shinomiya Kaguya",
     "value": 780000,
     "gender": "Mujer",
     "source": "Kaguya-sama",
     "keyword": "shinomiya_kaguya"
   },
   {
-    "name": "Miku Nakano",
+    "name": "Nakano Miku",
     "value": 687500,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_miku"
   },
   {
-    "name": "Nino Nakano",
+    "name": "Nakano Nino",
     "value": 660000,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
@@ -329,28 +329,28 @@
     "keyword": "senko_(sewayaki_kitsune_no_senko-san)"
   },
   {
-    "name": "Erika Amano",
+    "name": "Amano Erika",
     "value": 212836,
     "gender": "Mujer",
     "source": "Kakkou no Iinazuke",
     "keyword": "amano_erika"
   },
   {
-    "name": "Hiro Segawa",
+    "name": "Segawa Hiro",
     "value": 208332,
     "gender": "Mujer",
     "source": "Kakkou no Iinazuke",
     "keyword": "segawa_hiro"
   },
   {
-    "name": "Sachi Umino",
+    "name": "Umino Sachi",
     "value": 368712,
     "gender": "Mujer",
     "source": "Kakkou no Iinazuke",
     "keyword": "umino_sachi_(kakkou_no_iinazuke)"
   },
   {
-    "name": "Nagi Umino",
+    "name": "Umino Nagi",
     "value": 162801,
     "gender": "Hombre",
     "source": "Kakkou no Iinazuke",
@@ -434,49 +434,49 @@
     "keyword": "ah-duo_(kusuriya_no_hitorigoto)"
   },
   {
-    "name": "Torako Koshi",
+    "name": "Koshi Torako",
     "value": 60000,
     "gender": "Mujer",
     "source": "Shikanoko Nokonoko Koshitantan",
     "keyword": "koshi_torako"
   },
   {
-    "name": "Neko Nekoyamada",
+    "name": "Nekoyamada Neko",
     "value": 162882,
     "gender": "Mujer",
     "source": "Shikanoko Nokonoko Koshitantan",
     "keyword": "nekoyamada_neko"
   },
   {
-    "name": "Noko Shikanoko",
+    "name": "Shikanoko Noko",
     "value": 60000,
     "gender": "Mujer",
     "source": "Shikanoko Nokonoko Koshitantan",
     "keyword": "shikanoko_noko"
   },
   {
-    "name": "Meme Bashame",
+    "name": "Bashame Meme",
     "value": 118782,
     "gender": "Mujer",
     "source": "Shikanoko Nokonoko Koshitantan",
     "keyword": "bashame_meme"
   },
   {
-    "name": "Kiwi Araga",
+    "name": "Araga Kiwi",
     "value": 105184,
     "gender": "Mujer",
     "source": "Mahou Shoujo ni Akogarate",
     "keyword": "araga_kiwi"
   },
   {
-    "name": "Utena Hiiragi",
+    "name": "Hiiragi Utena",
     "value": 60000,
     "gender": "Mujer",
     "source": "Mahou Shoujo ni Akogarate",
     "keyword": "hiiragi_utena"
   },
   {
-    "name": "Chika Fujiwara",
+    "name": "Fujiwara Chika",
     "value": 300000,
     "gender": "Mujer",
     "source": "Kaguya-sama",
@@ -490,28 +490,28 @@
     "keyword": "iino_miko"
   },
   {
-    "name": "Yuu Ishigami",
+    "name": "Ishigami Yuu",
     "value": 412968,
     "gender": "Hombre",
     "source": "Kaguya-sama",
     "keyword": "ishigami_yuu"
   },
   {
-    "name": "Miyuki Shirogane",
+    "name": "Shirogane Miyuki",
     "value": 400000,
     "gender": "Hombre",
     "source": "Kaguya-sama",
     "keyword": "shirogane_miyuki"
   },
   {
-    "name": "Moeha Fujiwara",
+    "name": "Fujiwara Moeha",
     "value": 231756,
     "gender": "Mujer",
     "source": "Kaguya-sama",
     "keyword": "fujiwara_moeha"
   },
   {
-    "name": "Kei Shirogane",
+    "name": "Shirogane Kei",
     "value": 283776,
     "gender": "Mujer",
     "source": "Kaguya-sama",
@@ -847,7 +847,7 @@
     "keyword": "giorno_giovanna"
   },
   {
-    "name": "Rohan Kishibe",
+    "name": "Kishibe Rohan",
     "value": 200000,
     "gender": "Hombre",
     "source": "JoJo's Bizarre Adventure",
@@ -861,28 +861,28 @@
     "keyword": "the_world"
   },
   {
-    "name": "Ichika Nakano",
+    "name": "Nakano Ichika",
     "value": 80000,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_ichika"
   },
   {
-    "name": "Yotsuba Nakano",
+    "name": "Nakano Yotsuba",
     "value": 144023,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_yotsuba"
   },
   {
-    "name": "Itsuki Nakano",
+    "name": "Nakano Itsuki",
     "value": 80000,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_itsuki"
   },
   {
-    "name": "Fuutarou Uesugi",
+    "name": "Uesugi Fuutarou",
     "value": 80000,
     "gender": "Hombre",
     "source": "Gotoubun no Hanayome",
@@ -910,7 +910,7 @@
     "keyword": "yuuka_(blue_archive)"
   },
   {
-    "name": "Rio Tsukatsuki",
+    "name": "Tsukatsuki Rio",
     "value": 137870,
     "gender": "Mujer",
     "source": "Blue Archive",
@@ -1113,35 +1113,35 @@
     "keyword": "shimiko_(blue_archive)"
   },
   {
-    "name": "Rin Nanagami",
+    "name": "Nanagami Rin",
     "value": 204393,
     "gender": "Mujer",
     "source": "Blue Archive",
     "keyword": "nanagami_rin"
   },
   {
-    "name": "Hakari Hanazono",
+    "name": "Hanazono Hakari",
     "value": 158916,
     "gender": "Mujer",
     "source": "Kimi no Koto ga Daidaidaidaidaisuki na 100-nin no Kanojo",
     "keyword": "hanazono_hakari"
   },
   {
-    "name": "Shizuka Yoshimoto",
+    "name": "Yoshimoto Shizuka",
     "value": 189188,
     "gender": "Mujer",
     "source": "Kimi no Koto ga Daidaidaidaidaisuki na 100-nin no Kanojo",
     "keyword": "yoshimoto_shizuka"
   },
   {
-    "name": "Karane Inda",
+    "name": "Inda Karane",
     "value": 215956,
     "gender": "Mujer",
     "source": "Kimi no Koto ga Daidaidaidaidaisuki na 100-nin no Kanojo",
     "keyword": "inda_karane"
   },
   {
-    "name": "Rin Kagamine",
+    "name": "Kagamine Rin",
     "value": 189390,
     "gender": "Mujer",
     "source": "Vocaloid",
@@ -1155,7 +1155,7 @@
     "keyword": "kaito_(vocaloid)"
   },
   {
-    "name": "Luka Megurine",
+    "name": "Megurine Luka",
     "value": 184390,
     "gender": "Mujer",
     "source": "Vocaloid",
@@ -1169,7 +1169,7 @@
     "keyword": "akita_neru"
   },
   {
-    "name": "Len Kagamine",
+    "name": "Kagamine Len",
     "value": 80000,
     "gender": "Hombre",
     "source": "Vocaloid",
@@ -1197,63 +1197,63 @@
     "keyword": "gumi"
   },
   {
-    "name": "Kaoruko Waguri",
+    "name": "Waguri Kaoruko",
     "value": 30000,
     "gender": "Mujer",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "waguri_kaoruko"
   },
   {
-    "name": "Subaru Hoshina",
+    "name": "Hoshina Subaru",
     "value": 30000,
     "gender": "Mujer",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "hoshina_subaru"
   },
   {
-    "name": "Rintarou Tsumugi",
+    "name": "Tsumugi Rintarou",
     "value": 30000,
     "gender": "Hombre",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "tsumugi_rintarou"
   },
   {
-    "name": "Madoka Yuzuhara",
+    "name": "Yuzuhara Madoka",
     "value": 30000,
     "gender": "Mujer",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "yuzuhara_madoka"
   },
   {
-    "name": "Saku Natsusawa",
+    "name": "Natsusawa Saku",
     "value": 30000,
     "gender": "Hombre",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "natsusawa_saku"
   },
   {
-    "name": "Shouhei Usami",
+    "name": "Usami Shouhei",
     "value": 30000,
     "gender": "Hombre",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "usami_shouhei"
   },
   {
-    "name": "Ayato Yorita",
+    "name": "Yorita Ayato",
     "value": 30000,
     "gender": "Hombre",
     "source": "Kaoru Hana wa Rin to Saku",
     "keyword": "yorita_ayato"
   },
   {
-    "name": "Mai Zenin",
+    "name": "Zenin Mai",
     "value": 296190,
     "gender": "Mujer",
     "source": "Jujutsu Kaisen",
     "keyword": "zenin_mai"
   },
   {
-    "name": "Kasumi Miwa",
+    "name": "Miwa Kasumi",
     "value": 150000,
     "gender": "Mujer",
     "source": "Jujutsu Kaisen",
@@ -1267,7 +1267,7 @@
     "keyword": "choso_(jujutsu_kaisen)"
   },
   {
-    "name": "Maki Zenin",
+    "name": "Zenin Maki",
     "value": 965600,
     "gender": "Mujer",
     "source": "Jujutsu Kaisen",
@@ -1281,14 +1281,14 @@
     "keyword": "mei_mei_(jujutsu_kaisen)"
   },
   {
-    "name": "Megumi Fushiguro",
+    "name": "Fushiguro Megumi",
     "value": 863860,
     "gender": "Hombre",
     "source": "Jujutsu Kaisen",
     "keyword": "fushiguro_megumi"
   },
   {
-    "name": "Nobara Kugisaki",
+    "name": "Kugisaki Nobara",
     "value": 500000,
     "gender": "Mujer",
     "source": "Jujutsu Kaisen",
@@ -1463,28 +1463,28 @@
     "keyword": "bruno_bucciarati "
   },
   {
-    "name": "Ryo Yamada",
+    "name": "Yamada Ryo",
     "value": 100000,
     "gender": "Mujer",
     "source": "Bocchi The Rock",
     "keyword": "yamada_ryo"
   },
   {
-    "name": "Nijika Ijichi",
+    "name": "Ijichi Nijika",
     "value": 80000,
     "gender": "Mujer",
     "source": "Bocchi The Rock",
     "keyword": "ijichi_nijika"
   },
   {
-    "name": "Kikuri Hiroi",
+    "name": "Hiroi Kikuri",
     "value": 80000,
     "gender": "Mujer",
     "source": "Bocchi The Rock",
     "keyword": "hiroi_kikuri"
   },
   {
-    "name": "Seika Ijichi",
+    "name": "Ijichi Seika",
     "value": 80000,
     "gender": "Mujer",
     "source": "Bocchi The Rock",
@@ -1505,7 +1505,7 @@
     "keyword": "mariya_mikhailovna_kujou"
   },
   {
-    "name": "Ayano Kimishima",
+    "name": "Kimishima Ayano",
     "value": 128565,
     "gender": "Mujer",
     "source": "Tokidoki Bosotto Russia-go de Dereru Tonari no Alya-san",
@@ -1617,7 +1617,7 @@
     "keyword": "chara"
   },
   {
-    "name": "Kumi Katayama",
+    "name": "Katayama Kumi",
     "value": 50000,
     "gender": "Mujer",
     "source": "Persona",
@@ -1631,35 +1631,35 @@
     "keyword": "hatsune_miku"
   },
   {
-    "name": "Sumi Sakurasawa",
+    "name": "Sakurasawa Sumi",
     "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "sakurasawa_sumi"
   },
   {
-    "name": "Aquamarine Hoshino",
+    "name": "Hoshino Aquamarine",
     "value": 500000,
     "gender": "Hombre",
     "source": "Oshi no Ko",
     "keyword": "hoshino_aquamarine"
   },
   {
-    "name": "Ruby Hoshino",
+    "name": "Hoshino Ruby",
     "value": 400000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "hoshino_ruby"
   },
   {
-    "name": "Kana Arima",
+    "name": "Arima Kana",
     "value": 250000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "arima_kana"
   },
   {
-    "name": "Akane Kurokawa",
+    "name": "Kurokawa Akane",
     "value": 300000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
@@ -1673,28 +1673,28 @@
     "keyword": "mem-cho"
   },
   {
-    "name": "Gorou Amamiya",
+    "name": "Amamiya Gorou",
     "value": 50000,
     "gender": "Hombre",
     "source": "Oshi no Ko",
     "keyword": "amamiya_gorou"
   },
   {
-    "name": "Frill Shiranui",
+    "name": "Shiranui Frill",
     "value": 50000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "shiranui_frill"
   },
   {
-    "name": "Miyako Saitou",
+    "name": "Saitou Miyako",
     "value": 50000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
     "keyword": "saitou_miyako"
   },
   {
-    "name": "Ichigo Saitou",
+    "name": "Saitou Ichigo",
     "value": 50000,
     "gender": "Hombre",
     "source": "Oshi no Ko",
@@ -1743,42 +1743,42 @@
     "keyword": "cacao_(nekopara) "
   },
   {
-    "name": "Chizuru Mizuhara",
+    "name": "Mizuhara Chizuru",
     "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "mizuhara_chizuru"
   },
   {
-    "name": "Kazuya Kinoshita",
+    "name": "Kinoshita Kazuya",
     "value": 30000,
     "gender": "Hombre",
     "source": "Kanojo, Okarishimasu",
     "keyword": "kinoshita_kazuya"
   },
   {
-    "name": "Ruka Sarashina",
+    "name": "Sarashina Ruka",
     "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "sarashina_ruka"
   },
   {
-    "name": "Mami Nanami",
+    "name": "Nanami Mami",
     "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "nanami_mami"
   },
   {
-    "name": "Mini Yaemori",
+    "name": "Yaemori Mini",
     "value": 30000,
     "gender": "Mujer",
     "source": "Kanojo, Okarishimasu",
     "keyword": "yaemori_mini"
   },
   {
-    "name": "Mahiru Shiina",
+    "name": "Shiina Mahiru",
     "value": 60000,
     "gender": "Mujer",
     "source": "Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken",
@@ -1806,7 +1806,7 @@
     "keyword": "aihara_enju"
   },
   {
-    "name": "Nagisa Kubo",
+    "name": "Kubo Nagisa",
     "value": 50000,
     "gender": "Mujer",
     "source": "Kubo-san wa Mob wo Yurusanai",
