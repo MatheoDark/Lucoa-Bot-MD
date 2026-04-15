@@ -134,6 +134,28 @@ const obtenerImagenGelbooru = async (personaje) => {
     }
   }
 
+  // FALLBACK: Buscar por nombre simple (solo la primera palabra)
+  {
+    const simpleName = personaje.name?.split(' ')[0] || ''
+    if (simpleName && simpleName.length > 2) {
+      console.log(`[RW] 🔄 Fallback: Buscando por nombre simple: ${simpleName}`)
+      
+      try {
+        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(simpleName)}`)
+        const posts = Array.isArray(data?.data) ? data.data : []
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
+          if (url) {
+            console.log(`[RW] ✅ Imagen desde nombre simple (Delirius)`)
+            return url
+          }
+        }
+      } catch (e) {
+        console.log(`[RW] ❌ Fallback error: ${e.message.slice(0, 30)}`)
+      }
+    }
+  }
+
   console.log(`[RW] ⚠️ No se encontró imagen para ningún tag`)
   return null
 }
