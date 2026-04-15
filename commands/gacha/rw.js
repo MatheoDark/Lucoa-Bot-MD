@@ -14,6 +14,7 @@ globalThis.__rwRecentMediaByCharacter = recentMediaByCharacter
 const IMAGE_EXT_REGEX = /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i
 const VIDEO_EXT_REGEX = /\.(mp4|webm|mov)$/i
 const GIF_EXT_REGEX = /\.gif$/i
+const HTTP_URL_REGEX = /^https?:\/\//i
 const STATS_FILE = './lib/rw-stats.json'
 const TIMEOUT_CONFIG = {
   small: 8000,    // < 500KB
@@ -172,6 +173,22 @@ const pickRandomImageUrl = (posts = [], mapper) => {
   return valid[Math.floor(Math.random() * valid.length)]
 }
 
+const isLikelyMediaUrl = (url = '') => {
+  if (typeof url !== 'string') return false
+  const clean = url.trim()
+  if (!clean || !HTTP_URL_REGEX.test(clean)) return false
+  if (IMAGE_EXT_REGEX.test(clean)) return true
+  // Permite URLs directas sin extensión explícita, pero evita endpoints HTML típicos.
+  return !/index\.php|page=post|s=list|s=view/i.test(clean)
+}
+
+const pickMediaFromPosts = (posts = [], mapper, previousUrl = '') => {
+  const urls = posts
+    .map(mapper)
+    .filter((url) => isLikelyMediaUrl(url))
+  return pickDifferentImageUrl(urls, previousUrl)
+}
+
 const pickDifferentImageUrl = (urls = [], previousUrl = '') => {
   const previous = String(previousUrl || '').trim()
   const normalized = urls.map((url) => String(url || '').trim()).filter(Boolean)
@@ -290,7 +307,7 @@ const obtenerImagenGelbooru = async (personaje) => {
       const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${tag}`)
       const posts = Array.isArray(data?.data) ? data.data : []
       if (posts.length > 0) {
-        const url = pickRandomImageUrl(posts, (p) => p?.image || null)
+        const url = pickMediaFromPosts(posts, (p) => p?.image || null, previousUrl)
         if (url) return { url, source: 'Delirius' }
       }
     } catch (e) {
@@ -302,11 +319,11 @@ const obtenerImagenGelbooru = async (personaje) => {
       const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : (data?.post || [])
       if (posts.length > 0) {
-        const url = pickRandomImageUrl(posts, (p) => {
+        const url = pickMediaFromPosts(posts, (p) => {
           if (p?.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
           if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
           return null
-        })
+        }, previousUrl)
         if (url) return { url, source: 'SafeBooru' }
       }
     } catch (e) {
@@ -318,7 +335,7 @@ const obtenerImagenGelbooru = async (personaje) => {
       const data = await getJsonSafe(`https://konachan.com/post.json?tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : []
       if (posts.length > 0) {
-        const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.sample_url || null)
+        const url = pickMediaFromPosts(posts, (p) => p?.file_url || p?.sample_url || null, previousUrl)
         if (url) return { url, source: 'Konachan' }
       }
     } catch (e) {
@@ -330,7 +347,7 @@ const obtenerImagenGelbooru = async (personaje) => {
       const data = await getJsonSafe(`https://yande.re/post.json?tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : []
       if (posts.length > 0) {
-        const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.sample_url || null)
+        const url = pickMediaFromPosts(posts, (p) => p?.file_url || p?.sample_url || null, previousUrl)
         if (url) return { url, source: 'Yande.re' }
       }
     } catch (e) {
@@ -342,7 +359,7 @@ const obtenerImagenGelbooru = async (personaje) => {
       const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : (data?.post || [])
       if (posts.length > 0) {
-        const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.source || null)
+        const url = pickMediaFromPosts(posts, (p) => p?.file_url || p?.source || null, previousUrl)
         if (url) return { url, source: 'Gelbooru' }
       }
     } catch (e) {
@@ -354,7 +371,7 @@ const obtenerImagenGelbooru = async (personaje) => {
       const data = await getJsonSafe(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : (data?.post || [])
       if (posts.length > 0) {
-        const url = pickRandomImageUrl(posts, (p) => p?.file_url || null)
+        const url = pickMediaFromPosts(posts, (p) => p?.file_url || null, previousUrl)
         if (url) return { url, source: 'Rule34' }
       }
     } catch (e) {

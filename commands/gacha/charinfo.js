@@ -15,6 +15,7 @@ const normalizeImageUrl = (url = '') => String(url).trim().replace(/#.*$/, '')
 const MEDIA_REGEX = /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i
 const VIDEO_REGEX = /\.(mp4|webm|mov)$/i
 const GIF_REGEX = /\.gif$/i
+const HTTP_URL_REGEX = /^https?:\/\//i
 
 const pickRandomMedia = (urls = []) => {
   const normalized = urls.map((url) => normalizeImageUrl(url)).filter(Boolean)
@@ -85,9 +86,18 @@ const obtenerImagenGelbooru = async (keyword) => {
   const tag = encodeURIComponent(keyword)
   const previousUrl = recentMediaByCharacter.get(keyword) || ''
 
+  const isLikelyMediaUrl = (url = '') => {
+    if (typeof url !== 'string') return false
+    const clean = url.trim()
+    if (!clean || !HTTP_URL_REGEX.test(clean)) return false
+    if (MEDIA_REGEX.test(clean)) return true
+    // Algunas APIs devuelven links directos sin extensión explícita.
+    return !/index\.php|page=post|s=list|s=view/i.test(clean)
+  }
+
   const getUrlList = (posts = [], mapper) => posts
     .map(mapper)
-    .filter((url) => typeof url === 'string' && MEDIA_REGEX.test(url))
+    .filter((url) => isLikelyMediaUrl(url))
 
   const searchSources = [
     async () => {
@@ -133,8 +143,8 @@ const obtenerImagenGelbooru = async (keyword) => {
   ]
 
   // 1. Búsqueda en varias fuentes
-  try {
-    for (const searchSource of searchSources) {
+  for (const searchSource of searchSources) {
+    try {
       const valid = await searchSource()
       if (valid.length) {
         const chosen = pickDifferentMedia(valid, previousUrl)
@@ -143,8 +153,10 @@ const obtenerImagenGelbooru = async (keyword) => {
           return chosen
         }
       }
+    } catch {
+      // Continuar con la siguiente fuente si esta falla
     }
-  } catch {}
+  }
 
   // 2. Danbooru fallback adicional
   try {
