@@ -52,21 +52,40 @@ async function smartFetchBuffer(url) {
     throw new Error('Todas las rutas bloqueadas.');
 }
 
-// 🧠 INTELIGENCIA DE ETIQUETAS
+// 🧠 INTELIGENCIA DE ETIQUETAS (MEJORADA PARA NOMBRES ANIME)
 const normalizeTag = (value = '') => String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[():'".]/g, ' ').replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '').replace(/[áàäâ]/g, 'a').replace(/[éèëê]/g, 'e').replace(/[íìïî]/g, 'i').replace(/[óòöô]/g, 'o').replace(/[úùüû]/g, 'u').replace(/ñ/g, 'n')
 
 const buildTagCandidates = (personaje = {}) => {
-  const nombreTieneEspacios = typeof personaje.name === 'string' && personaje.name.includes(' ')
+  const nombre = typeof personaje.name === 'string' ? personaje.name.trim() : ''
+  const fuente = typeof personaje.source === 'string' ? personaje.source.trim() : ''
+  const nombreTieneEspacios = nombre.includes(' ')
+  
+  let apellido = null;
+  let nombreInvertido = null;
+  
+  if (nombreTieneEspacios) {
+      const partes = nombre.split(' ');
+      apellido = partes[partes.length - 1]; // Ej: "Aizen"
+      if (partes.length === 2) {
+          nombreInvertido = `${partes[1]}_${partes[0]}`; // Ej: "Aizen_Sosuke"
+      }
+  }
+
   const raw = [
     personaje.keyword,
-    personaje.keyword ? personaje.keyword.replace(/\(/g, '_').replace(/\)/g, '_').replace(/__+/g, '_') : null,
-    personaje.keyword ? personaje.keyword.replace(/_\([^)]*\)$/, '') : null,
-    personaje.name && personaje.source ? `${personaje.name} (${personaje.source})` : null,
-    personaje.name && personaje.source ? `${personaje.name.toLowerCase()} ${personaje.source.toLowerCase()}` : null,
-    personaje.name && personaje.source ? `${personaje.name.toLowerCase()}_${personaje.source.toLowerCase()}` : null,
-    personaje.name && personaje.source ? `${personaje.name} ${personaje.source.split(' ').slice(0, 2).join(' ')}` : null,
-    nombreTieneEspacios ? personaje.name : null,
-    nombreTieneEspacios ? personaje.name.replace(/\s/g, '_') : null,
+    // 1. Formato Anime Japonés (Apellido_Nombre) - EL MÁS IMPORTANTE
+    nombreInvertido ? nombreInvertido : null,
+    nombreInvertido && fuente ? `${nombreInvertido}_(${fuente})` : null,
+    
+    // 2. Solo Apellido + Fuente (Atrapa variaciones como sousuke vs sosuke)
+    apellido && fuente ? `${apellido}_(${fuente})` : null,
+    
+    // 3. Formato Occidental Clásico (Nombre_Apellido)
+    nombreTieneEspacios ? nombre.replace(/\s/g, '_') : null,
+    nombreTieneEspacios && fuente ? `${nombre.replace(/\s/g, '_')}_(${fuente})` : null,
+    
+    // 4. Nombre suelto
+    nombre,
   ].filter(Boolean)
 
   const set = new Set()
