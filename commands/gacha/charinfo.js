@@ -1,6 +1,6 @@
-import fs from 'fs';
-import {promises as fsp} from 'fs';
-import fetch from 'node-fetch';
+import fs from 'fs'
+import { promises as fsp } from 'fs'
+import fetch from 'node-fetch'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { join } from 'path'
@@ -16,6 +16,20 @@ const MEDIA_REGEX = /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i
 const VIDEO_REGEX = /\.(mp4|webm|mov)$/i
 const GIF_REGEX = /\.gif$/i
 const HTTP_URL_REGEX = /^https?:\/\//i
+
+// 🛡️ HEADERS FALSOS: Vital para que Gelbooru/Rule34 no bloqueen la descarga
+const fetchHeaders = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Referer': 'https://google.com/'
+}
+
+// 🛠️ NUEVA FUNCIÓN: Descarga la imagen físicamente al bot primero
+async function getBuffer(url) {
+  const res = await fetch(url, { headers: fetchHeaders })
+  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+  const arrayBuffer = await res.arrayBuffer()
+  return Buffer.from(arrayBuffer)
+}
 
 const pickRandomMedia = (urls = []) => {
   const normalized = urls.map((url) => normalizeImageUrl(url)).filter(Boolean)
@@ -48,7 +62,8 @@ async function convertToMp4(url, originalName = '') {
   const outputPath = join(tmpDir, `${id}_out.mp4`)
 
   try {
-    const res = await fetch(url)
+    // 🔥 Usamos los headers falsos aquí también para evitar el ETIMEDOUT
+    const res = await fetch(url, { headers: fetchHeaders })
     const dlBuffer = Buffer.from(await res.arrayBuffer())
     fs.writeFileSync(inputPath, dlBuffer)
 
@@ -199,18 +214,16 @@ function findSimilarCharacter(name, characters) {
 export default {
   command: ['charimage', 'wimage', 'cimage'],
   category: 'gacha',
-  run: async ({client, m, args}) => {
+  run: async ({ client, m, args }) => {
     const db = global.db.data
     const chatId = m.chat
     const chatData = db.chats[chatId]
 
-    if (chatData.adminonly || !chatData.gacha)
+    if (chatData?.adminonly || !chatData?.gacha)
       return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
     if (args.length === 0)
-      return m.reply(
-        `🐲 Por favor, proporciona el nombre de un personaje. (◕︿◕)`
-      )
+      return m.reply(`🐲 Por favor, proporciona el nombre de un personaje. (◕︿◕)`)
 
     try {
       const characterName = args.join(' ').toLowerCase().trim()
@@ -220,48 +233,68 @@ export default {
       if (!character)
         return m.reply(`🐲 No se ha encontrado el personaje *${characterName}*, ni uno similar. (◕︿◕)`)
 
-      const message = `╭─── ⋆🐉⋆ ───\n│ Char Info (◕ᴗ◕✿)\n├───────────────\n│ ❀ Nombre › *${character.name}*\n│ ❀ Género › *${character.gender}*\n│ ❀ Valor › *${character.value.toLocaleString()}*\n│ ❀ Fuente › *${character.source}*\n╰─── ⋆✨⋆ ───\n\n${dev}`
+      // Nota: Se asume que global.dev existe en tu bot, si no, bórralo de esta línea.
+      const devText = global.dev || ''
+      const message = `╭─── ⋆🐉⋆ ───\n│ Char Info (◕ᴗ◕✿)\n├───────────────\n│ ❀ Nombre › *${character.name}*\n│ ❀ Género › *${character.gender}*\n│ ❀ Valor › *${character.value.toLocaleString()}*\n│ ❀ Fuente › *${character.source}*\n╰─── ⋆✨⋆ ───\n\n${devText}`
 
       const imagenUrl = await obtenerImagenGelbooru(character.keyword)
+      
       if (imagenUrl) {
         try {
           const mediaType = getMediaTypeByUrl(imagenUrl)
-          await client.sendMessage(
-            chatId,
-            mediaType === 'image'
-              ? {
-                  image: { url: imagenUrl },
+          
+          if (mediaType === 'image') {
+            // 🛠️ AQUÍ ESTÁ LA MAGIA: Descargamos la imagen primero como Buffer
+            const mediaBuffer = await getBuffer(imagenUrl)
+            await client.sendMessage(
+              chatId,
+              {
+                image: mediaBuffer, // Enviamos el Buffer, no la URL
+                caption: message,
+                mimetype: 'image/jpeg',
+              },
+              { quoted: m }
+            )
+          } else {
+            // Es un GIF o Video
+            try {
+              const { buffer, hasAudio } = await convertToMp4(imagenUrl, imagenUrl)
+              await client.sendMessage(
+                chatId,
+                {
+                  video: buffer,
                   caption: message,
-                  mimetype: 'image/jpeg',
-                }
-              : await (async () => {
-                  try {
-                    const { buffer, hasAudio } = await convertToMp4(imagenUrl, imagenUrl)
-                    return {
-                      video: buffer,
-                      caption: message,
-                      ...(GIF_REGEX.test(imagenUrl) || !hasAudio ? { gifPlayback: true } : {}),
-                      mimetype: 'video/mp4',
-                    }
-                  } catch {
-                    return {
-                      video: { url: imagenUrl },
-                      caption: message,
-                      ...(GIF_REGEX.test(imagenUrl) ? { gifPlayback: true } : {}),
-                      mimetype: GIF_REGEX.test(imagenUrl) ? 'image/gif' : 'video/mp4',
-                    }
-                  }
-                })(),
-            { quoted: m },
-          )
-        } catch {
-          await m.reply(message)
+                  ...(GIF_REGEX.test(imagenUrl) || !hasAudio ? { gifPlayback: true } : {}),
+                  mimetype: 'video/mp4',
+                },
+                { quoted: m }
+              )
+            } catch {
+              // Si falla FFmpeg, intentamos enviar el video original PERO como Buffer
+              const fallbackBuffer = await getBuffer(imagenUrl)
+              await client.sendMessage(
+                chatId,
+                {
+                  video: fallbackBuffer,
+                  caption: message,
+                  ...(GIF_REGEX.test(imagenUrl) ? { gifPlayback: true } : {}),
+                  mimetype: GIF_REGEX.test(imagenUrl) ? 'image/gif' : 'video/mp4',
+                },
+                { quoted: m }
+              )
+            }
+          }
+        } catch (mediaError) {
+          console.error("Error al enviar media:", mediaError)
+          await m.reply(message + "\n\n⚠️ *(No se pudo cargar la imagen)*")
         }
       } else {
-        await m.reply(message)
+        await m.reply(message + "\n\n⚠️ *(Sin imágenes disponibles)*")
       }
     } catch (error) {
-      await client.sendMessage(chatId, { text: msgglobal }, { quoted: m })
+      console.error("Error general en comando wimage:", error)
+      const fallbackMsg = global.msgglobal || "🐲 Ocurrió un error al procesar el personaje."
+      await client.sendMessage(chatId, { text: fallbackMsg }, { quoted: m })
     }
   },
-};
+}

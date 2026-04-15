@@ -75,6 +75,20 @@ const getAdaptiveTimeout = (estimatedSize = 0) => {
   return TIMEOUT_CONFIG.small
 }
 
+// 🛡️ HEADERS FALSOS: Vital para que Gelbooru/Rule34 no bloqueen la descarga
+const fetchHeaders = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Referer': 'https://google.com/'
+}
+
+// 🛠️ NUEVA FUNCIÓN: Descarga la imagen físicamente al bot primero
+async function getBuffer(url) {
+  const res = await fetch(url, { headers: fetchHeaders })
+  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+  const arrayBuffer = await res.arrayBuffer()
+  return Buffer.from(arrayBuffer)
+}
+
 const normalizeTag = (value = '') => String(value)
   .toLowerCase()
   .normalize('NFD')
@@ -216,7 +230,8 @@ async function convertToMp4(url, originalName = '') {
   const outputPath = join(tmpDir, `${id}_out.mp4`)
 
   try {
-    const res = await fetch(url)
+    // 🔥 Usamos los headers falsos aquí también para evitar el ETIMEDOUT
+    const res = await fetch(url, { headers: fetchHeaders })
     const dlBuffer = Buffer.from(await res.arrayBuffer())
     fs.writeFileSync(inputPath, dlBuffer)
 
@@ -524,76 +539,33 @@ ${global.dev || ''}`
         let imageSize = 0
         const mediaType = getMediaTypeByUrl(imagenUrl)
         
-        // Estimar tamaño sin descargar todo
-        const headRes = await fetch(imagenUrl, {
-          method: 'HEAD',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Referer': 'https://gelbooru.com/',
-          },
-          timeout: 5000
-        }).catch(() => null)
-        
-        if (headRes) {
-          imageSize = parseInt(headRes.headers.get('content-length') || '0')
-        }
-        
-        const adaptiveTimeout = getAdaptiveTimeout(imageSize)
-        const useSharp = mediaType === 'image'
-
-        if (useSharp) {
-          const imageRes = await fetch(imagenUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Referer': 'https://gelbooru.com/',
-              'Accept': 'image/webp,image/png,image/jpeg,*/*'
-            },
-            timeout: adaptiveTimeout
-          })
-
-          contentType = imageRes.headers.get('content-type') || ''
-
-          if (!contentType.includes('image')) {
-            const altUrl = imagenUrl.replace('img2.gelbooru.com', 'img.gelbooru.com')
-            if (altUrl !== imagenUrl) {
-              const altRes = await fetch(altUrl, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                  'Referer': 'https://gelbooru.com/',
-                },
-                timeout: getAdaptiveTimeout(imageSize)
-              })
-              const altContentType = altRes.headers.get('content-type') || ''
-              if (altContentType.includes('image') && altRes.ok) {
-                imageBuffer = Buffer.from(await altRes.arrayBuffer())
-              }
-            }
-          } else if (imageRes.ok) {
-            imageBuffer = Buffer.from(await imageRes.arrayBuffer())
-          }
-
-          if (!imageBuffer || imageBuffer.length === 0) {
-            throw new Error('No se pudo descargar imagen válida')
-          }
-
+        if (mediaType === 'image') {
+          // 🛠️ AQUÍ ESTÁ LA MAGIA: Descargamos la imagen primero como Buffer
+          imageBuffer = await getBuffer(imagenUrl)
+          // Procesar con Sharp
           imageBuffer = await normalizeImage(imageBuffer)
 
           if (!imageBuffer) {
             throw new Error('La imagen no pudo procesarse')
           }
+          contentType = 'image/jpeg'
         } else {
-          const { buffer, hasAudio } = await convertToMp4(imagenUrl, imagenUrl)
-          imageBuffer = buffer
-          if (!hasAudio || GIF_EXT_REGEX.test(imagenUrl)) {
-            contentType = 'image/gif'
-          } else {
-            contentType = 'video/mp4'
+          // Es un GIF o Video
+          try {
+            const { buffer, hasAudio } = await convertToMp4(imagenUrl, imagenUrl)
+            imageBuffer = buffer
+            contentType = (GIF_EXT_REGEX.test(imagenUrl) || !hasAudio) ? 'image/gif' : 'video/mp4'
+          } catch {
+            // Si falla FFmpeg, intentamos enviar el video original PERO como Buffer
+            imageBuffer = await getBuffer(imagenUrl)
+            contentType = GIF_EXT_REGEX.test(imagenUrl) ? 'image/gif' : 'video/mp4'
           }
         }
         
         // ⚡ ACTUALIZAR ESTADÍSTICAS - ÉXITO
         updateStats(personaje.name, true, imageBuffer.length)
         
+        const useSharp = mediaType === 'image'
         const envio = await client.sendMessage(
           chatId,
           useSharp
@@ -615,7 +587,7 @@ ${global.dev || ''}`
         updateStats(personaje.name, false, 0)
         
         console.log(`[RW] ⚠️ Error: ${e.message}`)
-        await m.reply(mensaje)
+        await m.reply(mensaje + "\n\n⚠️ *(No se pudo cargar la imagen)*")
       }
     } else {
       // ⚡ ACTUALIZAR ESTADÍSTICAS - SIN URL
