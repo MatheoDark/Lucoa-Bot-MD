@@ -245,11 +245,18 @@ ${global.dev || ''}`
 
     if (imagenUrl) {
       try {
-        console.log(`[RW] Intentando enviar imagen desde URL: ${imagenUrl.slice(0, 60)}...`)
-        await client.sendMessage(chatId, { image: { url: imagenUrl }, caption: mensaje }, { quoted: m })
+        console.log(`[RW] Intentando descargar imagen...`)
+        const imageRes = await fetch(imagenUrl)
+        if (!imageRes.ok) throw new Error(`HTTP ${imageRes.status}`)
+        
+        const imageBuffer = await imageRes.buffer()
+        console.log(`[RW] ✅ Imagen descargada: ${imageBuffer.length} bytes`)
+        
+        console.log(`[RW] Enviando imagen como buffer...`)
+        await client.sendMessage(chatId, { image: imageBuffer, caption: mensaje }, { quoted: m })
         console.log(`[RW] ✅ Imagen enviada correctamente`)
       } catch (e) {
-        console.error('Error enviando imagen:', e.message)
+        console.error('Error descargando/enviando imagen:', e.message)
         console.error('Stack:', e.stack)
         console.log(`[RW] Enviando solo texto por error...`)
         await m.reply(mensaje)
