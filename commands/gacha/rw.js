@@ -249,11 +249,20 @@ ${global.dev || ''}`
         const imageRes = await fetch(imagenUrl)
         if (!imageRes.ok) throw new Error(`HTTP ${imageRes.status}`)
         
-        const imageBuffer = await imageRes.buffer()
+        const arrayBuffer = await imageRes.arrayBuffer()
+        const imageBuffer = Buffer.from(arrayBuffer)
         console.log(`[RW] ✅ Imagen descargada: ${imageBuffer.length} bytes`)
         
         console.log(`[RW] Enviando imagen como buffer...`)
-        await client.sendMessage(chatId, { image: imageBuffer, caption: mensaje }, { quoted: m })
+        await client.sendMessage(
+          chatId,
+          {
+            image: imageBuffer,
+            caption: mensaje,
+            mimetype: 'image/jpeg'
+          },
+          { quoted: m }
+        )
         console.log(`[RW] ✅ Imagen enviada correctamente`)
       } catch (e) {
         console.error('Error descargando/enviando imagen:', e.message)
