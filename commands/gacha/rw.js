@@ -209,117 +209,113 @@ const obtenerImagenGelbooru = async (personaje) => {
   const tags = buildTagCandidates(personaje)
   if (!tags.length) return null
 
-  for (const currentTag of tags) {
-    const tag = encodeURIComponent(currentTag)
+  const buscarEnApis = async (consulta) => {
+    const tag = encodeURIComponent(consulta)
 
     // 1. API Proxy Delirius
-    {
-      try {
-        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${tag}`)
-        const posts = Array.isArray(data?.data) ? data.data : []
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado: ${currentTag}`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
+    try {
+      const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${tag}`)
+      const posts = Array.isArray(data?.data) ? data.data : []
+      if (posts.length > 0) {
+        const url = pickRandomImageUrl(posts, (p) => p?.image || null)
+        if (url) return { url, source: 'Delirius' }
       }
+    } catch (e) {
+      // silencio
     }
 
     // 2. SafeBooru directo
-    {
-      try {
-        const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-        const posts = Array.isArray(data) ? data : (data?.post || [])
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => {
-            if (p?.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
-            if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
-            return null
-          })
-          if (url) {
-            console.log(`[RW] ✅ Encontrado (SafeBooru): ${currentTag}`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
+    try {
+      const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+      const posts = Array.isArray(data) ? data : (data?.post || [])
+      if (posts.length > 0) {
+        const url = pickRandomImageUrl(posts, (p) => {
+          if (p?.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
+          if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
+          return null
+        })
+        if (url) return { url, source: 'SafeBooru' }
       }
+    } catch (e) {
+      // silencio
     }
 
     // 3. Konachan (Booru japonés)
-    {
-      try {
-        const data = await getJsonSafe(`https://konachan.com/post.json?tags=${tag}&limit=50`)
-        const posts = Array.isArray(data) ? data : []
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.sample_url || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado (Konachan): ${currentTag}`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
+    try {
+      const data = await getJsonSafe(`https://konachan.com/post.json?tags=${tag}&limit=50`)
+      const posts = Array.isArray(data) ? data : []
+      if (posts.length > 0) {
+        const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.sample_url || null)
+        if (url) return { url, source: 'Konachan' }
       }
+    } catch (e) {
+      // silencio
     }
 
     // 4. Yande.re (Booru premium japonés)
-    {
-      try {
-        const data = await getJsonSafe(`https://yande.re/post.json?tags=${tag}&limit=50`)
-        const posts = Array.isArray(data) ? data : []
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.sample_url || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado (Yande.re): ${currentTag}`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
+    try {
+      const data = await getJsonSafe(`https://yande.re/post.json?tags=${tag}&limit=50`)
+      const posts = Array.isArray(data) ? data : []
+      if (posts.length > 0) {
+        const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.sample_url || null)
+        if (url) return { url, source: 'Yande.re' }
       }
+    } catch (e) {
+      // silencio
     }
 
     // 5. Gelbooru directo
-    {
-      try {
-        const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-        const posts = Array.isArray(data) ? data : (data?.post || [])
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.source || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado (Gelbooru): ${currentTag}`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
+    try {
+      const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+      const posts = Array.isArray(data) ? data : (data?.post || [])
+      if (posts.length > 0) {
+        const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.source || null)
+        if (url) return { url, source: 'Gelbooru' }
       }
+    } catch (e) {
+      // silencio
     }
 
     // 6. Rule34.xxx (Diversidad de contenido)
-    {
-      try {
-        const data = await getJsonSafe(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-        const posts = Array.isArray(data) ? data : (data?.post || [])
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.file_url || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado (Rule34): ${currentTag}`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
+    try {
+      const data = await getJsonSafe(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+      const posts = Array.isArray(data) ? data : (data?.post || [])
+      if (posts.length > 0) {
+        const url = pickRandomImageUrl(posts, (p) => p?.file_url || null)
+        if (url) return { url, source: 'Rule34' }
+      }
+    } catch (e) {
+      // silencio
+    }
+
+    return null
+  }
+
+  for (const currentTag of tags) {
+    const exact = await buscarEnApis(currentTag)
+    if (exact?.url) {
+      console.log(`[RW] ✅ Encontrado exacto: ${currentTag} (${exact.source})`)
+      return exact.url
+    }
+  }
+
+  const fuente = personaje.source?.trim()
+  if (fuente && fuente.length > 2) {
+    const consultasFuente = [
+      fuente,
+      fuente.split(' ')[0],
+    ].filter(Boolean)
+
+    for (const consulta of consultasFuente) {
+      const resultado = await buscarEnApis(consulta)
+      if (resultado?.url) {
+        console.log(`[RW] ✅ Encontrado por fuente: ${consulta} (${resultado.source})`)
+        return resultado.url
       }
     }
   }
 
-  console.log(`[RW] ⚠️ No se encontró imagen exacta para ${personaje.name}. Se omiten fallbacks genéricos para evitar personajes incorrectos.`)
+  console.log(`[RW] ⚠️ No se encontró imagen ni por personaje ni por fuente para ${personaje.name}`)
   return null
 }
 
