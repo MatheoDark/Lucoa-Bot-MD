@@ -1,7 +1,20 @@
 import {promises as fs} from 'fs';
 import fetch from 'node-fetch';
 
-const obtenerImagenGelbooru = async (keyword) => {
+const lastImageByCharacter = new Map()
+
+const normalizeImageUrl = (url = '') => String(url).trim().replace(/#.*$/, '')
+
+const pickDifferentImage = (urls = [], previousUrl = '') => {
+  const previous = normalizeImageUrl(previousUrl)
+  const normalized = urls.map((url) => normalizeImageUrl(url)).filter(Boolean)
+  const different = normalized.filter((url) => url !== previous)
+  const pool = different.length ? different : normalized
+  if (!pool.length) return null
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+const obtenerImagenGelbooru = async (keyword, previousUrl = '') => {
   const tag = encodeURIComponent(keyword)
 
   // 1. SafeBooru (funcional y sin auth)
@@ -9,11 +22,18 @@ const obtenerImagenGelbooru = async (keyword) => {
     const res = await fetch(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
     const data = await res.json()
     const posts = Array.isArray(data) ? data : (data?.post || [])
-    const valid = posts.filter(p => (p.file_url || p.image) && /\.(jpg|jpeg|png|webp)$/i.test(p.file_url || p.image))
+    const valid = posts
+      .map(p => {
+        if (p.file_url && /\.(jpg|jpeg|png|webp)$/i.test(p.file_url)) return p.file_url
+        if (p.image && /\.(jpg|jpeg|png|webp)$/i.test(p.image)) {
+          const url = `https://safebooru.org/images/${p.directory}/${p.image}`
+          return url
+        }
+        return null
+      })
+      .filter(Boolean)
     if (valid.length) {
-      const post = valid[Math.floor(Math.random() * valid.length)]
-      const url = post.file_url || `https://safebooru.org/images/${post.directory}/${post.image}`
-      return url.startsWith('http') ? url : `https://safebooru.org${url}`
+      return pickDifferentImage(valid, previousUrl)
     }
   } catch {}
 
@@ -22,18 +42,21 @@ const obtenerImagenGelbooru = async (keyword) => {
     const res = await fetch(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
     const data = await res.json()
     const posts = data?.post || []
-    const valid = posts.filter(p => p.file_url && /\.(jpg|jpeg|png|webp)$/i.test(p.file_url))
-    if (valid.length) return valid[Math.floor(Math.random() * valid.length)].file_url
+    const valid = posts
+      .map(p => (p.file_url && /\.(jpg|jpeg|png|webp)$/i.test(p.file_url) ? p.file_url : null))
+      .filter(Boolean)
+    if (valid.length) return pickDifferentImage(valid, previousUrl)
   } catch {}
 
   // 3. Danbooru fallback
   try {
     const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
     const data = await res.json()
-    const valid = data.filter(p => (p.file_url || p.large_file_url))
+    const valid = data
+      .map(p => p.file_url || p.large_file_url)
+      .filter(Boolean)
     if (valid.length) {
-      const post = valid[Math.floor(Math.random() * valid.length)]
-      return post.file_url || post.large_file_url
+      return pickDifferentImage(valid, previousUrl)
     }
   } catch {}
 
@@ -87,8 +110,10 @@ export default {
 
       const message = `╭─── ⋆🐉⋆ ───\n│ Char Info (◕ᴗ◕✿)\n├───────────────\n│ ❀ Nombre › *${character.name}*\n│ ❀ Género › *${character.gender}*\n│ ❀ Valor › *${character.value.toLocaleString()}*\n│ ❀ Fuente › *${character.source}*\n╰─── ⋆✨⋆ ───\n\n${dev}`
 
-      const imagenUrl = await obtenerImagenGelbooru(character.keyword)
+      const previousUrl = lastImageByCharacter.get(character.keyword) || ''
+      const imagenUrl = await obtenerImagenGelbooru(character.keyword, previousUrl)
       if (imagenUrl) {
+        lastImageByCharacter.set(character.keyword, imagenUrl)
         try {
           await client.sendMessage(
             chatId,
