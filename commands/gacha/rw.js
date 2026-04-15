@@ -81,6 +81,7 @@ const normalizeTag = (value = '') => String(value)
   .replace(/ñ/g, 'n')
 
 const buildTagCandidates = (personaje = {}) => {
+  const nombreTieneEspacios = typeof personaje.name === 'string' && personaje.name.includes(' ')
   const raw = [
     // 1. Keyword exacto (si existe) - máxima prioridad
     personaje.keyword,
@@ -100,21 +101,21 @@ const buildTagCandidates = (personaje = {}) => {
     personaje.name && personaje.source ? 
       `${personaje.name.toLowerCase()}_${personaje.source.toLowerCase().split(' ')[0]}` : null,
     
-    // 4. Solo nombre (variantes)
-    personaje.name,
-    personaje.name ? personaje.name.toLowerCase() : null,
-    personaje.name ? personaje.name.replace(/\s/g, '_') : null,
+    // 4. Solo nombre, pero solo si es lo bastante específico
+    nombreTieneEspacios ? personaje.name : null,
+    nombreTieneEspacios ? personaje.name.toLowerCase() : null,
+    nombreTieneEspacios ? personaje.name.replace(/\s/g, '_') : null,
     
     // 5. Primera palabra del nombre + fuente completa (variantes)
-    personaje.name && personaje.source ? 
+    nombreTieneEspacios && personaje.name && personaje.source ? 
       `${personaje.name.split(' ')[0]} ${personaje.source}` : null,
-    personaje.name && personaje.source ? 
+    nombreTieneEspacios && personaje.name && personaje.source ? 
       `${personaje.name.split(' ')[0].toLowerCase()}_${personaje.source.toLowerCase()}` : null,
     
     // 6. Primera palabra de nombre + primera palabra de fuente (muy específico)
-    personaje.name && personaje.source ? 
+    nombreTieneEspacios && personaje.name && personaje.source ? 
       `${personaje.name.split(' ')[0]} ${personaje.source.split(' ')[0]}` : null,
-    personaje.name && personaje.source ? 
+    nombreTieneEspacios && personaje.name && personaje.source ? 
       `${personaje.name.split(' ')[0].toLowerCase()}_${personaje.source.split(' ')[0].toLowerCase()}` : null,
   ].filter(Boolean)
 
