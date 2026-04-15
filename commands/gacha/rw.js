@@ -4,6 +4,65 @@ import fetch from 'node-fetch';
 import sharp from 'sharp';
 
 const IMAGE_EXT_REGEX = /\.(jpg|jpeg|png|webp)$/i
+const STATS_FILE = './lib/rw-stats.json'
+const TIMEOUT_CONFIG = {
+  small: 8000,    // < 500KB
+  medium: 12000,  // 500KB - 3MB
+  large: 20000    // > 3MB
+}
+
+// ⚡ ESTADÍSTICAS
+const loadStats = () => {
+  try {
+    if (fs.existsSync(STATS_FILE)) {
+      return JSON.parse(fs.readFileSync(STATS_FILE, 'utf-8'))
+    }
+  } catch (e) {
+    console.log(`[RW-Stats] Error cargando: ${e.message}`)
+  }
+  return {}
+}
+
+const saveStats = (stats) => {
+  try {
+    fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2))
+  } catch (e) {
+    console.log(`[RW-Stats] Error guardando: ${e.message}`)
+  }
+}
+
+const updateStats = (personajeName, success, imageSize = 0) => {
+  const stats = loadStats()
+  if (!stats[personajeName]) {
+    stats[personajeName] = {
+      rolls: 0,
+      successfulImages: 0,
+      failedImages: 0,
+      totalDataDownloaded: 0,
+      lastRoll: null,
+      lastSuccess: null
+    }
+  }
+  
+  stats[personajeName].rolls++
+  if (success) {
+    stats[personajeName].successfulImages++
+    stats[personajeName].lastSuccess = new Date().toISOString()
+    stats[personajeName].totalDataDownloaded += imageSize
+  } else {
+    stats[personajeName].failedImages++
+  }
+  stats[personajeName].lastRoll = new Date().toISOString()
+  
+  saveStats(stats)
+  return stats[personajeName]
+}
+
+const getAdaptiveTimeout = (estimatedSize = 0) => {
+  if (estimatedSize > 3 * 1024 * 1024) return TIMEOUT_CONFIG.large
+  if (estimatedSize > 500 * 1024) return TIMEOUT_CONFIG.medium
+  return TIMEOUT_CONFIG.small
+}
 
 const normalizeTag = (value = '') => String(value)
   .toLowerCase()
@@ -16,32 +75,43 @@ const normalizeTag = (value = '') => String(value)
 
 const buildTagCandidates = (personaje = {}) => {
   const raw = [
-    // 1. Keyword exacto (si existe)
+    // 1. Keyword exacto (si existe) - Más específico
     personaje.keyword,
     
-    // 2. Nombre + Fuente (más específico)
+    // 2. Nombre + Fuente completa (variantes)
     personaje.name && personaje.source ? `${personaje.name} (${personaje.source})` : null,
     personaje.name && personaje.source ? `${personaje.name.toLowerCase()} ${personaje.source.toLowerCase()}` : null,
     
-    // 3. Solo nombre
+    // 3. Nombre con palabras clave de la fuente
+    personaje.name && personaje.source ? 
+      `${personaje.name} ${personaje.source.split(' ').slice(0, 2).join(' ')}` : null,
+    
+    // 4. Solo nombre (más genérico)
     personaje.name,
     
-    // 4. Nombre corto (primera palabra) + Fuente
-    personaje.name && personaje.source ? `${personaje.name.split(' ')[0]} ${personaje.source}` : null,
+    // 5. Primera palabra del nombre + fuente completa
+    personaje.name && personaje.source ? 
+      `${personaje.name.split(' ')[0]} ${personaje.source}` : null,
+    
+    // 6. Primera palabra de nombre + primera palabra de fuente (muy específico)
+    personaje.name && personaje.source ? 
+      `${personaje.name.split(' ')[0]} ${personaje.source.split(' ')[0]}` : null,
   ].filter(Boolean)
 
   const set = new Set()
   for (const entry of raw) {
     const base = normalizeTag(entry)
-    if (base) set.add(base)
+    if (base && base.length > 0) {
+      set.add(base)
 
-    // Variante sin sufijos entre paréntesis
-    const noSuffix = base.replace(/_\([^)]*\)$/g, '')
-    if (noSuffix && noSuffix !== base) set.add(noSuffix)
+      // Variante sin sufijos entre paréntesis
+      const noSuffix = base.replace(/_\([^)]*\)$/g, '')
+      if (noSuffix && noSuffix !== base) set.add(noSuffix)
 
-    // Variante con espacios
-    const spaced = base.replace(/_/g, ' ')
-    if (spaced) set.add(spaced)
+      // Variante con espacios
+      const spaced = base.replace(/_/g, ' ')
+      if (spaced && spaced !== base) set.add(spaced)
+    }
   }
 
   return [...set]
@@ -346,6 +416,25 @@ ${global.dev || ''}`
         // INTENTO 1: Descargar desde URL original
         let imageBuffer = null
         let contentType = ''
+        let imageSize = 0
+        
+        // Timeout adaptativo: primero obtenemos headers para estimar tamaño
+        const headRes = await fetch(imagenUrl, {
+          method: 'HEAD',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://gelbooru.com/',
+          },
+          timeout: 5000
+        }).catch(() => null)
+        
+        if (headRes) {
+          imageSize = parseInt(headRes.headers.get('content-length') || '0')
+          console.log(`[RW] Tamaño estimado: ${(imageSize / 1024 / 1024).toFixed(2)} MB`)
+        }
+        
+        const adaptiveTimeout = getAdaptiveTimeout(imageSize)
+        console.log(`[RW] Timeout adaptativo: ${adaptiveTimeout}ms`)
         
         const imageRes = await fetch(imagenUrl, {
           headers: {
@@ -353,7 +442,7 @@ ${global.dev || ''}`
             'Referer': 'https://gelbooru.com/',
             'Accept': 'image/webp,image/png,image/jpeg,*/*'
           },
-          timeout: 12000
+          timeout: adaptiveTimeout
         })
         
         contentType = imageRes.headers.get('content-type') || ''
@@ -380,7 +469,7 @@ ${global.dev || ''}`
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Referer': 'https://gelbooru.com/',
               },
-              timeout: 12000
+              timeout: getAdaptiveTimeout(imageSize)
             })
             const altContentType = altRes.headers.get('content-type') || ''
             if (altContentType.includes('image') && altRes.ok) {
@@ -405,7 +494,7 @@ ${global.dev || ''}`
                   headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                   },
-                  timeout: 12000
+                  timeout: getAdaptiveTimeout(imageSize)
                 })
                 if (fbRes.ok && fbRes.headers.get('content-type')?.includes('image')) {
                   imageBuffer = Buffer.from(await fbRes.arrayBuffer())
@@ -430,6 +519,9 @@ ${global.dev || ''}`
         
         console.log(`[RW] ✅ Buffer procesado: ${imageBuffer.length} bytes`)
         
+        // ⚡ ACTUALIZAR ESTADÍSTICAS - ÉXITO
+        updateStats(personaje.name, true, imageBuffer.length)
+        
         console.log(`[RW] Enviando imagen a WhatsApp...`)
         const envio = await client.sendMessage(
           chatId,
@@ -442,12 +534,18 @@ ${global.dev || ''}`
         console.log(`[RW] ✅ Imagen enviada exitosamente`)
         console.log(`[RW] Mensaje ID: ${envio.key.id}`)
       } catch (e) {
+        // ⚡ ACTUALIZAR ESTADÍSTICAS - FALLO
+        updateStats(personaje.name, false, 0)
+        
         console.error(`[RW] ❌ ERROR: ${e.message}`)
         if (e.stack) console.error(`[RW] Stack: ${e.stack.split('\n').slice(0, 3).join(' | ')}`)
         console.log(`[RW] → Enviando solo texto...`)
         await m.reply(mensaje)
       }
     } else {
+      // ⚡ ACTUALIZAR ESTADÍSTICAS - SIN URL
+      updateStats(personaje.name, false, 0)
+      
       console.log(`[RW] ⚠️ No hay URL de imagen, enviando solo texto con advertencia`)
       await m.reply(`${mensaje}\n\n⚠️ *Advertencia:* No se pudieron cargar las imágenes. Las APIs están temporalmente caídas o no responden. (╥﹏╥)`)
     }
