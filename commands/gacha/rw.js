@@ -82,13 +82,12 @@ const normalizeTag = (value = '') => String(value)
 
 const buildTagCandidates = (personaje = {}) => {
   const raw = [
-    // 1. Keyword exacto (si existe) - Más específico
+    // 1. Keyword exacto (si existe) - máxima prioridad
     personaje.keyword,
     
-    // 1b. Variantes del keyword (si contiene guion bajo o paréntesis, intenta variantes)
+    // 1b. Variantes cercanas del keyword
     personaje.keyword ? personaje.keyword.replace(/\(/g, '_').replace(/\)/g, '_').replace(/__+/g, '_') : null,
-    personaje.keyword ? personaje.keyword.replace(/_(kusuriya[^)]*)\)$/, '').replace(/^\w+_/, '') : null,
-    personaje.keyword ? personaje.keyword.split('_')[0] : null,
+    personaje.keyword ? personaje.keyword.replace(/_\([^)]*\)$/, '') : null,
     
     // 2. Nombre + Fuente (variantes con y sin guiones)
     personaje.name && personaje.source ? `${personaje.name} (${personaje.source})` : null,
@@ -132,14 +131,6 @@ const buildTagCandidates = (personaje = {}) => {
       // Variante con espacios
       const spaced = base.replace(/_/g, ' ')
       if (spaced && spaced !== base) set.add(spaced)
-      
-      // ✨ NUEVO: Variante parcial (palabras individuales)
-      if (base.includes('_')) {
-        const words = base.split('_').filter(w => w.length > 2)
-        for (const word of words) {
-          set.add(word)
-        }
-      }
     }
   }
 
@@ -328,88 +319,7 @@ const obtenerImagenGelbooru = async (personaje) => {
     }
   }
 
-  // FALLBACK: Búsqueda por nombre simple 
-  {
-    const simpleName = personaje.name?.split(' ')[0] || ''
-    if (simpleName && simpleName.length > 2) {
-      try {
-        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(simpleName)}`)
-        const posts = Array.isArray(data?.data) ? data.data : []
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado: ${simpleName} (fallback 1)`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
-      }
-    }
-  }
-
-  // FALLBACK 2: Nombre + serie
-  {
-    const fuente = personaje.source?.split(' ')[0] || ''
-    const nombre = personaje.name?.split(' ')[0] || ''
-    if (fuente && nombre && nombre.length > 2) {
-      try {
-        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(`${nombre} ${fuente}`)}`)
-        const posts = Array.isArray(data?.data) ? data.data : []
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado: ${nombre} ${fuente} (fallback 2)`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
-      }
-    }
-  }
-
-  // FALLBACK 3: Solo serie
-  {
-    const fuente = personaje.source?.split(' ')[0] || ''
-    if (fuente && fuente.length > 2) {
-      try {
-        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(fuente)}`)
-        const posts = Array.isArray(data?.data) ? data.data : []
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado: Chica de ${fuente} (fallback 3)`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
-      }
-    }
-  }
-
-  // FALLBACK 4: Búsqueda genérica
-  {
-    const fuente = personaje.source?.split(' ')[0] || ''
-    if (fuente && fuente.length > 2) {
-      try {
-        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(`anime girl ${fuente}`)}`)
-        const posts = Array.isArray(data?.data) ? data.data : []
-        if (posts.length > 0) {
-          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
-          if (url) {
-            console.log(`[RW] ✅ Encontrado: Anime girl de ${fuente} (fallback 4)`)
-            return url
-          }
-        }
-      } catch (e) {
-        // silencio
-      }
-    }
-  }
-
-  console.log(`[RW] ⚠️ No se encontró imagen para ${personaje.name}`)
+  console.log(`[RW] ⚠️ No se encontró imagen exacta para ${personaje.name}. Se omiten fallbacks genéricos para evitar personajes incorrectos.`)
   return null
 }
 
