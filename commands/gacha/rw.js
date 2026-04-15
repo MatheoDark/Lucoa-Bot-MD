@@ -78,6 +78,11 @@ const buildTagCandidates = (personaje = {}) => {
     // 1. Keyword exacto (si existe) - Más específico
     personaje.keyword,
     
+    // 1b. Variantes del keyword (si contiene guion bajo o paréntesis, intenta variantes)
+    personaje.keyword ? personaje.keyword.replace(/\(/g, '_').replace(/\)/g, '_').replace(/__+/g, '_') : null,
+    personaje.keyword ? personaje.keyword.replace(/_(kusuriya[^)]*)\)$/, '').replace(/^\w+_/, '') : null,
+    personaje.keyword ? personaje.keyword.split('_')[0] : null,
+    
     // 2. Nombre + Fuente completa (variantes)
     personaje.name && personaje.source ? `${personaje.name} (${personaje.source})` : null,
     personaje.name && personaje.source ? `${personaje.name.toLowerCase()} ${personaje.source.toLowerCase()}` : null,
@@ -184,163 +189,145 @@ const obtenerImagenGelbooru = async (personaje) => {
 
   for (const currentTag of tags) {
     const tag = encodeURIComponent(currentTag)
-    console.log(`[RW] Buscando imagen con tag: ${currentTag}`)
 
-    // 1. API Proxy Delirius (Gelbooru - funciona)
+    // 1. API Proxy Delirius
     {
       try {
         const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${tag}`)
         const posts = Array.isArray(data?.data) ? data.data : []
-        console.log(`[RW] Delirius: ${posts.length} posts encontrados`)
-        
-        const url = pickRandomImageUrl(posts, (p) => {
-          if (p?.image) return p.image
-          return null
-        })
-        if (url) {
-          console.log(`[RW] ✅ Imagen desde Delirius: ${url.slice(0, 80)}`)
-          return url
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
+          if (url) {
+            console.log(`[RW] ✅ Encontrado: ${currentTag}`)
+            return url
+          }
         }
       } catch (e) {
-        console.log(`[RW] ❌ Delirius error: ${e.message.slice(0, 50)}`)
+        // silencio
       }
     }
 
-    // 2. SafeBooru directo (fallback confiable)
+    // 2. SafeBooru directo
     {
       try {
         const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
         const posts = Array.isArray(data) ? data : (data?.post || [])
-        console.log(`[RW] SafeBooru: ${posts.length} posts encontrados`)
-        
-        const url = pickRandomImageUrl(posts, (p) => {
-          if (p?.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
-          if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
-          return null
-        })
-        if (url) {
-          console.log(`[RW] ✅ Imagen desde SafeBooru: ${url.slice(0, 80)}`)
-          return url
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => {
+            if (p?.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
+            if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
+            return null
+          })
+          if (url) {
+            console.log(`[RW] ✅ Encontrado (SafeBooru): ${currentTag}`)
+            return url
+          }
         }
       } catch (e) {
-        console.log(`[RW] ❌ SafeBooru error: ${e.message.slice(0, 50)}`)
+        // silencio
       }
     }
 
-    // 3. Gelbooru directo (intento final)
+    // 3. Gelbooru directo
     {
       try {
         const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
         const posts = Array.isArray(data) ? data : (data?.post || [])
-        console.log(`[RW] Gelbooru: ${posts.length} posts encontrados`)
-        
-        const url = pickRandomImageUrl(posts, (p) => {
-          if (p?.file_url) return p.file_url
-          if (p?.source) return p.source
-          return null
-        })
-        if (url) {
-          console.log(`[RW] ✅ Imagen desde Gelbooru: ${url.slice(0, 80)}`)
-          return url
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.source || null)
+          if (url) {
+            console.log(`[RW] ✅ Encontrado (Gelbooru): ${currentTag}`)
+            return url
+          }
         }
       } catch (e) {
-        console.log(`[RW] ❌ Gelbooru error: ${e.message.slice(0, 50)}`)
+        // silencio
       }
     }
   }
 
-  // FALLBACK: Buscar por nombre simple (solo la primera palabra)
+  // FALLBACK: Buscar por nombre simple 
   {
     const simpleName = personaje.name?.split(' ')[0] || ''
     if (simpleName && simpleName.length > 2) {
-      console.log(`[RW] 🔄 Fallback 1: Buscando por nombre simple: ${simpleName}`)
-      
       try {
         const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(simpleName)}`)
         const posts = Array.isArray(data?.data) ? data.data : []
         if (posts.length > 0) {
           const url = pickRandomImageUrl(posts, (p) => p?.image || null)
           if (url) {
-            console.log(`[RW] ✅ Imagen desde nombre simple (Delirius)`)
+            console.log(`[RW] ✅ Encontrado: ${simpleName} (fallback 1)`)
             return url
           }
         }
       } catch (e) {
-        console.log(`[RW] ❌ Fallback 1 error: ${e.message.slice(0, 30)}`)
+        // silencio
       }
     }
   }
 
-  // FALLBACK 2: Buscar con nombre + parte de la fuente
+  // FALLBACK 2: Nombre + serie
   {
     const fuente = personaje.source?.split(' ')[0] || ''
     const nombre = personaje.name?.split(' ')[0] || ''
     if (fuente && nombre && nombre.length > 2) {
-      const searchTerm = `${nombre} ${fuente}`
-      console.log(`[RW] 🔄 Fallback 2: Búsqueda inteligente: ${searchTerm}`)
-      
       try {
-        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(searchTerm)}`)
+        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(`${nombre} ${fuente}`)}`)
         const posts = Array.isArray(data?.data) ? data.data : []
         if (posts.length > 0) {
           const url = pickRandomImageUrl(posts, (p) => p?.image || null)
           if (url) {
-            console.log(`[RW] ✅ Imagen desde búsqueda inteligente (${searchTerm})`)
+            console.log(`[RW] ✅ Encontrado: ${nombre} ${fuente} (fallback 2)`)
             return url
           }
         }
       } catch (e) {
-        console.log(`[RW] ❌ Fallback 2 error: ${e.message.slice(0, 30)}`)
+        // silencio
       }
     }
   }
 
-  // FALLBACK 3: Buscar solo por la serie/fuente (cualquier personaje de esa serie)
+  // FALLBACK 3: Solo serie
   {
     const fuente = personaje.source?.split(' ')[0] || ''
     if (fuente && fuente.length > 2) {
-      console.log(`[RW] 🔄 Fallback 3: Buscando por serie: ${fuente}`)
-      
       try {
         const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(fuente)}`)
         const posts = Array.isArray(data?.data) ? data.data : []
         if (posts.length > 0) {
           const url = pickRandomImageUrl(posts, (p) => p?.image || null)
           if (url) {
-            console.log(`[RW] ✅ Imagen de otra chica de ${fuente}`)
+            console.log(`[RW] ✅ Encontrado: Chica de ${fuente} (fallback 3)`)
             return url
           }
         }
       } catch (e) {
-        console.log(`[RW] ❌ Fallback 3 error: ${e.message.slice(0, 30)}`)
+        // silencio
       }
     }
   }
 
-  // FALLBACK 4: Búsqueda genérica con contexto (anime girl + serie)
+  // FALLBACK 4: Búsqueda genérica
   {
     const fuente = personaje.source?.split(' ')[0] || ''
     if (fuente && fuente.length > 2) {
-      const searchTerm = `anime girl ${fuente}`
-      console.log(`[RW] 🔄 Fallback 4: Búsqueda genérica: ${searchTerm}`)
-      
       try {
-        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(searchTerm)}`)
+        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(`anime girl ${fuente}`)}`)
         const posts = Array.isArray(data?.data) ? data.data : []
         if (posts.length > 0) {
           const url = pickRandomImageUrl(posts, (p) => p?.image || null)
           if (url) {
-            console.log(`[RW] ✅ Chica anime de ${fuente}`)
+            console.log(`[RW] ✅ Encontrado: Anime girl de ${fuente} (fallback 4)`)
             return url
           }
         }
       } catch (e) {
-        console.log(`[RW] ❌ Fallback 4 error: ${e.message.slice(0, 30)}`)
+        // silencio
       }
     }
   }
 
-  console.log(`[RW] ⚠️ No se encontró imagen para ningún tag`)
+  console.log(`[RW] ⚠️ No se encontró imagen para ${personaje.name}`)
   return null
 }
 
@@ -450,20 +437,13 @@ ${global.dev || ''}`
     const mentions = ownerId ? [ownerId] : []
     if (reservado?.userId) mentions.push(reservado.userId)
 
-    console.log(`[RW] imagenUrl obtenida: ${imagenUrl ? 'SÍ' : 'NO'}`)
-    console.log(`[RW] URL: ${imagenUrl}`)
-
     if (imagenUrl) {
       try {
-        console.log(`[RW] Intentando descargar imagen...`)
-        console.log(`[RW] URL: ${imagenUrl}`)
-        
-        // INTENTO 1: Descargar desde URL original
         let imageBuffer = null
         let contentType = ''
         let imageSize = 0
         
-        // Timeout adaptativo: primero obtenemos headers para estimar tamaño
+        // Estimar tamaño sin descargar todo
         const headRes = await fetch(imagenUrl, {
           method: 'HEAD',
           headers: {
@@ -475,11 +455,9 @@ ${global.dev || ''}`
         
         if (headRes) {
           imageSize = parseInt(headRes.headers.get('content-length') || '0')
-          console.log(`[RW] Tamaño estimado: ${(imageSize / 1024 / 1024).toFixed(2)} MB`)
         }
         
         const adaptiveTimeout = getAdaptiveTimeout(imageSize)
-        console.log(`[RW] Timeout adaptativo: ${adaptiveTimeout}ms`)
         
         const imageRes = await fetch(imagenUrl, {
           headers: {
@@ -491,24 +469,11 @@ ${global.dev || ''}`
         })
         
         contentType = imageRes.headers.get('content-type') || ''
-        console.log(`[RW] Response Content-Type: ${contentType}`)
-        console.log(`[RW] Response Status: ${imageRes.status}`)
         
-        // Validar que sea imagen
         if (!contentType.includes('image')) {
-          console.log(`[RW] ⚠️ No es imagen (${contentType}), intentando extraer URL directa...`)
-          imageBuffer = null
-        } else if (imageRes.ok) {
-          const arrayBuffer = await imageRes.arrayBuffer()
-          imageBuffer = Buffer.from(arrayBuffer)
-          console.log(`[RW] ✅ Imagen descargada: ${imageBuffer.length} bytes`)
-        }
-        
-        // INTENTO 2: Si falló, probar convertir URL de img2.gelbooru a img.gelbooru
-        if (!imageBuffer) {
+          // Intenta URL alternativa
           const altUrl = imagenUrl.replace('img2.gelbooru.com', 'img.gelbooru.com')
           if (altUrl !== imagenUrl) {
-            console.log(`[RW] Intentando URL alternativa...`)
             const altRes = await fetch(altUrl, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -518,23 +483,21 @@ ${global.dev || ''}`
             })
             const altContentType = altRes.headers.get('content-type') || ''
             if (altContentType.includes('image') && altRes.ok) {
-              const arrayBuffer = await altRes.arrayBuffer()
-              imageBuffer = Buffer.from(arrayBuffer)
-              console.log(`[RW] ✅ Imagen desde URL alt: ${imageBuffer.length} bytes`)
+              imageBuffer = Buffer.from(await altRes.arrayBuffer())
             }
           }
+        } else if (imageRes.ok) {
+          imageBuffer = Buffer.from(await imageRes.arrayBuffer())
         }
         
-        // INTENTO 3: Si todavía no funciona, usar SafeBooru
+        // FALLBACK a SafeBooru si falla
         if (!imageBuffer) {
-          console.log(`[RW] ⚠️ No se pudo descargar. Buscando en SafeBooru...`)
           const tags = buildTagCandidates(personaje)
           for (const tag of tags) {
             const safeRes = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=1`)
             if (safeRes?.length > 0) {
               const fileUrl = safeRes[0].file_url || safeRes[0].url
               if (fileUrl) {
-                console.log(`[RW] Descargando fallback desde SafeBooru...`)
                 const fbRes = await fetch(fileUrl, {
                   headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -543,7 +506,6 @@ ${global.dev || ''}`
                 })
                 if (fbRes.ok && fbRes.headers.get('content-type')?.includes('image')) {
                   imageBuffer = Buffer.from(await fbRes.arrayBuffer())
-                  console.log(`[RW] ✅ Imagen desde SafeBooru fallback: ${imageBuffer.length} bytes`)
                   break
                 }
               }
@@ -559,15 +521,12 @@ ${global.dev || ''}`
         imageBuffer = await normalizeImage(imageBuffer)
         
         if (!imageBuffer) {
-          throw new Error('La imagen descargada no es válida o está corrupta')
+          throw new Error('La imagen no pudo procesarse')
         }
-        
-        console.log(`[RW] ✅ Buffer procesado: ${imageBuffer.length} bytes`)
         
         // ⚡ ACTUALIZAR ESTADÍSTICAS - ÉXITO
         updateStats(personaje.name, true, imageBuffer.length)
         
-        console.log(`[RW] Enviando imagen a WhatsApp...`)
         const envio = await client.sendMessage(
           chatId,
           {
@@ -576,22 +535,18 @@ ${global.dev || ''}`
           },
           { quoted: m }
         )
-        console.log(`[RW] ✅ Imagen enviada exitosamente`)
-        console.log(`[RW] Mensaje ID: ${envio.key.id}`)
+        console.log(`[RW] ✅ Imagen enviada`)
       } catch (e) {
         // ⚡ ACTUALIZAR ESTADÍSTICAS - FALLO
         updateStats(personaje.name, false, 0)
         
-        console.error(`[RW] ❌ ERROR: ${e.message}`)
-        if (e.stack) console.error(`[RW] Stack: ${e.stack.split('\n').slice(0, 3).join(' | ')}`)
-        console.log(`[RW] → Enviando solo texto...`)
+        console.log(`[RW] ⚠️ Error: ${e.message}`)
         await m.reply(mensaje)
       }
     } else {
       // ⚡ ACTUALIZAR ESTADÍSTICAS - SIN URL
       updateStats(personaje.name, false, 0)
       
-      console.log(`[RW] ⚠️ No hay URL de imagen, enviando solo texto con advertencia`)
       await m.reply(`${mensaje}\n\n⚠️ *Advertencia:* No se pudieron cargar las imágenes. Las APIs están temporalmente caídas o no responden. (╥﹏╥)`)
     }
 
