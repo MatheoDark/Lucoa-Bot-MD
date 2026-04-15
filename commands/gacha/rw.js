@@ -184,6 +184,13 @@ const normalizeImage = async (buffer) => {
 }
 
 const obtenerImagenGelbooru = async (personaje) => {
+  // ✅ OPCIÓN 1: Si existe URL manual, usarla directamente
+  if (personaje.imageUrl) {
+    console.log(`[RW] ✅ Usando URL manual: ${personaje.name}`)
+    return personaje.imageUrl
+  }
+
+  // OPCIÓN 2: Búsqueda automática mediante APIs
   const tags = buildTagCandidates(personaje)
   if (!tags.length) return null
 
@@ -228,7 +235,41 @@ const obtenerImagenGelbooru = async (personaje) => {
       }
     }
 
-    // 3. Gelbooru directo
+    // 3. Konachan (Booru japonés)
+    {
+      try {
+        const data = await getJsonSafe(`https://konachan.com/post.json?tags=${tag}&limit=50`)
+        const posts = Array.isArray(data) ? data : []
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.sample_url || null)
+          if (url) {
+            console.log(`[RW] ✅ Encontrado (Konachan): ${currentTag}`)
+            return url
+          }
+        }
+      } catch (e) {
+        // silencio
+      }
+    }
+
+    // 4. Yande.re (Booru premium japonés)
+    {
+      try {
+        const data = await getJsonSafe(`https://yande.re/post.json?tags=${tag}&limit=50`)
+        const posts = Array.isArray(data) ? data : []
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.file_url || p?.sample_url || null)
+          if (url) {
+            console.log(`[RW] ✅ Encontrado (Yande.re): ${currentTag}`)
+            return url
+          }
+        }
+      } catch (e) {
+        // silencio
+      }
+    }
+
+    // 5. Gelbooru directo
     {
       try {
         const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
@@ -244,9 +285,26 @@ const obtenerImagenGelbooru = async (personaje) => {
         // silencio
       }
     }
+
+    // 6. Rule34.xxx (Diversidad de contenido)
+    {
+      try {
+        const data = await getJsonSafe(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+        const posts = Array.isArray(data) ? data : (data?.post || [])
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.file_url || null)
+          if (url) {
+            console.log(`[RW] ✅ Encontrado (Rule34): ${currentTag}`)
+            return url
+          }
+        }
+      } catch (e) {
+        // silencio
+      }
+    }
   }
 
-  // FALLBACK: Buscar por nombre simple 
+  // FALLBACK: Búsqueda por nombre simple 
   {
     const simpleName = personaje.name?.split(' ')[0] || ''
     if (simpleName && simpleName.length > 2) {
