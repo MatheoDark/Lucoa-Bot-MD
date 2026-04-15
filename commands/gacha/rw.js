@@ -83,7 +83,7 @@ const obtenerImagenGelbooru = async (personaje) => {
           return null
         })
         if (url) {
-          console.log(`[RW] ✅ Imagen desde Delirius`)
+          console.log(`[RW] ✅ Imagen desde Delirius: ${url.slice(0, 80)}`)
           return url
         }
       } catch (e) {
@@ -104,7 +104,7 @@ const obtenerImagenGelbooru = async (personaje) => {
           return null
         })
         if (url) {
-          console.log(`[RW] ✅ Imagen desde SafeBooru`)
+          console.log(`[RW] ✅ Imagen desde SafeBooru: ${url.slice(0, 80)}`)
           return url
         }
       } catch (e) {
@@ -125,7 +125,7 @@ const obtenerImagenGelbooru = async (personaje) => {
           return null
         })
         if (url) {
-          console.log(`[RW] ✅ Imagen desde Gelbooru`)
+          console.log(`[RW] ✅ Imagen desde Gelbooru: ${url.slice(0, 80)}`)
           return url
         }
       } catch (e) {
@@ -240,14 +240,22 @@ ${global.dev || ''}`
     const mentions = ownerId ? [ownerId] : []
     if (reservado?.userId) mentions.push(reservado.userId)
 
+    console.log(`[RW] imagenUrl obtenida: ${imagenUrl ? 'SÍ' : 'NO'}`)
+    console.log(`[RW] URL: ${imagenUrl}`)
+
     if (imagenUrl) {
       try {
+        console.log(`[RW] Intentando enviar imagen desde URL: ${imagenUrl.slice(0, 60)}...`)
         await client.sendMessage(chatId, { image: { url: imagenUrl }, caption: mensaje }, { quoted: m })
+        console.log(`[RW] ✅ Imagen enviada correctamente`)
       } catch (e) {
-        console.error('Error enviando imagen:', e)
+        console.error('Error enviando imagen:', e.message)
+        console.error('Stack:', e.stack)
+        console.log(`[RW] Enviando solo texto por error...`)
         await m.reply(mensaje)
       }
     } else {
+      console.log(`[RW] ⚠️ No hay URL de imagen, enviando solo texto con advertencia`)
       await m.reply(`${mensaje}\n\n⚠️ *Advertencia:* No se pudieron cargar las imágenes. Las APIs están temporalmente caídas o no responden. (╥﹏╥)`)
     }
 
