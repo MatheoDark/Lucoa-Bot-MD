@@ -224,7 +224,7 @@ ${global.dev || ''}`
         await m.reply(mensaje)
       }
     } else {
-      await m.reply(mensaje)
+      await m.reply(`${mensaje}\n\n⚠️ *Advertencia:* No se pudieron cargar las imágenes. Las APIs están temporalmente caídas o no responden. (╥﹏╥)`)
     }
 
     if (!ownerId) {
