@@ -67,11 +67,18 @@ const getAdaptiveTimeout = (estimatedSize = 0) => {
 const normalizeTag = (value = '') => String(value)
   .toLowerCase()
   .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/[():'".]/g, ' ')
-  .replace(/\s+/g, '_')
-  .replace(/_+/g, '_')
-  .replace(/^_+|_+$/g, '')
+  .replace(/[\u0300-\u036f]/g, '')  // Elimina acentos
+  .replace(/[():'".]/g, ' ')         // Elimina caracteres especiales
+  .replace(/\s+/g, '_')              // Espacios a guiones bajos
+  .replace(/_+/g, '_')               // Guiones bajos duplicados
+  .replace(/^_+|_+$/g, '')           // Guiones al inicio/final
+  // ✨ NUEVO: Manejo de caracteres similares
+  .replace(/[áàäâ]/g, 'a')
+  .replace(/[éèëê]/g, 'e')
+  .replace(/[íìïî]/g, 'i')
+  .replace(/[óòöô]/g, 'o')
+  .replace(/[úùüû]/g, 'u')
+  .replace(/ñ/g, 'n')
 
 const buildTagCandidates = (personaje = {}) => {
   const raw = [
@@ -83,24 +90,33 @@ const buildTagCandidates = (personaje = {}) => {
     personaje.keyword ? personaje.keyword.replace(/_(kusuriya[^)]*)\)$/, '').replace(/^\w+_/, '') : null,
     personaje.keyword ? personaje.keyword.split('_')[0] : null,
     
-    // 2. Nombre + Fuente completa (variantes)
+    // 2. Nombre + Fuente (variantes con y sin guiones)
     personaje.name && personaje.source ? `${personaje.name} (${personaje.source})` : null,
     personaje.name && personaje.source ? `${personaje.name.toLowerCase()} ${personaje.source.toLowerCase()}` : null,
+    personaje.name && personaje.source ? `${personaje.name.toLowerCase()}_${personaje.source.toLowerCase()}` : null,
     
-    // 3. Nombre con palabras clave de la fuente
+    // 3. Nombre con palabras clave de la fuente (variantes)
     personaje.name && personaje.source ? 
       `${personaje.name} ${personaje.source.split(' ').slice(0, 2).join(' ')}` : null,
+    personaje.name && personaje.source ? 
+      `${personaje.name.toLowerCase()}_${personaje.source.toLowerCase().split(' ')[0]}` : null,
     
-    // 4. Solo nombre (más genérico)
+    // 4. Solo nombre (variantes)
     personaje.name,
+    personaje.name ? personaje.name.toLowerCase() : null,
+    personaje.name ? personaje.name.replace(/\s/g, '_') : null,
     
-    // 5. Primera palabra del nombre + fuente completa
+    // 5. Primera palabra del nombre + fuente completa (variantes)
     personaje.name && personaje.source ? 
       `${personaje.name.split(' ')[0]} ${personaje.source}` : null,
+    personaje.name && personaje.source ? 
+      `${personaje.name.split(' ')[0].toLowerCase()}_${personaje.source.toLowerCase()}` : null,
     
     // 6. Primera palabra de nombre + primera palabra de fuente (muy específico)
     personaje.name && personaje.source ? 
       `${personaje.name.split(' ')[0]} ${personaje.source.split(' ')[0]}` : null,
+    personaje.name && personaje.source ? 
+      `${personaje.name.split(' ')[0].toLowerCase()}_${personaje.source.split(' ')[0].toLowerCase()}` : null,
   ].filter(Boolean)
 
   const set = new Set()
@@ -116,6 +132,14 @@ const buildTagCandidates = (personaje = {}) => {
       // Variante con espacios
       const spaced = base.replace(/_/g, ' ')
       if (spaced && spaced !== base) set.add(spaced)
+      
+      // ✨ NUEVO: Variante parcial (palabras individuales)
+      if (base.includes('_')) {
+        const words = base.split('_').filter(w => w.length > 2)
+        for (const word of words) {
+          set.add(word)
+        }
+      }
     }
   }
 
