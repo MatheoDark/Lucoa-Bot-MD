@@ -7,6 +7,8 @@ import { join } from 'path'
 import os from 'os'
 
 const execAsync = promisify(exec)
+const recentMediaByCharacter = globalThis.__wimageRecentMediaByCharacter || new Map()
+globalThis.__wimageRecentMediaByCharacter = recentMediaByCharacter
 
 const normalizeImageUrl = (url = '') => String(url).trim().replace(/#.*$/, '')
 
@@ -18,6 +20,15 @@ const pickRandomMedia = (urls = []) => {
   const normalized = urls.map((url) => normalizeImageUrl(url)).filter(Boolean)
   if (!normalized.length) return null
   return normalized[Math.floor(Math.random() * normalized.length)]
+}
+
+const pickDifferentMedia = (urls = [], previousUrl = '') => {
+  const previous = normalizeImageUrl(previousUrl)
+  const normalized = urls.map((url) => normalizeImageUrl(url)).filter(Boolean)
+  if (!normalized.length) return null
+  const different = normalized.filter((url) => url !== previous)
+  const pool = different.length ? different : normalized
+  return pool[Math.floor(Math.random() * pool.length)]
 }
 
 function getMediaTypeByUrl(url = '') {
@@ -72,42 +83,80 @@ async function convertToMp4(url, originalName = '') {
 
 const obtenerImagenGelbooru = async (keyword) => {
   const tag = encodeURIComponent(keyword)
+  const previousUrl = recentMediaByCharacter.get(keyword) || ''
 
   const getUrlList = (posts = [], mapper) => posts
     .map(mapper)
     .filter((url) => typeof url === 'string' && MEDIA_REGEX.test(url))
 
-  // 1. SafeBooru (funcional y sin auth)
+  const searchSources = [
+    async () => {
+      const res = await fetch(`https://api.delirius.store/search/gelbooru?query=${tag}`)
+      const data = await res.json()
+      const posts = Array.isArray(data?.data) ? data.data : []
+      return getUrlList(posts, (p) => p?.image || null)
+    },
+    async () => {
+      const res = await fetch(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+      const data = await res.json()
+      const posts = Array.isArray(data) ? data : (data?.post || [])
+      return getUrlList(posts, (p) => {
+        if (p.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
+        if (p.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
+        return null
+      })
+    },
+    async () => {
+      const res = await fetch(`https://konachan.com/post.json?tags=${tag}&limit=50`)
+      const data = await res.json()
+      const posts = Array.isArray(data) ? data : []
+      return getUrlList(posts, (p) => p?.file_url || p?.sample_url || null)
+    },
+    async () => {
+      const res = await fetch(`https://yande.re/post.json?tags=${tag}&limit=50`)
+      const data = await res.json()
+      const posts = Array.isArray(data) ? data : []
+      return getUrlList(posts, (p) => p?.file_url || p?.sample_url || null)
+    },
+    async () => {
+      const res = await fetch(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+      const data = await res.json()
+      const posts = data?.post || []
+      return getUrlList(posts, (p) => p.file_url || null)
+    },
+    async () => {
+      const res = await fetch(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
+      const data = await res.json()
+      const posts = Array.isArray(data) ? data : (data?.post || [])
+      return getUrlList(posts, (p) => p?.file_url || null)
+    },
+  ]
+
+  // 1. Búsqueda en varias fuentes
   try {
-    const res = await fetch(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-    const data = await res.json()
-    const posts = Array.isArray(data) ? data : (data?.post || [])
-    const valid = getUrlList(posts, (p) => {
-      if (p.file_url) return p.file_url.startsWith('http') ? p.file_url : `https://safebooru.org${p.file_url}`
-      if (p.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
-      return null
-    })
-    if (valid.length) {
-      return pickRandomMedia(valid)
+    for (const searchSource of searchSources) {
+      const valid = await searchSource()
+      if (valid.length) {
+        const chosen = pickDifferentMedia(valid, previousUrl)
+        if (chosen) {
+          recentMediaByCharacter.set(keyword, chosen)
+          return chosen
+        }
+      }
     }
   } catch {}
 
-  // 2. Gelbooru fallback
-  try {
-    const res = await fetch(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
-    const data = await res.json()
-    const posts = data?.post || []
-    const valid = getUrlList(posts, (p) => p.file_url || null)
-    if (valid.length) return pickRandomMedia(valid)
-  } catch {}
-
-  // 3. Danbooru fallback
+  // 2. Danbooru fallback adicional
   try {
     const res = await fetch(`https://danbooru.donmai.us/posts.json?tags=${tag}&limit=50`)
     const data = await res.json()
     const valid = getUrlList(data, (p) => p.file_url || p.large_file_url || p.source || null)
     if (valid.length) {
-      return pickRandomMedia(valid)
+      const chosen = pickDifferentMedia(valid, previousUrl)
+      if (chosen) {
+        recentMediaByCharacter.set(keyword, chosen)
+        return chosen
+      }
     }
   } catch {}
 

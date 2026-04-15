@@ -8,6 +8,8 @@ import { join } from 'path';
 import os from 'os';
 
 const execAsync = promisify(exec)
+const recentMediaByCharacter = globalThis.__rwRecentMediaByCharacter || new Map()
+globalThis.__rwRecentMediaByCharacter = recentMediaByCharacter
 
 const IMAGE_EXT_REGEX = /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i
 const VIDEO_EXT_REGEX = /\.(mp4|webm|mov)$/i
@@ -170,6 +172,15 @@ const pickRandomImageUrl = (posts = [], mapper) => {
   return valid[Math.floor(Math.random() * valid.length)]
 }
 
+const pickDifferentImageUrl = (urls = [], previousUrl = '') => {
+  const previous = String(previousUrl || '').trim()
+  const normalized = urls.map((url) => String(url || '').trim()).filter(Boolean)
+  if (!normalized.length) return null
+  const different = normalized.filter((url) => url !== previous)
+  const pool = different.length ? different : normalized
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
 const isVideoMediaUrl = (url = '') => VIDEO_EXT_REGEX.test(url) || GIF_EXT_REGEX.test(url)
 
 function getMediaTypeByUrl(url = '') {
@@ -269,6 +280,7 @@ const obtenerImagenGelbooru = async (personaje) => {
   // OPCIÓN 2: Búsqueda automática mediante APIs
   const tags = buildTagCandidates(personaje)
   if (!tags.length) return null
+  const previousUrl = recentMediaByCharacter.get(personaje.keyword || personaje.name || '') || ''
 
   const buscarEnApis = async (consulta) => {
     const tag = encodeURIComponent(consulta)
@@ -356,6 +368,7 @@ const obtenerImagenGelbooru = async (personaje) => {
     const exact = await buscarEnApis(currentTag)
     if (exact?.url) {
       console.log(`[RW] ✅ Encontrado exacto: ${currentTag} (${exact.source})`)
+      recentMediaByCharacter.set(personaje.keyword || personaje.name || '', exact.url)
       return exact.url
     }
   }
@@ -371,6 +384,7 @@ const obtenerImagenGelbooru = async (personaje) => {
       const resultado = await buscarEnApis(consulta)
       if (resultado?.url) {
         console.log(`[RW] ✅ Encontrado por fuente: ${consulta} (${resultado.source})`)
+        recentMediaByCharacter.set(personaje.keyword || personaje.name || '', resultado.url)
         return resultado.url
       }
     }
