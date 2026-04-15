@@ -7,18 +7,18 @@
     "keyword": "son_goku"
   },
   {
-    "name": "Gojo Satoru",
+    "name": "Satoru Gojo",
     "value": 4800000,
     "gender": "Hombre",
     "source": "Jujutsu Kaisen",
-    "keyword": "gojo_satoru"
+    "keyword": "satoru_gojo"
   },
   {
-    "name": "Ryomen Sukuna",
+    "name": "Sukuna Ryomen",
     "value": 4700000,
     "gender": "Hombre",
     "source": "Jujutsu Kaisen",
-    "keyword": "ryoumen_sukuna_(jujutsu_kaisen)"
+    "keyword": "sukuna_ryomen_jujutsu_kaisen"
   },
   {
     "name": "Saitama",
@@ -84,14 +84,14 @@
     "keyword": "hu_tao"
   },
   {
-    "name": "Zoro Roronoa",
+    "name": "Roronoa Zoro",
     "value": 3300000,
     "gender": "Hombre",
     "source": "One Piece",
-    "keyword": "zoro_roronoa"
+    "keyword": "roronoa_zoro"
   },
   {
-    "name": "Yuta Okkotsu",
+    "name": "Yuuta Okkotsu",
     "value": 3200000,
     "gender": "Hombre",
     "source": "Jujutsu Kaisen",
@@ -126,14 +126,14 @@
     "keyword": "yor_forger"
   },
   {
-    "name": "Tokisaki Kurumi",
+    "name": "Kurumi Tokisaki",
     "value": 2850000,
     "gender": "Mujer",
     "source": "Date A Live",
     "keyword": "tokisaki_kurumi"
   },
   {
-    "name": "Kitagawa Marin",
+    "name": "Marin Kitagawa",
     "value": 2800000,
     "gender": "Mujer",
     "source": "Sono Bisque Doll",
@@ -154,7 +154,7 @@
     "keyword": "furina_(genshin_impact)"
   },
   {
-    "name": "Hoshino Ai",
+    "name": "Ai Hoshino",
     "value": 2600000,
     "gender": "Mujer",
     "source": "Oshi no Ko",
@@ -273,42 +273,42 @@
     "keyword": "bocchi"
   },
   {
-    "name": "Kamado Nezuko",
+    "name": "Nezuko Kamado",
     "value": 870000,
     "gender": "Mujer",
     "source": "Kimetsu no Yaiba",
     "keyword": "kamado_nezuko"
   },
   {
-    "name": "Shinobu Kocho",
+    "name": "Kocho Shinobu",
     "value": 840000,
     "gender": "Mujer",
     "source": "Kimetsu no Yaiba",
-    "keyword": "kochou_shinobu"
+    "keyword": "kocho_shinobu"
   },
   {
-    "name": "Kanroji Mitsuri",
+    "name": "Mitsuri Kanroji",
     "value": 810000,
     "gender": "Mujer",
     "source": "Kimetsu no Yaiba",
     "keyword": "kanroji_mitsuri"
   },
   {
-    "name": "Shinomiya Kaguya",
+    "name": "Kaguya Shinomiya",
     "value": 780000,
     "gender": "Mujer",
     "source": "Kaguya-sama",
     "keyword": "shinomiya_kaguya"
   },
   {
-    "name": "Nakano Miku",
+    "name": "Miku Nakano",
     "value": 687500,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
     "keyword": "nakano_miku"
   },
   {
-    "name": "Nakano Nino",
+    "name": "Nino Nakano",
     "value": 660000,
     "gender": "Mujer",
     "source": "Gotoubun no Hanayome",
@@ -322,21 +322,21 @@
     "keyword": "maomao_(kusuriya_no_hitorigoto)"
   },
   {
-    "name": "Senko San",
+    "name": "Senko",
     "value": 202500,
     "gender": "Mujer",
     "source": "Sewayaki Kitsune no Senko-san",
-    "keyword": "senko_(sewayaki_kitsune_no_senko-san)"
+    "keyword": "senko_sewayaki_kitsune_no_senko-san"
   },
   {
-    "name": "Amano Erika",
+    "name": "Erika Amano",
     "value": 212836,
     "gender": "Mujer",
     "source": "Kakkou no Iinazuke",
     "keyword": "amano_erika"
   },
   {
-    "name": "Segawa Hiro",
+    "name": "Hiro Segawa",
     "value": 208332,
     "gender": "Mujer",
     "source": "Kakkou no Iinazuke",
@@ -1869,11 +1869,11 @@
     "keyword": "giyu_tomioka"
   },
   {
-    "name": "Shinobu Kocho",
+    "name": "Kocho Shinobu",
     "value": 2800000,
     "gender": "Mujer",
     "source": "Demon Slayer",
-    "keyword": "shinobu_kocho"
+    "keyword": "kocho_shinobu"
   },
   {
     "name": "Mitsuri Kanroji",
@@ -2625,11 +2625,11 @@
     "keyword": "orihime_inoue"
   },
   {
-    "name": "Sosuke Aizen",
+    "name": "Sousuke Aizen",
     "value": 3500000,
     "gender": "Hombre",
     "source": "Bleach",
-    "keyword": "sosuke_aizen"
+    "keyword": "sousuke_aizen"
   },
   {
     "name": "Toshiro Hitsugaya",
