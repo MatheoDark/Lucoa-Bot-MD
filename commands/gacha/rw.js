@@ -344,6 +344,8 @@ const obtenerImagenGelbooru = async (personaje) => {
   // OPCIÓN 2: Búsqueda automática mediante APIs
   const tags = buildTagCandidates(personaje)
   if (!tags.length) return null
+  
+  console.log(`[RW] 🔍 Buscando con tags: ${tags.join(', ')}`)
   const previousUrl = recentMediaByCharacter.get(personaje.keyword || personaje.name || '') || ''
 
   const buscarEnApis = async (consulta) => {
@@ -351,18 +353,18 @@ const obtenerImagenGelbooru = async (personaje) => {
 
     // 1. API Proxy Delirius
     try {
+      console.log(`[RW] 📡 Intentando Delirius con: ${consulta}`)
       const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${tag}`)
       const posts = Array.isArray(data?.data) ? data.data : []
       if (posts.length > 0) {
         const url = pickMediaFromPosts(posts, (p) => p?.image || null, previousUrl)
-        if (url) return { url, source: 'Delirius' }
+        if (url) { console.log(`[RW] ✅ Encontrado en Delirius`); return { url, source: 'Delirius' } }
       }
-    } catch (e) {
-      console.log(`[RW] ⚠️ Error en Delirius: ${e.message}`)
-    }
+    } catch (e) {}
 
     // 2. SafeBooru directo
     try {
+      console.log(`[RW] 📡 Intentando SafeBooru con: ${consulta}`)
       const data = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : (data?.post || [])
       if (posts.length > 0) {
@@ -371,59 +373,53 @@ const obtenerImagenGelbooru = async (personaje) => {
           if (p?.directory && p?.image) return `https://safebooru.org/images/${p.directory}/${p.image}`
           return null
         }, previousUrl)
-        if (url) return { url, source: 'SafeBooru' }
+        if (url) { console.log(`[RW] ✅ Encontrado en SafeBooru`); return { url, source: 'SafeBooru' } }
       }
-    } catch (e) {
-      console.log(`[RW] ⚠️ Error en SafeBooru: ${e.message}`)
-    }
+    } catch (e) {}
 
     // 3. Konachan (Booru japonés)
     try {
+      console.log(`[RW] 📡 Intentando Konachan con: ${consulta}`)
       const data = await getJsonSafe(`https://konachan.com/post.json?tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : []
       if (posts.length > 0) {
         const url = pickMediaFromPosts(posts, (p) => p?.file_url || p?.sample_url || null, previousUrl)
-        if (url) return { url, source: 'Konachan' }
+        if (url) { console.log(`[RW] ✅ Encontrado en Konachan`); return { url, source: 'Konachan' } }
       }
-    } catch (e) {
-      console.log(`[RW] ⚠️ Error en Konachan: ${e.message}`)
-    }
+    } catch (e) {}
 
     // 4. Yande.re (Booru premium japonés)
     try {
+      console.log(`[RW] 📡 Intentando Yande.re con: ${consulta}`)
       const data = await getJsonSafe(`https://yande.re/post.json?tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : []
       if (posts.length > 0) {
         const url = pickMediaFromPosts(posts, (p) => p?.file_url || p?.sample_url || null, previousUrl)
-        if (url) return { url, source: 'Yande.re' }
+        if (url) { console.log(`[RW] ✅ Encontrado en Yande.re`); return { url, source: 'Yande.re' } }
       }
-    } catch (e) {
-      console.log(`[RW] ⚠️ Error en Yande.re: ${e.message}`)
-    }
+    } catch (e) {}
 
     // 5. Gelbooru directo
     try {
+      console.log(`[RW] 📡 Intentando Gelbooru con: ${consulta}`)
       const data = await getJsonSafe(`https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : (data?.post || [])
       if (posts.length > 0) {
         const url = pickMediaFromPosts(posts, (p) => p?.file_url || p?.source || null, previousUrl)
-        if (url) return { url, source: 'Gelbooru' }
+        if (url) { console.log(`[RW] ✅ Encontrado en Gelbooru`); return { url, source: 'Gelbooru' } }
       }
-    } catch (e) {
-      console.log(`[RW] ⚠️ Error en Gelbooru: ${e.message}`)
-    }
+    } catch (e) {}
 
     // 6. Rule34.xxx (Diversidad de contenido)
     try {
+      console.log(`[RW] 📡 Intentando Rule34 con: ${consulta}`)
       const data = await getJsonSafe(`https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1&tags=${tag}&limit=50`)
       const posts = Array.isArray(data) ? data : (data?.post || [])
       if (posts.length > 0) {
         const url = pickMediaFromPosts(posts, (p) => p?.file_url || null, previousUrl)
-        if (url) return { url, source: 'Rule34' }
+        if (url) { console.log(`[RW] ✅ Encontrado en Rule34`); return { url, source: 'Rule34' } }
       }
-    } catch (e) {
-      console.log(`[RW] ⚠️ Error en Rule34: ${e.message}`)
-    }
+    } catch (e) {}
 
     return null
   }
