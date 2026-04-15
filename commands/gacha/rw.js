@@ -73,12 +73,33 @@ const pickRandomImageUrl = (posts = [], mapper) => {
 
 const normalizeImage = async (buffer) => {
   try {
-    return await sharp(buffer, { failOnError: false })
+    console.log(`[RW] Buffer original: ${buffer.length} bytes`)
+    
+    // Detectar formato actual
+    const magic = buffer.slice(0, 4)
+    const isJPG = magic[0] === 0xFF && magic[1] === 0xD8
+    const isPNG = magic[0] === 0x89 && magic[1] === 0x50
+    const isWEBP = magic.slice(0, 4).toString('ascii') === 'RIFF'
+    
+    console.log(`[RW] Formato detectado - JPG: ${isJPG}, PNG: ${isPNG}, WEBP: ${isWEBP}`)
+    
+    // Solo procesar JPG y PNG
+    if (!isJPG && !isPNG) {
+      console.log(`[RW] ⚠️ Formato no procesable, usando buffer directo`)
+      return buffer
+    }
+    
+    console.log(`[RW] Procesando con Sharp...`)
+    const result = await sharp(buffer, { failOnError: false })
       .rotate()
       .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 80 })
+      .jpeg({ quality: 85 })  // Usar JPEG en lugar de WebP
       .toBuffer()
-  } catch {
+    
+    console.log(`[RW] Sharp procesada: ${buffer.length} → ${result.length} bytes`)
+    return result
+  } catch (e) {
+    console.warn(`[RW] ⚠️ Sharp error: ${e.message}`)
     return buffer
   }
 }
@@ -324,14 +345,19 @@ ${global.dev || ''}`
         
         const arrayBuffer = await imageRes.arrayBuffer()
         let imageBuffer = Buffer.from(arrayBuffer)
+        
+        if (!Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
+          throw new Error('Buffer inválido o vacío')
+        }
+        
         console.log(`[RW] ✅ Imagen descargada: ${imageBuffer.length} bytes`)
         
         // Procesar imagen con sharp (convertir a webp para mejor compatibilidad)
         console.log(`[RW] Procesando imagen...`)
         imageBuffer = await normalizeImage(imageBuffer)
-        console.log(`[RW] ✅ Imagen procesada: ${imageBuffer.length} bytes`)
+        console.log(`[RW] ✅ Buffer final: ${imageBuffer.length} bytes`)
         
-        console.log(`[RW] Enviando imagen como buffer...`)
+        console.log(`[RW] Enviando imagen...`)
         await client.sendMessage(
           chatId,
           {
@@ -342,8 +368,8 @@ ${global.dev || ''}`
         )
         console.log(`[RW] ✅ Imagen enviada correctamente`)
       } catch (e) {
-        console.error('Error descargando/enviando imagen:', e.message)
-        console.error('Stack:', e.stack)
+        console.error(`[RW] ❌ Error descargando/enviando imagen: ${e.message}`)
+        console.error(`[RW] Detalles:`, e)
         console.log(`[RW] Enviando solo texto por error...`)
         await m.reply(mensaje)
       }
