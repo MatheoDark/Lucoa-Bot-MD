@@ -2,8 +2,16 @@ import fs from 'fs';
 import {v4 as uuidv4} from 'uuid';
 import fetch from 'node-fetch';
 import sharp from 'sharp';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { join } from 'path';
+import os from 'os';
 
-const IMAGE_EXT_REGEX = /\.(jpg|jpeg|png|webp)$/i
+const execAsync = promisify(exec)
+
+const IMAGE_EXT_REGEX = /\.(jpg|jpeg|png|webp|gif|mp4|webm|mov)$/i
+const VIDEO_EXT_REGEX = /\.(mp4|webm|mov)$/i
+const GIF_EXT_REGEX = /\.gif$/i
 const STATS_FILE = './lib/rw-stats.json'
 const TIMEOUT_CONFIG = {
   small: 8000,    // < 500KB
@@ -160,6 +168,58 @@ const pickRandomImageUrl = (posts = [], mapper) => {
 
   if (!valid.length) return null
   return valid[Math.floor(Math.random() * valid.length)]
+}
+
+const isVideoMediaUrl = (url = '') => VIDEO_EXT_REGEX.test(url) || GIF_EXT_REGEX.test(url)
+
+function getMediaTypeByUrl(url = '') {
+  const value = String(url).toLowerCase()
+  if (GIF_EXT_REGEX.test(value)) return 'gif'
+  if (VIDEO_EXT_REGEX.test(value)) return 'video'
+  return 'image'
+}
+
+async function convertToMp4(url, originalName = '') {
+  const tmpDir = join(os.tmpdir(), 'lucoa_rw_convert')
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true })
+
+  const id = Date.now() + '_' + Math.random().toString(36).slice(2)
+  const inputPath = join(tmpDir, `${id}_in`)
+  const outputPath = join(tmpDir, `${id}_out.mp4`)
+
+  try {
+    const res = await fetch(url)
+    const dlBuffer = Buffer.from(await res.arrayBuffer())
+    fs.writeFileSync(inputPath, dlBuffer)
+
+    let hasAudio = false
+    try {
+      const { stdout } = await execAsync(
+        `ffprobe -v quiet -select_streams a -show_entries stream=codec_type -of csv=p=0 "${inputPath}"`,
+        { timeout: 10000 }
+      )
+      hasAudio = stdout.trim().includes('audio')
+    } catch {
+      hasAudio = false
+    }
+
+    const noAudio = !hasAudio || GIF_EXT_REGEX.test(originalName)
+    const ffmpegCmd = noAudio
+      ? `ffmpeg -y -i "${inputPath}" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=15" -c:v libx264 -pix_fmt yuv420p -an "${outputPath}"`
+      : `ffmpeg -y -i "${inputPath}" -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=24" -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k "${outputPath}"`
+
+    await execAsync(ffmpegCmd, { timeout: 30000 })
+    const buffer = fs.readFileSync(outputPath)
+
+    try { fs.unlinkSync(inputPath) } catch {}
+    try { fs.unlinkSync(outputPath) } catch {}
+
+    return { buffer, hasAudio: !noAudio }
+  } catch (error) {
+    try { fs.unlinkSync(inputPath) } catch {}
+    try { fs.unlinkSync(outputPath) } catch {}
+    throw error
+  }
 }
 
 const normalizeImage = async (buffer) => {
@@ -431,6 +491,7 @@ ${global.dev || ''}`
         let imageBuffer = null
         let contentType = ''
         let imageSize = 0
+        const mediaType = getMediaTypeByUrl(imagenUrl)
         
         // Estimar tamaño sin descargar todo
         const headRes = await fetch(imagenUrl, {
@@ -447,70 +508,56 @@ ${global.dev || ''}`
         }
         
         const adaptiveTimeout = getAdaptiveTimeout(imageSize)
-        
-        const imageRes = await fetch(imagenUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Referer': 'https://gelbooru.com/',
-            'Accept': 'image/webp,image/png,image/jpeg,*/*'
-          },
-          timeout: adaptiveTimeout
-        })
-        
-        contentType = imageRes.headers.get('content-type') || ''
-        
-        if (!contentType.includes('image')) {
-          // Intenta URL alternativa
-          const altUrl = imagenUrl.replace('img2.gelbooru.com', 'img.gelbooru.com')
-          if (altUrl !== imagenUrl) {
-            const altRes = await fetch(altUrl, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Referer': 'https://gelbooru.com/',
-              },
-              timeout: getAdaptiveTimeout(imageSize)
-            })
-            const altContentType = altRes.headers.get('content-type') || ''
-            if (altContentType.includes('image') && altRes.ok) {
-              imageBuffer = Buffer.from(await altRes.arrayBuffer())
-            }
-          }
-        } else if (imageRes.ok) {
-          imageBuffer = Buffer.from(await imageRes.arrayBuffer())
-        }
-        
-        // FALLBACK a SafeBooru si falla
-        if (!imageBuffer) {
-          const tags = buildTagCandidates(personaje)
-          for (const tag of tags) {
-            const safeRes = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=1`)
-            if (safeRes?.length > 0) {
-              const fileUrl = safeRes[0].file_url || safeRes[0].url
-              if (fileUrl) {
-                const fbRes = await fetch(fileUrl, {
-                  headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                  },
-                  timeout: getAdaptiveTimeout(imageSize)
-                })
-                if (fbRes.ok && fbRes.headers.get('content-type')?.includes('image')) {
-                  imageBuffer = Buffer.from(await fbRes.arrayBuffer())
-                  break
-                }
+        const useSharp = mediaType === 'image'
+
+        if (useSharp) {
+          const imageRes = await fetch(imagenUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Referer': 'https://gelbooru.com/',
+              'Accept': 'image/webp,image/png,image/jpeg,*/*'
+            },
+            timeout: adaptiveTimeout
+          })
+
+          contentType = imageRes.headers.get('content-type') || ''
+
+          if (!contentType.includes('image')) {
+            const altUrl = imagenUrl.replace('img2.gelbooru.com', 'img.gelbooru.com')
+            if (altUrl !== imagenUrl) {
+              const altRes = await fetch(altUrl, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                  'Referer': 'https://gelbooru.com/',
+                },
+                timeout: getAdaptiveTimeout(imageSize)
+              })
+              const altContentType = altRes.headers.get('content-type') || ''
+              if (altContentType.includes('image') && altRes.ok) {
+                imageBuffer = Buffer.from(await altRes.arrayBuffer())
               }
             }
+          } else if (imageRes.ok) {
+            imageBuffer = Buffer.from(await imageRes.arrayBuffer())
           }
-        }
-        
-        if (!imageBuffer || imageBuffer.length === 0) {
-          throw new Error('No se pudo descargar imagen válida')
-        }
-        
-        // Procesar imagen con sharp
-        imageBuffer = await normalizeImage(imageBuffer)
-        
-        if (!imageBuffer) {
-          throw new Error('La imagen no pudo procesarse')
+
+          if (!imageBuffer || imageBuffer.length === 0) {
+            throw new Error('No se pudo descargar imagen válida')
+          }
+
+          imageBuffer = await normalizeImage(imageBuffer)
+
+          if (!imageBuffer) {
+            throw new Error('La imagen no pudo procesarse')
+          }
+        } else {
+          const { buffer, hasAudio } = await convertToMp4(imagenUrl, imagenUrl)
+          imageBuffer = buffer
+          if (!hasAudio || GIF_EXT_REGEX.test(imagenUrl)) {
+            contentType = 'image/gif'
+          } else {
+            contentType = 'video/mp4'
+          }
         }
         
         // ⚡ ACTUALIZAR ESTADÍSTICAS - ÉXITO
@@ -518,10 +565,17 @@ ${global.dev || ''}`
         
         const envio = await client.sendMessage(
           chatId,
-          {
-            image: imageBuffer,
-            caption: mensaje
-          },
+          useSharp
+            ? {
+                image: imageBuffer,
+                caption: mensaje
+              }
+            : {
+                video: imageBuffer,
+                caption: mensaje,
+                ...(contentType === 'image/gif' ? { gifPlayback: true } : {}),
+                mimetype: 'video/mp4'
+              },
           { quoted: m }
         )
         console.log(`[RW] ✅ Imagen enviada`)
