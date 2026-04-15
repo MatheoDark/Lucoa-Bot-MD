@@ -75,32 +75,39 @@ const getAdaptiveTimeout = (estimatedSize = 0) => {
   return TIMEOUT_CONFIG.small
 }
 
-// 🛡️ HEADERS FALSOS: Vital para que Gelbooru/Rule34 no bloqueen la descarga
+// 🛡️ HEADERS FALSOS MEJORADOS (Fingen ser un navegador dentro de Gelbooru)
 const fetchHeaders = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Referer': 'https://google.com/',
+  'Referer': 'https://gelbooru.com/', // Vital para saltar la protección Hotlink
   'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
 }
 
-// 🛠️ TÚNEL ANTI-CLOUDFLARE: Maneja bloqueos de Cloudflare automáticamente
+// 🛠️ TÚNEL BLINDADO (Intenta 4 métodos distintos)
 async function smartFetchBuffer(url) {
-  try {
-    let res = await fetch(url, { headers: fetchHeaders, timeout: 15000 })
-    let buffer = Buffer.from(await res.arrayBuffer())
-    let head = buffer.slice(0, 4).toString('hex')
+  const proxies = [
+    url, // 1. Intento directo (ahora con el Referer correcto)
+    `https://corsproxy.io/?${encodeURIComponent(url)}`, // 2. Proxy Cors Raw
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, // 3. Proxy AllOrigins
+    url.replace('img2.gelbooru.com', 'img.gelbooru.com') // 4. Salto de subdominio
+  ];
 
-    // Si es HTML (3c21444f = <!DO) o muy pequeño, usamos Proxy
-    if (head === '3c21444f' || buffer.length < 1000) {
-      console.log('[RW] 🛡️ Cloudflare detectado. Usando Proxy anónimo...')
-      res = await fetch(`https://wsrv.nl/?url=${encodeURIComponent(url)}`, { headers: fetchHeaders, timeout: 15000 })
-      buffer = Buffer.from(await res.arrayBuffer())
+  for (let targetUrl of proxies) {
+    try {
+      let res = await fetch(targetUrl, { headers: fetchHeaders, timeout: 15000 });
+      let buffer = Buffer.from(await res.arrayBuffer());
+      let head = buffer.slice(0, 4).toString('hex');
+      
+      // Verificamos que NO sea HTML (3c21) ni JSON (7b22) y tenga buen peso
+      if (head !== '3c21444f' && head !== '7b227374' && buffer.length > 5000) {
+        console.log(`[RW] ✅ Imagen descargada exitosamente desde: ${targetUrl.substring(0, 50)}...`)
+        return buffer; // ¡Imagen conseguida!
+      }
+    } catch (e) {
+      console.log(`[RW] 🛡️ Falló la ruta: ${targetUrl.substring(0, 50)}...`);
+      // Sigue al siguiente proxy sin crashear
     }
-    return buffer
-  } catch (e) {
-    console.log('[RW] 🛡️ Falló descarga directa, intentando Proxy...', e.message)
-    let res = await fetch(`https://wsrv.nl/?url=${encodeURIComponent(url)}`, { headers: fetchHeaders, timeout: 15000 })
-    return Buffer.from(await res.arrayBuffer())
   }
+  throw new Error('Todas las rutas de descarga fueron bloqueadas por Cloudflare.');
 }
 
 const normalizeTag = (value = '') => String(value)
