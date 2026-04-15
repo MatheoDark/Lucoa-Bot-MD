@@ -16,11 +16,18 @@ const normalizeTag = (value = '') => String(value)
 
 const buildTagCandidates = (personaje = {}) => {
   const raw = [
+    // 1. Keyword exacto (si existe)
     personaje.keyword,
-    personaje.name && personaje.source ? `${personaje.name} (${personaje.source})` : null, // MÁS ESPECÍFICO PRIMERO
-    personaje.name && personaje.source ? `${personaje.name} ${personaje.source}` : null,
+    
+    // 2. Nombre + Fuente (más específico)
+    personaje.name && personaje.source ? `${personaje.name} (${personaje.source})` : null,
+    personaje.name && personaje.source ? `${personaje.name.toLowerCase()} ${personaje.source.toLowerCase()}` : null,
+    
+    // 3. Solo nombre
     personaje.name,
-    // Eliminado: personaje.source - Esto causaba que, como último recurso, se trajera *cualquier* personaje del mismo anime/juego.
+    
+    // 4. Nombre corto (primera palabra) + Fuente
+    personaje.name && personaje.source ? `${personaje.name.split(' ')[0]} ${personaje.source}` : null,
   ].filter(Boolean)
 
   const set = new Set()
@@ -28,11 +35,11 @@ const buildTagCandidates = (personaje = {}) => {
     const base = normalizeTag(entry)
     if (base) set.add(base)
 
-    // Variante sin sufijos entre paréntesis: rem_(re:zero) -> rem
+    // Variante sin sufijos entre paréntesis
     const noSuffix = base.replace(/_\([^)]*\)$/g, '')
     if (noSuffix && noSuffix !== base) set.add(noSuffix)
 
-    // Variante con espacios para endpoints que toleran textos naturales
+    // Variante con espacios
     const spaced = base.replace(/_/g, ' ')
     if (spaced) set.add(spaced)
   }
@@ -151,7 +158,7 @@ const obtenerImagenGelbooru = async (personaje) => {
   {
     const simpleName = personaje.name?.split(' ')[0] || ''
     if (simpleName && simpleName.length > 2) {
-      console.log(`[RW] 🔄 Fallback: Buscando por nombre simple: ${simpleName}`)
+      console.log(`[RW] 🔄 Fallback 1: Buscando por nombre simple: ${simpleName}`)
       
       try {
         const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(simpleName)}`)
@@ -164,7 +171,31 @@ const obtenerImagenGelbooru = async (personaje) => {
           }
         }
       } catch (e) {
-        console.log(`[RW] ❌ Fallback error: ${e.message.slice(0, 30)}`)
+        console.log(`[RW] ❌ Fallback 1 error: ${e.message.slice(0, 30)}`)
+      }
+    }
+  }
+
+  // FALLBACK 2: Buscar con nombre + parte de la fuente
+  {
+    const fuente = personaje.source?.split(' ')[0] || ''
+    const nombre = personaje.name?.split(' ')[0] || ''
+    if (fuente && nombre && nombre.length > 2) {
+      const searchTerm = `${nombre} ${fuente}`
+      console.log(`[RW] 🔄 Fallback 2: Búsqueda inteligente: ${searchTerm}`)
+      
+      try {
+        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(searchTerm)}`)
+        const posts = Array.isArray(data?.data) ? data.data : []
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
+          if (url) {
+            console.log(`[RW] ✅ Imagen desde búsqueda inteligente (${searchTerm})`)
+            return url
+          }
+        }
+      } catch (e) {
+        console.log(`[RW] ❌ Fallback 2 error: ${e.message.slice(0, 30)}`)
       }
     }
   }
