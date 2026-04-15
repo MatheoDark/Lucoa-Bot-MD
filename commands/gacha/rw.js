@@ -77,16 +77,30 @@ const getAdaptiveTimeout = (estimatedSize = 0) => {
 
 // 🛡️ HEADERS FALSOS: Vital para que Gelbooru/Rule34 no bloqueen la descarga
 const fetchHeaders = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Referer': 'https://google.com/'
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Referer': 'https://google.com/',
+  'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
 }
 
-// 🛠️ NUEVA FUNCIÓN: Descarga la imagen físicamente al bot primero
-async function getBuffer(url) {
-  const res = await fetch(url, { headers: fetchHeaders })
-  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
-  const arrayBuffer = await res.arrayBuffer()
-  return Buffer.from(arrayBuffer)
+// 🛠️ TÚNEL ANTI-CLOUDFLARE: Maneja bloqueos de Cloudflare automáticamente
+async function smartFetchBuffer(url) {
+  try {
+    let res = await fetch(url, { headers: fetchHeaders, timeout: 15000 })
+    let buffer = Buffer.from(await res.arrayBuffer())
+    let head = buffer.slice(0, 4).toString('hex')
+
+    // Si es HTML (3c21444f = <!DO) o muy pequeño, usamos Proxy
+    if (head === '3c21444f' || buffer.length < 1000) {
+      console.log('[RW] 🛡️ Cloudflare detectado. Usando Proxy anónimo...')
+      res = await fetch(`https://wsrv.nl/?url=${encodeURIComponent(url)}`, { headers: fetchHeaders, timeout: 15000 })
+      buffer = Buffer.from(await res.arrayBuffer())
+    }
+    return buffer
+  } catch (e) {
+    console.log('[RW] 🛡️ Falló descarga directa, intentando Proxy...', e.message)
+    let res = await fetch(`https://wsrv.nl/?url=${encodeURIComponent(url)}`, { headers: fetchHeaders, timeout: 15000 })
+    return Buffer.from(await res.arrayBuffer())
+  }
 }
 
 const normalizeTag = (value = '') => String(value)
@@ -230,9 +244,14 @@ async function convertToMp4(url, originalName = '') {
   const outputPath = join(tmpDir, `${id}_out.mp4`)
 
   try {
-    // 🔥 Usamos los headers falsos aquí también para evitar el ETIMEDOUT
-    const res = await fetch(url, { headers: fetchHeaders })
-    const dlBuffer = Buffer.from(await res.arrayBuffer())
+    // �️ Usar smartFetchBuffer para evitar Cloudflare
+    const dlBuffer = await smartFetchBuffer(url)
+    
+    // Validación: si sigue siendo HTML, Cloudflare nos bloqueó el video
+    if (dlBuffer.slice(0, 4).toString('hex') === '3c21444f') {
+      throw new Error('Cloudflare bloqueó la descarga del video')
+    }
+    
     fs.writeFileSync(inputPath, dlBuffer)
 
     let hasAudio = false
@@ -326,7 +345,7 @@ const obtenerImagenGelbooru = async (personaje) => {
         if (url) return { url, source: 'Delirius' }
       }
     } catch (e) {
-      // silencio
+      console.log(`[RW] ⚠️ Error en Delirius: ${e.message}`)
     }
 
     // 2. SafeBooru directo
@@ -342,7 +361,7 @@ const obtenerImagenGelbooru = async (personaje) => {
         if (url) return { url, source: 'SafeBooru' }
       }
     } catch (e) {
-      // silencio
+      console.log(`[RW] ⚠️ Error en SafeBooru: ${e.message}`)
     }
 
     // 3. Konachan (Booru japonés)
@@ -354,7 +373,7 @@ const obtenerImagenGelbooru = async (personaje) => {
         if (url) return { url, source: 'Konachan' }
       }
     } catch (e) {
-      // silencio
+      console.log(`[RW] ⚠️ Error en Konachan: ${e.message}`)
     }
 
     // 4. Yande.re (Booru premium japonés)
@@ -366,7 +385,7 @@ const obtenerImagenGelbooru = async (personaje) => {
         if (url) return { url, source: 'Yande.re' }
       }
     } catch (e) {
-      // silencio
+      console.log(`[RW] ⚠️ Error en Yande.re: ${e.message}`)
     }
 
     // 5. Gelbooru directo
@@ -378,7 +397,7 @@ const obtenerImagenGelbooru = async (personaje) => {
         if (url) return { url, source: 'Gelbooru' }
       }
     } catch (e) {
-      // silencio
+      console.log(`[RW] ⚠️ Error en Gelbooru: ${e.message}`)
     }
 
     // 6. Rule34.xxx (Diversidad de contenido)
@@ -390,7 +409,7 @@ const obtenerImagenGelbooru = async (personaje) => {
         if (url) return { url, source: 'Rule34' }
       }
     } catch (e) {
-      // silencio
+      console.log(`[RW] ⚠️ Error en Rule34: ${e.message}`)
     }
 
     return null
@@ -536,15 +555,19 @@ ${global.dev || ''}`
       try {
         let imageBuffer = null
         let contentType = ''
-        let imageSize = 0
         const mediaType = getMediaTypeByUrl(imagenUrl)
         
+        console.log(`[RW] 📥 Descargando desde: ${imagenUrl.substring(0, 100)}...`)
+        
         if (mediaType === 'image') {
-          // 🛠️ AQUÍ ESTÁ LA MAGIA: Descargamos la imagen primero como Buffer
-          imageBuffer = await getBuffer(imagenUrl)
+          // 🛠️ USAMOS SMARTFETCHBUFFER PARA EVITAR CLOUDFLARE
+          imageBuffer = await smartFetchBuffer(imagenUrl)
+          if (!imageBuffer || imageBuffer.length === 0) {
+            throw new Error('No se pudo descargar imagen válida')
+          }
+          
           // Procesar con Sharp
           imageBuffer = await normalizeImage(imageBuffer)
-
           if (!imageBuffer) {
             throw new Error('La imagen no pudo procesarse')
           }
@@ -556,8 +579,8 @@ ${global.dev || ''}`
             imageBuffer = buffer
             contentType = (GIF_EXT_REGEX.test(imagenUrl) || !hasAudio) ? 'image/gif' : 'video/mp4'
           } catch {
-            // Si falla FFmpeg, intentamos enviar el video original PERO como Buffer
-            imageBuffer = await getBuffer(imagenUrl)
+            // Si falla FFmpeg, intentamos enviar el video original
+            imageBuffer = await smartFetchBuffer(imagenUrl)
             contentType = GIF_EXT_REGEX.test(imagenUrl) ? 'image/gif' : 'video/mp4'
           }
         }
@@ -566,7 +589,7 @@ ${global.dev || ''}`
         updateStats(personaje.name, true, imageBuffer.length)
         
         const useSharp = mediaType === 'image'
-        const envio = await client.sendMessage(
+        await client.sendMessage(
           chatId,
           useSharp
             ? {
@@ -581,19 +604,19 @@ ${global.dev || ''}`
               },
           { quoted: m }
         )
-        console.log(`[RW] ✅ Imagen enviada`)
+        console.log(`[RW] ✅ Imagen/video enviado exitosamente`)
       } catch (e) {
         // ⚡ ACTUALIZAR ESTADÍSTICAS - FALLO
         updateStats(personaje.name, false, 0)
         
-        console.log(`[RW] ⚠️ Error: ${e.message}`)
-        await m.reply(mensaje + "\n\n⚠️ *(No se pudo cargar la imagen)*")
+        console.log(`[RW] ❌ Error al procesar imagen: ${e.message}`)
+        await m.reply(mensaje + "\n\n⚠️ *(No se pudo cargar la imagen, pero el Roll es válido)*")
       }
     } else {
       // ⚡ ACTUALIZAR ESTADÍSTICAS - SIN URL
       updateStats(personaje.name, false, 0)
       
-      await m.reply(`${mensaje}\n\n⚠️ *Advertencia:* No se pudieron cargar las imágenes. Las APIs están temporalmente caídas o no responden. (╥﹏╥)`)
+      await m.reply(`${mensaje}\n\n⚠️ *(Sin imágenes disponibles)*`)
     }
 
     if (!ownerId) {
