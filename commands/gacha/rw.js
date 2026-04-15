@@ -78,21 +78,33 @@ const normalizeImage = async (buffer) => {
       return buffer
     }
     
-    console.log(`[RW] Normalizando imagen (${buffer.length} bytes)...`)
+    // Validar que sea realmente imagen
+    const header = buffer.slice(0, 4)
+    const isPNG = header[0] === 0x89 && header[1] === 0x50
+    const isJPEG = header[0] === 0xFF && header[1] === 0xD8
+    const isGIF = header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46
+    const isWebP = buffer.slice(0, 4).toString() === 'RIFF'
     
-    // Intentar procesar sin especificar formato - Sharp lo detecta automáticamente
+    if (!isPNG && !isJPEG && !isGIF && !isWebP) {
+      console.log(`[RW] ⚠️ Buffer no reconocido como imagen válida`)
+      console.log(`[RW] Headers: ${header.toString('hex')}`)
+      return null  // Retornar null para indicar error
+    }
+    
+    console.log(`[RW] Buffer validado (PNG: ${isPNG}, JPEG: ${isJPEG}, GIF: ${isGIF}, WebP: ${isWebP})`)
+    console.log(`[RW] Normalizando con Sharp...`)
+    
     const result = await sharp(buffer, { failOnError: false })
-      .rotate()  // Auto-rotate según EXIF
+      .rotate()
       .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
-      .toFormat('jpeg', { quality: 85 })  // Convertir a JPEG
+      .toFormat('jpeg', { quality: 85 })
       .toBuffer()
     
-    console.log(`[RW] ✅ Normalización exitosa: ${buffer.length} → ${result.length} bytes`)
+    console.log(`[RW] ✅ Sharp exitoso: ${buffer.length} → ${result.length} bytes`)
     return result
   } catch (e) {
-    console.warn(`[RW] ⚠️ Normalización fallida: ${e.message}`)
-    console.warn(`[RW] Usand buffer original`)
-    return buffer
+    console.warn(`[RW] ⚠️ Sharp error: ${e.message}`)
+    return null
   }
 }
 
@@ -329,27 +341,94 @@ ${global.dev || ''}`
     if (imagenUrl) {
       try {
         console.log(`[RW] Intentando descargar imagen...`)
+        console.log(`[RW] URL: ${imagenUrl}`)
+        
+        // INTENTO 1: Descargar desde URL original
+        let imageBuffer = null
+        let contentType = ''
+        
         const imageRes = await fetch(imagenUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0' },
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://gelbooru.com/',
+            'Accept': 'image/webp,image/png,image/jpeg,*/*'
+          },
           timeout: 12000
         })
-        if (!imageRes.ok) throw new Error(`HTTP ${imageRes.status}`)
         
-        const arrayBuffer = await imageRes.arrayBuffer()
-        let imageBuffer = Buffer.from(arrayBuffer)
+        contentType = imageRes.headers.get('content-type') || ''
+        console.log(`[RW] Response Content-Type: ${contentType}`)
+        console.log(`[RW] Response Status: ${imageRes.status}`)
         
-        console.log(`[RW] ✅ Imagen descargada: ${imageBuffer.length} bytes`)
-        console.log(`[RW] Primeros 8 bytes (hex): ${imageBuffer.slice(0, 8).toString('hex')}`)
-        console.log(`[RW] Content-Type: ${imageRes.headers.get('content-type')}`)
-        
-        if (!Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
-          throw new Error('Buffer inválido o vacío')
+        // Validar que sea imagen
+        if (!contentType.includes('image')) {
+          console.log(`[RW] ⚠️ No es imagen (${contentType}), intentando extraer URL directa...`)
+          imageBuffer = null
+        } else if (imageRes.ok) {
+          const arrayBuffer = await imageRes.arrayBuffer()
+          imageBuffer = Buffer.from(arrayBuffer)
+          console.log(`[RW] ✅ Imagen descargada: ${imageBuffer.length} bytes`)
         }
         
-        // Procesar imagen con sharp (convertir a webp para mejor compatibilidad)
-        console.log(`[RW] Procesando imagen...`)
+        // INTENTO 2: Si falló, probar convertir URL de img2.gelbooru a img.gelbooru
+        if (!imageBuffer) {
+          const altUrl = imagenUrl.replace('img2.gelbooru.com', 'img.gelbooru.com')
+          if (altUrl !== imagenUrl) {
+            console.log(`[RW] Intentando URL alternativa...`)
+            const altRes = await fetch(altUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://gelbooru.com/',
+              },
+              timeout: 12000
+            })
+            const altContentType = altRes.headers.get('content-type') || ''
+            if (altContentType.includes('image') && altRes.ok) {
+              const arrayBuffer = await altRes.arrayBuffer()
+              imageBuffer = Buffer.from(arrayBuffer)
+              console.log(`[RW] ✅ Imagen desde URL alt: ${imageBuffer.length} bytes`)
+            }
+          }
+        }
+        
+        // INTENTO 3: Si todavía no funciona, usar SafeBooru
+        if (!imageBuffer) {
+          console.log(`[RW] ⚠️ No se pudo descargar. Buscando en SafeBooru...`)
+          const tags = buildTagCandidates(personaje)
+          for (const tag of tags) {
+            const safeRes = await getJsonSafe(`https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags=${encodeURIComponent(tag)}&limit=1`)
+            if (safeRes?.length > 0) {
+              const fileUrl = safeRes[0].file_url || safeRes[0].url
+              if (fileUrl) {
+                console.log(`[RW] Descargando fallback desde SafeBooru...`)
+                const fbRes = await fetch(fileUrl, {
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                  },
+                  timeout: 12000
+                })
+                if (fbRes.ok && fbRes.headers.get('content-type')?.includes('image')) {
+                  imageBuffer = Buffer.from(await fbRes.arrayBuffer())
+                  console.log(`[RW] ✅ Imagen desde SafeBooru fallback: ${imageBuffer.length} bytes`)
+                  break
+                }
+              }
+            }
+          }
+        }
+        
+        if (!imageBuffer || imageBuffer.length === 0) {
+          throw new Error('No se pudo descargar imagen válida')
+        }
+        
+        // Procesar imagen con sharp
         imageBuffer = await normalizeImage(imageBuffer)
-        console.log(`[RW] ✅ Buffer listo: ${imageBuffer.length} bytes`)
+        
+        if (!imageBuffer) {
+          throw new Error('La imagen descargada no es válida o está corrupta')
+        }
+        
+        console.log(`[RW] ✅ Buffer procesado: ${imageBuffer.length} bytes`)
         
         console.log(`[RW] Enviando imagen a WhatsApp...`)
         const envio = await client.sendMessage(
@@ -360,7 +439,8 @@ ${global.dev || ''}`
           },
           { quoted: m }
         )
-        console.log(`[RW] ✅ Mensaje enviado: ${envio.key.id}`)
+        console.log(`[RW] ✅ Imagen enviada exitosamente`)
+        console.log(`[RW] Mensaje ID: ${envio.key.id}`)
       } catch (e) {
         console.error(`[RW] ❌ ERROR: ${e.message}`)
         if (e.stack) console.error(`[RW] Stack: ${e.stack.split('\n').slice(0, 3).join(' | ')}`)
