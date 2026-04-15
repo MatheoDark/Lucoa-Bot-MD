@@ -1,6 +1,7 @@
 import fs from 'fs';
 import {v4 as uuidv4} from 'uuid';
 import fetch from 'node-fetch';
+import sharp from 'sharp';
 
 const IMAGE_EXT_REGEX = /\.(jpg|jpeg|png|webp)$/i
 
@@ -61,6 +62,18 @@ const pickRandomImageUrl = (posts = [], mapper) => {
 
   if (!valid.length) return null
   return valid[Math.floor(Math.random() * valid.length)]
+}
+
+const normalizeImage = async (buffer) => {
+  try {
+    return await sharp(buffer, { failOnError: false })
+      .rotate()
+      .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer()
+  } catch {
+    return buffer
+  }
 }
 
 const obtenerImagenGelbooru = async (personaje) => {
@@ -198,11 +211,18 @@ export default {
     if (chat.adminonly || !chat.gacha)
       return m.reply(`🐲 Estos comandos están desactivados en este grupo. (◕︿◕)`)
 
+    // Verificar si es creador (sin cooldown)
+    const isOwner = global.owner?.includes(userId)
+    
     // Usamos cooldown global para no spammear en todos los grupos
     const cooldown = globalUser.rwCooldown || 0
     const restante = cooldown - now
-    if (restante > 0) {
+    if (restante > 0 && !isOwner) {
       return m.reply(`🐲 Espera *${msToTime(restante)}* para volver a usar este comando. (◕︿◕)`)
+    }
+    
+    if (!isOwner) {
+      globalUser.rwCooldown = now + 15 * 60000
     }
 
     const personajes = obtenerPersonajes()
@@ -241,9 +261,6 @@ export default {
         estado = `Reservado por ${nombreReservador}`
     }
 
-    // Guardamos cooldown en globalUser
-    globalUser.rwCooldown = now + 15 * 60000
-
     const valorPersonaje = typeof personaje.value === 'number' ? personaje.value.toLocaleString() : '0'
     const mensaje = `╭─── ⋆🐉⋆ ───
 │ Roll Waifu (◕ᴗ◕✿)
@@ -268,20 +285,27 @@ ${global.dev || ''}`
     if (imagenUrl) {
       try {
         console.log(`[RW] Intentando descargar imagen...`)
-        const imageRes = await fetch(imagenUrl)
+        const imageRes = await fetch(imagenUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          timeout: 12000
+        })
         if (!imageRes.ok) throw new Error(`HTTP ${imageRes.status}`)
         
         const arrayBuffer = await imageRes.arrayBuffer()
-        const imageBuffer = Buffer.from(arrayBuffer)
+        let imageBuffer = Buffer.from(arrayBuffer)
         console.log(`[RW] ✅ Imagen descargada: ${imageBuffer.length} bytes`)
+        
+        // Procesar imagen con sharp (convertir a webp para mejor compatibilidad)
+        console.log(`[RW] Procesando imagen...`)
+        imageBuffer = await normalizeImage(imageBuffer)
+        console.log(`[RW] ✅ Imagen procesada: ${imageBuffer.length} bytes`)
         
         console.log(`[RW] Enviando imagen como buffer...`)
         await client.sendMessage(
           chatId,
           {
             image: imageBuffer,
-            caption: mensaje,
-            mimetype: 'image/jpeg'
+            caption: mensaje
           },
           { quoted: m }
         )
