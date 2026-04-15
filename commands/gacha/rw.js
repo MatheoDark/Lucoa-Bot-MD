@@ -75,39 +75,45 @@ const getAdaptiveTimeout = (estimatedSize = 0) => {
   return TIMEOUT_CONFIG.small
 }
 
-// 🛡️ HEADERS FALSOS MEJORADOS (Fingen ser un navegador dentro de Gelbooru)
-const fetchHeaders = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  'Referer': 'https://gelbooru.com/', // Vital para saltar la protección Hotlink
-  'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
-}
-
-// 🛠️ TÚNEL BLINDADO (Intenta 4 métodos distintos)
+// ️ TÚNEL BLINDADO DINÁMICO (Camaleón)
 async function smartFetchBuffer(url) {
+  // 1. Extraemos el dominio para crear el "Gafete" correcto
+  const urlObj = new URL(url);
+  const dynamicHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Referer': `${urlObj.protocol}//${urlObj.hostname}/`, // ¡El Referer ahora cambia según la página!
+    'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+  };
+
+  // 2. Rutas de escape
   const proxies = [
-    url, // 1. Intento directo (ahora con el Referer correcto)
-    `https://corsproxy.io/?${encodeURIComponent(url)}`, // 2. Proxy Cors Raw
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, // 3. Proxy AllOrigins
-    url.replace('img2.gelbooru.com', 'img.gelbooru.com') // 4. Salto de subdominio
+    url, // Intento directo con el gafete correcto
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
   ];
 
+  // 3. Salto de subdominio (SOLO si es Gelbooru)
+  if (url.includes('img2.gelbooru.com')) {
+    proxies.push(url.replace('img2.gelbooru.com', 'img.gelbooru.com'));
+  }
+
+  // 4. Ejecución del asalto
   for (let targetUrl of proxies) {
     try {
-      let res = await fetch(targetUrl, { headers: fetchHeaders, timeout: 15000 });
+      let res = await fetch(targetUrl, { headers: dynamicHeaders, timeout: 15000 });
       let buffer = Buffer.from(await res.arrayBuffer());
       let head = buffer.slice(0, 4).toString('hex');
       
-      // Verificamos que NO sea HTML (3c21) ni JSON (7b22) y tenga buen peso
+      // Verificamos que NO sea HTML (3c21) ni JSON (7b22) y que no esté vacía
       if (head !== '3c21444f' && head !== '7b227374' && buffer.length > 5000) {
         console.log(`[RW] ✅ Imagen descargada exitosamente desde: ${targetUrl.substring(0, 50)}...`)
-        return buffer; // ¡Imagen conseguida!
+        return buffer; // ¡Imagen capturada!
       }
     } catch (e) {
       console.log(`[RW] 🛡️ Falló la ruta: ${targetUrl.substring(0, 50)}...`);
-      // Sigue al siguiente proxy sin crashear
     }
   }
-  throw new Error('Todas las rutas de descarga fueron bloqueadas por Cloudflare.');
+  throw new Error('Todas las rutas de descarga fueron bloqueadas por Cloudflare/Hotlink.');
 }
 
 const normalizeTag = (value = '') => String(value)
