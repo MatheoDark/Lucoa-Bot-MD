@@ -19,16 +19,30 @@ const HTTP_URL_REGEX = /^https?:\/\//i
 
 // 🛡️ HEADERS FALSOS: Vital para que Gelbooru/Rule34 no bloqueen la descarga
 const fetchHeaders = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Referer': 'https://google.com/'
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Referer': 'https://google.com/',
+  'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
 }
 
-// 🛠️ NUEVA FUNCIÓN: Descarga la imagen físicamente al bot primero
-async function getBuffer(url) {
-  const res = await fetch(url, { headers: fetchHeaders })
-  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
-  const arrayBuffer = await res.arrayBuffer()
-  return Buffer.from(arrayBuffer)
+// 🛠️ TÚNEL ANTI-CLOUDFLARE: Maneja bloqueos de Cloudflare automáticamente
+async function smartFetchBuffer(url) {
+  try {
+    let res = await fetch(url, { headers: fetchHeaders, timeout: 15000 })
+    let buffer = Buffer.from(await res.arrayBuffer())
+    let head = buffer.slice(0, 4).toString('hex')
+
+    // Si es HTML (3c21444f = <!DO) o muy pequeño, usamos Proxy
+    if (head === '3c21444f' || buffer.length < 1000) {
+      console.log('[WIMAGE] 🛡️ Cloudflare detectado. Usando Proxy anónimo...')
+      res = await fetch(`https://wsrv.nl/?url=${encodeURIComponent(url)}`, { headers: fetchHeaders, timeout: 15000 })
+      buffer = Buffer.from(await res.arrayBuffer())
+    }
+    return buffer
+  } catch (e) {
+    console.log('[WIMAGE] 🛡️ Falló descarga directa, intentando Proxy...', e.message)
+    let res = await fetch(`https://wsrv.nl/?url=${encodeURIComponent(url)}`, { headers: fetchHeaders, timeout: 15000 })
+    return Buffer.from(await res.arrayBuffer())
+  }
 }
 
 const pickRandomMedia = (urls = []) => {
@@ -62,9 +76,14 @@ async function convertToMp4(url, originalName = '') {
   const outputPath = join(tmpDir, `${id}_out.mp4`)
 
   try {
-    // 🔥 Usamos los headers falsos aquí también para evitar el ETIMEDOUT
-    const res = await fetch(url, { headers: fetchHeaders })
-    const dlBuffer = Buffer.from(await res.arrayBuffer())
+    // �️ Usar smartFetchBuffer para evitar Cloudflare
+    const dlBuffer = await smartFetchBuffer(url)
+    
+    // Validación: si sigue siendo HTML, Cloudflare nos bloqueó el video
+    if (dlBuffer.slice(0, 4).toString('hex') === '3c21444f') {
+      throw new Error('Cloudflare bloqueó la descarga del video')
+    }
+    
     fs.writeFileSync(inputPath, dlBuffer)
 
     let hasAudio = false
@@ -244,12 +263,16 @@ export default {
           const mediaType = getMediaTypeByUrl(imagenUrl)
           
           if (mediaType === 'image') {
-            // 🛠️ AQUÍ ESTÁ LA MAGIA: Descargamos la imagen primero como Buffer
-            const mediaBuffer = await getBuffer(imagenUrl)
+            // 🛠️ USAMOS SMARTFETCHBUFFER PARA EVITAR CLOUDFLARE
+            const mediaBuffer = await smartFetchBuffer(imagenUrl)
+            if (!mediaBuffer || mediaBuffer.length === 0) {
+              throw new Error('No se pudo descargar imagen válida')
+            }
+            
             await client.sendMessage(
               chatId,
               {
-                image: mediaBuffer, // Enviamos el Buffer, no la URL
+                image: mediaBuffer,
                 caption: message,
                 mimetype: 'image/jpeg',
               },
@@ -270,8 +293,12 @@ export default {
                 { quoted: m }
               )
             } catch {
-              // Si falla FFmpeg, intentamos enviar el video original PERO como Buffer
-              const fallbackBuffer = await getBuffer(imagenUrl)
+              // Si falla FFmpeg, intentamos enviar el video original con smartFetchBuffer
+              const fallbackBuffer = await smartFetchBuffer(imagenUrl)
+              if (!fallbackBuffer || fallbackBuffer.length === 0) {
+                throw new Error('No se pudo descargar video válido')
+              }
+              
               await client.sendMessage(
                 chatId,
                 {
@@ -285,8 +312,8 @@ export default {
             }
           }
         } catch (mediaError) {
-          console.error("Error al enviar media:", mediaError)
-          await m.reply(message + "\n\n⚠️ *(No se pudo cargar la imagen)*")
+          console.error("[WIMAGE] Error al enviar media:", mediaError)
+          await m.reply(message + "\n\n⚠️ *(No se pudo cargar la imagen, pero el personaje es válido)*")
         }
       } else {
         await m.reply(message + "\n\n⚠️ *(Sin imágenes disponibles)*")
