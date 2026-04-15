@@ -295,6 +295,51 @@ const obtenerImagenGelbooru = async (personaje) => {
     }
   }
 
+  // FALLBACK 3: Buscar solo por la serie/fuente (cualquier personaje de esa serie)
+  {
+    const fuente = personaje.source?.split(' ')[0] || ''
+    if (fuente && fuente.length > 2) {
+      console.log(`[RW] 🔄 Fallback 3: Buscando por serie: ${fuente}`)
+      
+      try {
+        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(fuente)}`)
+        const posts = Array.isArray(data?.data) ? data.data : []
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
+          if (url) {
+            console.log(`[RW] ✅ Imagen de otra chica de ${fuente}`)
+            return url
+          }
+        }
+      } catch (e) {
+        console.log(`[RW] ❌ Fallback 3 error: ${e.message.slice(0, 30)}`)
+      }
+    }
+  }
+
+  // FALLBACK 4: Búsqueda genérica con contexto (anime girl + serie)
+  {
+    const fuente = personaje.source?.split(' ')[0] || ''
+    if (fuente && fuente.length > 2) {
+      const searchTerm = `anime girl ${fuente}`
+      console.log(`[RW] 🔄 Fallback 4: Búsqueda genérica: ${searchTerm}`)
+      
+      try {
+        const data = await getJsonSafe(`https://api.delirius.store/search/gelbooru?query=${encodeURIComponent(searchTerm)}`)
+        const posts = Array.isArray(data?.data) ? data.data : []
+        if (posts.length > 0) {
+          const url = pickRandomImageUrl(posts, (p) => p?.image || null)
+          if (url) {
+            console.log(`[RW] ✅ Chica anime de ${fuente}`)
+            return url
+          }
+        }
+      } catch (e) {
+        console.log(`[RW] ❌ Fallback 4 error: ${e.message.slice(0, 30)}`)
+      }
+    }
+  }
+
   console.log(`[RW] ⚠️ No se encontró imagen para ningún tag`)
   return null
 }
