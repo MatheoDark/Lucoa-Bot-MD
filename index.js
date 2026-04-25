@@ -468,8 +468,17 @@ function validateSessionHealth() {
       validNextPreKeyId: Number.isFinite(creds.nextPreKeyId) && creds.nextPreKeyId > 0,
       isRegistered: creds.registered === true
     }
-    
-    const healthy = Object.values(checks).every(v => v === true)
+
+    // Los campos criptográficos sí son críticos. hasMe/isRegistered pueden recuperarse tras handshake.
+    const hardChecks = {
+      hasNoiseKey: checks.hasNoiseKey,
+      hasSignedIdentityKey: checks.hasSignedIdentityKey,
+      hasPairingKey: checks.hasPairingKey,
+      hasRegistrationId: checks.hasRegistrationId,
+      validNextPreKeyId: checks.validNextPreKeyId
+    }
+
+    const healthy = Object.values(hardChecks).every(v => v === true)
     
     if (!healthy) {
       console.log(chalk.yellow('⚠️ Salud de sesión:'))
@@ -510,8 +519,10 @@ const disconnectTracker = {
   _credsAutoSaveInterval: null,
   consecutive428: 0,
   consecutive401: 0,
+  consecutive440: 0,
   last428Time: 0,
   last401Time: 0,
+  last440Time: 0,
   forcedRelinkAt: 0,
   failureTimestamps: []  // Para detectar patrón de fallos rápidos
 }
@@ -779,14 +790,23 @@ async function startBot() {
   fieldsReport.forEach(r => console.log(chalk.gray(r)))
   
   if (!isSessionValid) {
-    console.log(chalk.red('\n❌ SESIÓN CORRUPTA - Faltan campos críticos:'))
-    missingFields.forEach(f => console.log(chalk.red(`   - ${f}`)))
-    console.log(chalk.yellow('\n🔄 Purgando sesión corrupta y requiriendo nueva vinculación...'))
-    purgeSession()
-    LOGIN_METHOD = await uPLoader()
-    const freshAuth = await useMultiFileAuthState(global.sessionName)
-    state = freshAuth.state
-    saveCreds = freshAuth.saveCreds
+    const hardCriticalFields = ['noiseKey', 'signedIdentityKey', 'pairingEphemeralKeyPair', 'signedPreKey', 'registrationId', 'advSecretKey']
+    const missingHardCritical = hardCriticalFields.filter((f) => !state.creds[f])
+    const missingOnlyMe = missingHardCritical.length === 0 && !state.creds.me
+
+    if (missingOnlyMe) {
+      console.log(chalk.yellow('\n⚠️ Faltó campo me temporalmente. Evitando purga para no forzar relink innecesario.'))
+      console.log(chalk.yellow('🔁 Se intentará recuperar en el próximo handshake.'))
+    } else {
+      console.log(chalk.red('\n❌ SESIÓN CORRUPTA - Faltan campos críticos:'))
+      missingFields.forEach(f => console.log(chalk.red(`   - ${f}`)))
+      console.log(chalk.yellow('\n🔄 Purgando sesión corrupta y requiriendo nueva vinculación...'))
+      purgeSession()
+      LOGIN_METHOD = await uPLoader()
+      const freshAuth = await useMultiFileAuthState(global.sessionName)
+      state = freshAuth.state
+      saveCreds = freshAuth.saveCreds
+    }
   } else {
     console.log(chalk.green('✅ Sesión válida - Todos los campos presentes\n'))
   }
@@ -953,7 +973,18 @@ async function startBot() {
         requestBotRestart(6000, 'multideviceMismatch')
       }
       else if (reason === DisconnectReason.connectionReplaced) {
-        log.warn("⚠️ Conexión reemplazada por otra sesión. No se reconecta.")
+        const now = Date.now()
+        if (now - disconnectTracker.last440Time < 60000) {
+          disconnectTracker.consecutive440++
+        } else {
+          disconnectTracker.consecutive440 = 1
+        }
+        disconnectTracker.last440Time = now
+
+        const delay = disconnectTracker.consecutive440 >= 3 ? 120000 : 30000
+        log.warn(`⚠️ Conexión reemplazada por otra sesión (440). Reintentando en ${Math.round(delay / 1000)}s...`)
+        log.warn('💡 Cierra WhatsApp Web/sesiones activas duplicadas para estabilizar la conexión.')
+        requestBotRestart(delay, '440 connectionReplaced')
       }
       else if (reason === DisconnectReason.forbidden) {
         log.error("❌ Conexión prohibida. Purgando sesión...")
@@ -982,7 +1013,9 @@ async function startBot() {
       // ✅ CONEXIÓN EXITOSA - Resetear TODOS los contadores
       disconnectTracker.consecutive428 = 0
       disconnectTracker.consecutive401 = 0
+      disconnectTracker.consecutive440 = 0
       disconnectTracker.last401Time = 0
+      disconnectTracker.last440Time = 0
       disconnectTracker.failureTimestamps = []  // Resetear circuit breaker
       
       // Limpiar timer si aún existe
