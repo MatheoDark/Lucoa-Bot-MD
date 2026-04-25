@@ -512,7 +512,34 @@ const disconnectTracker = {
   consecutive401: 0,
   last428Time: 0,
   last401Time: 0,
+  forcedRelinkAt: 0,
   failureTimestamps: []  // Para detectar patrón de fallos rápidos
+}
+
+const MAX_401_BEFORE_RELINK = 12
+const RESET_401_COUNTER_MS = 120000
+const RELINK_COOLDOWN_MS = 10 * 60 * 1000
+
+function shouldForceRelinkOn401() {
+  const now = Date.now()
+
+  // Si pasaron >2 min sin 401, reiniciar el contador
+  if (now - disconnectTracker.last401Time > RESET_401_COUNTER_MS) {
+    disconnectTracker.consecutive401 = 0
+  }
+
+  disconnectTracker.consecutive401 += 1
+  disconnectTracker.last401Time = now
+
+  if (disconnectTracker.consecutive401 < MAX_401_BEFORE_RELINK) return false
+
+  // Evitar purgas seguidas en ventana corta
+  if (now - disconnectTracker.forcedRelinkAt < RELINK_COOLDOWN_MS) {
+    return false
+  }
+
+  disconnectTracker.forcedRelinkAt = now
+  return true
 }
 
 // ⚠️ IMPORTANTE: Circuit Breaker para bucles infinitos
@@ -546,6 +573,7 @@ function updateFailurePattern(errorType) {
 // Reconectar con delays inteligentes
 function requestBotRestart(delayMs = 1000, reason = '') {
   if (_isShuttingDown) return
+
   if (_isStartingBot) {
     _pendingRestart = true
     log.warn(`⏳ Reinicio pendiente: ${reason || 'startBot en progreso'}`)
@@ -586,7 +614,6 @@ function requestBotRestart(delayMs = 1000, reason = '') {
         }
       } 
       else if (reason.includes('401')) {
-        disconnectTracker.consecutive401++
         if (disconnectTracker.consecutive401 >= 8) {
           log.error(`⚠️ 401 PERSISTENTE (${disconnectTracker.consecutive401}x)`)
           log.error(`💡 Verifica: ¿El número está conectado en otro dispositivo/WhatsApp Web?`)
@@ -883,7 +910,11 @@ async function startBot() {
     }
 
     if (connection === "close") {
-      const reason = lastDisconnect?.error?.output?.statusCode || 0
+      const reason =
+        lastDisconnect?.error?.output?.statusCode ||
+        lastDisconnect?.error?.data?.statusCode ||
+        lastDisconnect?.reason ||
+        0
       console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
       
       // 401 - loggedOut: distinguir logout real de "Connection Failure" temporal
@@ -899,6 +930,16 @@ async function startBot() {
         } else {
           // "Connection Failure" = temporal. Reconectar con espera
           log.warn(`⚠️ 401 Connection Failure - Reconectando...`)
+
+          // Si el 401 se vuelve persistente, forzar relink para cortar bucle infinito
+          if (shouldForceRelinkOn401()) {
+            log.error(`🛑 401 persistente (${disconnectTracker.consecutive401}x). Forzando nueva vinculación.`)
+            purgeSession()
+            LOGIN_METHOD = await uPLoader()
+            requestBotRestart(3000, '401 persistente: sesión purgada')
+            return
+          }
+
           requestBotRestart(5000, '401 Connection Failure')
         }
       }
@@ -941,6 +982,7 @@ async function startBot() {
       // ✅ CONEXIÓN EXITOSA - Resetear TODOS los contadores
       disconnectTracker.consecutive428 = 0
       disconnectTracker.consecutive401 = 0
+      disconnectTracker.last401Time = 0
       disconnectTracker.failureTimestamps = []  // Resetear circuit breaker
       
       // Limpiar timer si aún existe
