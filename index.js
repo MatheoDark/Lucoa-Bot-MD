@@ -155,6 +155,47 @@ function restoreSession() {
   return false
 }
 
+function countLocalPreKeys() {
+  try {
+    if (!fs.existsSync(global.sessionName)) return 0
+    return fs.readdirSync(global.sessionName).filter((f) => f.startsWith('pre-key-')).length
+  } catch {
+    return 0
+  }
+}
+
+async function ensureSessionPreKeys(client, minLocal = 20, uploadCount = 30) {
+  try {
+    const before = countLocalPreKeys()
+    if (before >= minLocal) {
+      if (process.env.PREKEYS_DEBUG) {
+        console.log(chalk.gray(`🔑 Pre-keys locales OK: ${before}`))
+      }
+      return
+    }
+
+    console.log(chalk.yellow(`🔧 Pre-keys bajas (${before}). Intentando recargar ${uploadCount} pre-keys...`))
+
+    if (typeof client?.uploadPreKeys === 'function') {
+      await client.uploadPreKeys(uploadCount)
+    } else if (typeof client?.uploadPreKeysToServerIfRequired === 'function') {
+      await client.uploadPreKeysToServerIfRequired()
+    } else {
+      console.log(chalk.red('⚠️ Este cliente de Baileys no expone uploadPreKeys.'))
+      return
+    }
+
+    if (global._saveCreds) {
+      await global._saveCreds()
+    }
+
+    const after = countLocalPreKeys()
+    console.log(chalk.green(`✅ Pre-keys recargadas: ${before} -> ${after}`))
+  } catch (e) {
+    console.log(chalk.red(`⚠️ No se pudieron recargar pre-keys: ${e.message}`))
+  }
+}
+
 function teardownClient() {
   try {
     if (disconnectTracker._credsAutoSaveInterval) {
@@ -1014,6 +1055,9 @@ async function startBot() {
       
       // Backup de sesión al conectar
       backupSession()
+
+      // Asegurar stock de pre-keys para evitar 401/515 por handshake incompleto.
+      await ensureSessionPreKeys(client)
       
       // 🔧 FIX v11: Auto-save cada 5 minutos SOLO (no cada 3) para evitar JSON corruption
       // Baileys maneja creds.update internamente, no necesitamos guardar tan frecuente
