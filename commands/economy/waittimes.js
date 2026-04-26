@@ -110,7 +110,7 @@ export default {
             const franjasList = pendientes.map(f => `${f.emoji} ${f.label} (${f.horaInicio}:00-${f.horaFin}:00)`).join('\n│  ')
             dropSection = `\n│\n│  🎁 *— DROPS —*\n│  🟢 *¡Hoy es día de drops!*\n│  Pendientes:\n│  ${franjasList}`
           } else {
-            dropSection = `\n│\n│  🎁 *— DROPS —*\n│  ✅ *Todos los drops de hoy enviados*\n│  Próximo ciclo en *2 días*`
+            dropSection = `\n│\n│  🎁 *— DROPS —*\n│  ✅ *Todos los drops de hoy enviados*\n│  Próximo ciclo en *3 días*`
           }
         } else {
           dropSection = `\n│\n│  🎁 *— DROPS —*\n│  ⏳ Próximo día de drops: *${formatTime(dropInfo.proximoCiclo).replace('⏳ ', '').replace(/\*/g, '')}*`

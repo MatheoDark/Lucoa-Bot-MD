@@ -329,6 +329,10 @@ function isTransientSendError(errMsg = '') {
     msg.includes('too many requests') ||
     msg.includes('media upload failed') ||
     msg.includes('fetch failed') ||
+    msg.includes('connection closed') ||
+    msg.includes('connection failure') ||
+    msg.includes('not connected') ||
+    msg.includes('stream errored out') ||
     msg.includes('eai_again') ||
     msg.includes('etimedout') ||
     msg.includes('econnreset') ||
