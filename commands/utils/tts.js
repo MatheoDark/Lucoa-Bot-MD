@@ -8,19 +8,31 @@ const execAsync = promisify(exec)
 
 // Voces con nombre, idioma base y ajuste de pitch
 const voices = [
-  { name: 'Lucoa',    lang: 'es',    pitch: 1.0,  speed: 1.0  },
-  { name: 'María',    lang: 'es',    pitch: 1.2,  speed: 1.0  },
-  { name: 'Carlos',   lang: 'es',    pitch: 0.85, speed: 0.95 },
-  { name: 'Sofía',    lang: 'es',    pitch: 1.3,  speed: 1.05 },
-  { name: 'Diego',    lang: 'es',    pitch: 0.75, speed: 0.9  },
-  { name: 'Elena',    lang: 'es',    pitch: 1.15, speed: 1.1  },
-  { name: 'Pedro',    lang: 'es',    pitch: 0.8,  speed: 1.0  },
-  { name: 'Isabella', lang: 'es',    pitch: 1.35, speed: 1.0  },
-  { name: 'Emma',     lang: 'en-GB', pitch: 1.15, speed: 1.0  },
-  { name: 'Brian',    lang: 'en-US', pitch: 0.9,  speed: 1.0  },
-  { name: 'Sakura',   lang: 'ja',    pitch: 1.25, speed: 1.0  },
-  { name: 'Pierre',   lang: 'fr',    pitch: 0.9,  speed: 1.0  },
+  { name: 'Lucoa',    lang: 'es',    pitch: 1.0,  speed: 0.92 },
+  { name: 'María',    lang: 'es',    pitch: 1.2,  speed: 0.90 },
+  { name: 'Carlos',   lang: 'es',    pitch: 0.85, speed: 0.88 },
+  { name: 'Sofía',    lang: 'es',    pitch: 1.3,  speed: 0.92 },
+  { name: 'Diego',    lang: 'es',    pitch: 0.75, speed: 0.86 },
+  { name: 'Elena',    lang: 'es',    pitch: 1.15, speed: 0.90 },
+  { name: 'Pedro',    lang: 'es',    pitch: 0.8,  speed: 0.88 },
+  { name: 'Isabella', lang: 'es',    pitch: 1.35, speed: 0.90 },
+  { name: 'Emma',     lang: 'en-GB', pitch: 1.15, speed: 0.90 },
+  { name: 'Brian',    lang: 'en-US', pitch: 0.9,  speed: 0.90 },
+  { name: 'Sakura',   lang: 'ja',    pitch: 1.25, speed: 0.92 },
+  { name: 'Pierre',   lang: 'fr',    pitch: 0.9,  speed: 0.90 },
 ]
+
+const RANDOM_STYLE_MODES = [
+  { name: 'normal', speed: 1.0, pitchBoost: 1.0 },
+  { name: 'chistoso', speed: 1.06, pitchBoost: 1.22 },
+]
+
+const clamp = (n, min, max) => Math.min(max, Math.max(min, n))
+const normalizeToken = (s = '') =>
+  String(s)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
 
 export default {
   command: ['tts', 'texttospeech'],
@@ -29,6 +41,7 @@ export default {
 
   run: async ({ client, m, args, usedPrefix, command }) => {
     let text = ''
+    const tokens = [...(args || [])]
 
     if (!args || !args.length) {
       const quoted = m.quoted?.text
@@ -38,6 +51,7 @@ export default {
           `*⚠️ Escribe un texto para convertir a voz.*\n` +
           `Ejemplo: ${usedPrefix + command} Hola, soy Lucoa\n` +
           `Con voz: ${usedPrefix + command} María Hola mundo\n\n` +
+          `> El estilo se aplica automáticamente de forma aleatoria en cada uso.\n\n` +
           `*🎙️ Voces disponibles:*\n${voiceList}`
         )
       }
@@ -46,26 +60,37 @@ export default {
       text = args.join(' ')
     }
 
-    // Verificar si el primer argumento es un nombre de voz
+    // Verificar voz en el primer argumento
     let selectedVoice = null
-    const firstWord = args?.[0]?.toLowerCase()
-    if (firstWord) {
-      const found = voices.find(v => v.name.toLowerCase() === firstWord)
-      if (found) {
-        selectedVoice = found
-        text = args.slice(1).join(' ')
-        if (!text) {
-          const quoted = m.quoted?.text
-          if (!quoted) return m.reply(`*⚠️ Escribe un texto después del nombre de la voz.*`)
-          text = quoted
-        }
+    const randomStyle = RANDOM_STYLE_MODES[Math.floor(Math.random() * RANDOM_STYLE_MODES.length)]
+
+    if (tokens.length) {
+      const current = normalizeToken(tokens[0])
+      const foundVoice = voices.find(v => normalizeToken(v.name) === current)
+      if (foundVoice) {
+        selectedVoice = foundVoice
+        tokens.shift()
       }
+    }
+
+    if (tokens.length) {
+      text = tokens.join(' ')
+    }
+
+    if (!text) {
+      const quoted = m.quoted?.text
+      if (!quoted) {
+        return m.reply('*⚠️ Escribe un texto para convertir a voz.*')
+      }
+      text = quoted
     }
 
     // Si no se eligió voz, seleccionar una al azar
     if (!selectedVoice) {
       selectedVoice = voices[Math.floor(Math.random() * voices.length)]
     }
+
+    text = text.replace(/\s+/g, ' ').trim()
 
     if (text.length > 500) {
       return m.reply('*⚠️ El texto es demasiado largo. Máximo 500 caracteres.*')
@@ -87,15 +112,17 @@ export default {
       }
 
       // Convertir a OGG Opus (formato real de notas de voz de WhatsApp)
-      // Si la voz tiene pitch diferente, aplicarlo en el mismo paso
       const needsPitch = selectedVoice.pitch !== 1.0
-      const sampleRate = Math.round(44100 * selectedVoice.pitch)
-      const pitchFilter = needsPitch
-        ? `-af "asetrate=${sampleRate},aresample=48000,atempo=${selectedVoice.speed}"`
-        : ''
+      const funnyMode = randomStyle.name === 'chistoso'
+      const funnyPitchBoost = randomStyle.pitchBoost
+      const sampleRate = Math.round(44100 * selectedVoice.pitch * funnyPitchBoost)
+      const finalSpeed = clamp(selectedVoice.speed * randomStyle.speed, 0.75, 1.25)
+      const filters = (needsPitch || funnyMode)
+        ? `asetrate=${sampleRate},aresample=48000,atempo=${finalSpeed.toFixed(3)}`
+        : `atempo=${finalSpeed.toFixed(3)}`
 
       await execAsync(
-        `ffmpeg -y -i "${rawFile}" ${pitchFilter} -c:a libopus -b:a 64k -ac 1 -ar 48000 "${outFile}"`,
+        `ffmpeg -y -i "${rawFile}" -af "${filters}" -c:a libopus -b:a 64k -ac 1 -ar 48000 "${outFile}"`,
         { timeout: 15000 }
       )
 
