@@ -502,11 +502,26 @@ function validateSessionHealth() {
 
 // Ejecutar validación cada vez que startBot se llama
 global.validateSessionHealth = validateSessionHealth
+let _saveCredsQueue = Promise.resolve()
+
+function queueCredsSave(saveCreds) {
+  _saveCredsQueue = _saveCredsQueue
+    .then(async () => {
+      if (!saveCreds) return
+      await saveCreds()
+    })
+    .catch((e) => {
+      console.log(chalk.red(`⚠️ Error en cola de credenciales: ${e.message}`))
+    })
+  return _saveCredsQueue
+}
+
 async function saveCredsWithValidation(saveCreds) {
   try {
     if (!saveCreds) return
-    
-    await saveCreds()
+
+    // Serializar escrituras de creds para evitar corrupción por escrituras concurrentes.
+    await queueCredsSave(saveCreds)
     
     // ⚠️ NO validar post-escritura (causaba "Unexpected end of JSON input")
     // Baileys escribe de forma atómica, confiamos en eso.
@@ -537,24 +552,15 @@ const RELINK_COOLDOWN_MS = 10 * 60 * 1000
 
 function shouldForceRelinkOn401() {
   const now = Date.now()
-
-  // Si pasaron >2 min sin 401, reiniciar el contador
   if (now - disconnectTracker.last401Time > RESET_401_COUNTER_MS) {
     disconnectTracker.consecutive401 = 0
   }
-
   disconnectTracker.consecutive401 += 1
   disconnectTracker.last401Time = now
 
-  if (disconnectTracker.consecutive401 < MAX_401_BEFORE_RELINK) return false
-
-  // Evitar purgas seguidas en ventana corta
-  if (now - disconnectTracker.forcedRelinkAt < RELINK_COOLDOWN_MS) {
-    return false
-  }
-
-  disconnectTracker.forcedRelinkAt = now
-  return true
+  // No forzar purga/revinculación automática en 401 Connection Failure temporal.
+  // Evita ciclos destructivos cuando el problema es de red/handshake.
+  return false
 }
 
 // ⚠️ IMPORTANTE: Circuit Breaker para bucles infinitos
@@ -683,9 +689,8 @@ setInterval(cleanTmpFolder, 10 * 60 * 1000)
 // Limpiar al iniciar
 cleanTmpFolder()
 
-// 🔧 FIX v10: Limpiar SOLO pre-keys antiguas en exceso (mantener mínimo 30).
-// ⚠️ CRÍTICO: Las pre-keys son NECESARIAS para que WhatsApp autentique.
-// Borrarlas TODAS causa 401/515 permanente. Siempre mantener al menos 1.
+// Monitoreo de pre-keys (sin podado automático).
+// Evitamos borrar pre-keys porque puede romper handshakes pendientes y causar 401/515.
 function purgePreKeys(forceAll = false) {
   try {
     const sessionDir = global.sessionName
@@ -699,38 +704,25 @@ function purgePreKeys(forceAll = false) {
       })
     
     if (forceAll && files.length > 0) {
-      // Nunca borrar TODAS, mantener al menos la última
-      const keep = files.slice(-1)
-      const toDelete = files.slice(0, -1)
-      
-      for (const file of toDelete) {
-        try { fs.unlinkSync(path.join(sessionDir, file)) } catch {}
-      }
-      console.log(chalk.yellow(`🧹 🔥 PURGA PARCIAL: ${toDelete.length} pre-keys eliminadas (mantuvimos 1)`))
+      console.log(chalk.yellow('⚠️ Purga de pre-keys deshabilitada por seguridad de sesión.'))
       return
     }
 
-    // Mantener las últimas 30 pre-keys, solo borrar el exceso
-    const MAX_PREKEYS = 30
-    if (files.length <= MAX_PREKEYS) {
-      if (process.env.PREKEYS_DEBUG && files.length < 5) {
-        console.log(chalk.yellow(`⚠️ Warning: Solo ${files.length} pre-keys disponibles (ideal 30+)`))
-      }
+    if (files.length < 20) {
+      console.log(chalk.yellow(`⚠️ Pre-keys bajas: ${files.length}. Recomendado: 30+`))
       return
     }
-    
-    const toDelete = files.slice(0, files.length - MAX_PREKEYS)
-    for (const file of toDelete) {
-      try { fs.unlinkSync(path.join(sessionDir, file)) } catch {}
-    }
-    if (toDelete.length > 0) {
-      console.log(chalk.gray(`🔑 Pre-keys antiguas limpiadas: ${toDelete.length} (conservadas: ${files.length - toDelete.length})`))
+
+    if (process.env.PREKEYS_DEBUG) {
+      if (files.length > 1500) {
+        console.log(chalk.gray(`ℹ️ Pre-keys altas: ${files.length} (sin purga automática)`))
+      }
     }
   } catch (e) {
     console.log(chalk.red(`❌ Error limpiando pre-keys: ${e.message}`))
   }
 }
-setInterval(purgePreKeys, 30 * 60 * 1000) // Cada 30 minutos (no cada 10)
+setInterval(purgePreKeys, 60 * 60 * 1000) // Solo monitoreo cada 60 minutos
 
 async function startBot() {
   if (_isStartingBot) {
@@ -815,17 +807,9 @@ async function startBot() {
     console.log(chalk.green('✅ Sesión válida - Todos los campos presentes\n'))
   }
   
-  // Si la sesión tiene identidad y claves, forzar estado registrado
+  // Evitar forzar manualmente "registered": puede causar estados inconsistentes.
   if (state.creds.me && state.creds.noiseKey && state.creds.signedIdentityKey && !state.creds.registered) {
-    console.log(chalk.yellow('🔧 Corrigiendo estado de registro...'))
-    state.creds.registered = true
-    // Guardar inmediatamente para evitar inconsistencias
-    try {
-      await saveCreds()
-      console.log(chalk.green('✅ Estado de registro actualizado'))
-    } catch (e) {
-      console.log(chalk.red(`⚠️ Error guardando credenciales: ${e.message}`))
-    }
+    console.log(chalk.yellow('⚠️ Sesión con claves válidas pero registered=false. Se deja intacto para que Baileys lo maneje.'))
   }
   
   // 🔧 Validar nextPreKeyId (debe ser un número válido)
