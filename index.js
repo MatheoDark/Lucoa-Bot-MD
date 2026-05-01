@@ -587,20 +587,28 @@ const disconnectTracker = {
   failureTimestamps: []  // Para detectar patrón de fallos rápidos
 }
 
-const MAX_401_BEFORE_RELINK = 12
-const RESET_401_COUNTER_MS = 120000
+const MAX_401_BEFORE_RELINK = 15
+const RESET_401_COUNTER_MS = 180000  // 3 minutos para dar tiempo a problemas de red
 const RELINK_COOLDOWN_MS = 10 * 60 * 1000
 
 function shouldForceRelinkOn401() {
   const now = Date.now()
+  
+  // Resetear contador si pasó más de 3 minutos (sesión se recuperó)
   if (now - disconnectTracker.last401Time > RESET_401_COUNTER_MS) {
     disconnectTracker.consecutive401 = 0
   }
+  
   disconnectTracker.consecutive401 += 1
   disconnectTracker.last401Time = now
-
-  // No forzar purga/revinculación automática en 401 Connection Failure temporal.
-  // Evita ciclos destructivos cuando el problema es de red/handshake.
+  
+  // 🔧 FIX: Forzar relink cuando hay MÁS de 15 errores 401 en 3 minutos
+  // Esto indica que la sesión está REALMENTE corrupta, no es un problema temporal de red
+  // El aumento de 12 a 15 da más margen para problemas legítimos de conexión
+  if (disconnectTracker.consecutive401 > MAX_401_BEFORE_RELINK) {
+    return true
+  }
+  
   return false
 }
 
