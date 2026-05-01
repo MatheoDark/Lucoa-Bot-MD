@@ -196,6 +196,39 @@ async function ensureSessionPreKeys(client, minLocal = 20, uploadCount = 30) {
   }
 }
 
+  // 🔧 FIX v3: Detectar y reparar pre-keys desincronizados en 401
+  async function repairPreKeySyncOn401(client) {
+    try {
+      const state = global.client?.authState
+      if (!state?.creds) return
+    
+      const localCount = countLocalPreKeys()
+      const nextPreKeyId = state.creds.nextPreKeyId || 1
+      const expectedCount = Math.max(localCount, nextPreKeyId - 1)
+    
+      // Si hay mucha desincronización, intentar cargar pre-keys nuevos
+      // (Esto fuerza a Baileys a recalcular y sincronizar)
+      if (nextPreKeyId > 100 || (nextPreKeyId - localCount) > 20) {
+        console.log(chalk.yellow(`⚠️ Desincronización de pre-keys detectada:`))
+        console.log(chalk.yellow(`   - nextPreKeyId: ${nextPreKeyId}`))
+        console.log(chalk.yellow(`   - Pre-keys locales: ${localCount}`))
+        console.log(chalk.yellow(`   - Diferencia: ${nextPreKeyId - localCount}`))
+        console.log(chalk.yellow(`\n🔧 Intentando resincronizar pre-keys del servidor...`))
+      
+        // Intenta recargar pre-keys para forzar sincronización
+        if (typeof client?.uploadPreKeysToServerIfRequired === 'function') {
+          await client.uploadPreKeysToServerIfRequired()
+          console.log(chalk.green(`✅ Resincronización de pre-keys completada`))
+        }
+      
+        if (global._saveCreds) {
+          await global._saveCreds()
+        }
+      }
+    } catch (e) {
+      console.log(chalk.gray(`ℹ️ No se pudo reparar pre-keys (esperado): ${e.message}`))
+    }
+
 function teardownClient() {
   try {
     if (disconnectTracker._credsAutoSaveInterval) {
@@ -587,14 +620,14 @@ const disconnectTracker = {
   failureTimestamps: []  // Para detectar patrón de fallos rápidos
 }
 
-const MAX_401_BEFORE_RELINK = 15
-const RESET_401_COUNTER_MS = 180000  // 3 minutos para dar tiempo a problemas de red
+const MAX_401_BEFORE_RELINK = 10
+const RESET_401_COUNTER_MS = 120000  // 2 minutos para detectar sesión corrupta más rápido
 const RELINK_COOLDOWN_MS = 10 * 60 * 1000
 
 function shouldForceRelinkOn401() {
   const now = Date.now()
   
-  // Resetear contador si pasó más de 3 minutos (sesión se recuperó)
+  // Resetear contador si pasó más de 2 minutos sin errores (sesión se recuperó)
   if (now - disconnectTracker.last401Time > RESET_401_COUNTER_MS) {
     disconnectTracker.consecutive401 = 0
   }
@@ -602,9 +635,10 @@ function shouldForceRelinkOn401() {
   disconnectTracker.consecutive401 += 1
   disconnectTracker.last401Time = now
   
-  // 🔧 FIX: Forzar relink cuando hay MÁS de 15 errores 401 en 3 minutos
+  // 🔧 FIX: Forzar relink cuando hay MÁS de 10 errores 401 en 2 minutos
   // Esto indica que la sesión está REALMENTE corrupta, no es un problema temporal de red
-  // El aumento de 12 a 15 da más margen para problemas legítimos de conexión
+  // Umbral bajado a 10 para detectar sesiones inválidas más rápidamente
+  // (ej: registered=false, nextPreKeyId corrupto, etc)
   if (disconnectTracker.consecutive401 > MAX_401_BEFORE_RELINK) {
     return true
   }
@@ -990,6 +1024,9 @@ async function startBot() {
 
           // Si el 401 se vuelve persistente, forzar relink para cortar bucle infinito
           if (shouldForceRelinkOn401()) {
+            // Antes de forzar relink, intentar resincronizar pre-keys
+            await repairPreKeySyncOn401(client)
+          
             log.error(`🛑 401 persistente (${disconnectTracker.consecutive401}x). Forzando nueva vinculación.`)
             purgeSession()
             LOGIN_METHOD = await uPLoader()
@@ -1053,6 +1090,16 @@ async function startBot() {
       disconnectTracker.consecutive440 = 0
       disconnectTracker.last401Time = 0
       disconnectTracker.last440Time = 0
+        // 🔧 NUEVO: Intento temprano de reparación en 5+ errores
+        if (disconnectTracker.consecutive401 === 5) {
+          console.log(chalk.yellow(`🔧 [INTENTO 1] Reparando pre-keys tras 5 errores 401...`))
+          repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación 1: ${e.message}`)))
+        }
+        
+        if (disconnectTracker.consecutive401 === 7) {
+          console.log(chalk.yellow(`🔧 [INTENTO 2] Reparando pre-keys tras 7 errores 401...`))
+          repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación 2: ${e.message}`)))
+        }
       disconnectTracker.failureTimestamps = []  // Resetear circuit breaker
       
       // Limpiar timer si aún existe
