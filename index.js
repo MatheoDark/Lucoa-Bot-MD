@@ -90,6 +90,7 @@ import db from "./lib/system/database.js"
 global.db = db
 
 import handler from './main.js'
+import loadCommandsAndPlugins from './lib/system/commandLoader.js'
 import events from './commands/events.js'
 import {
   Browsers,
@@ -391,10 +392,12 @@ async function loadBots() {
   }
 }
 
-// Queue simple (estilo Megumin/Nekos) — 800ms entre cada envío, con retry en errores transitorios
+// Queue simple (estilo Megumin/Nekos) — manejar rate-limits con delays variables
 const queue = []
 let running = false
-const DELAY = 800
+const DELAY_NORMAL = 800
+const DELAY_AFTER_RATELIMIT = 5000
+let lastWasRateLimit = false
 
 function enqueue(task, opts = {}) {
   queue.push({
@@ -447,6 +450,10 @@ async function run() {
       if (canRetry) {
         const wait = getRetryDelay(errMsg, job.attempts)
         console.warn(`⚠️ Envío falló (${job.label}) intento ${job.attempts}/${job.maxAttempts}. Reintentando en ${Math.round(wait / 1000)}s...`)
+        // Si es rate-overlimit, marcar para usar delay más largo después
+        if (errMsg.toLowerCase().includes('rate-overlimit') || errMsg.toLowerCase().includes('too many requests')) {
+          lastWasRateLimit = true
+        }
         await new Promise(r => setTimeout(r, wait))
         queue.unshift(job)
       } else {
@@ -454,7 +461,10 @@ async function run() {
         if (job.reject) job.reject(e)
       }
     }
-    await new Promise(r => setTimeout(r, DELAY))
+    const sleepDelay = lastWasRateLimit ? DELAY_AFTER_RATELIMIT : DELAY_NORMAL
+    // Después de esperar una vez con delay largo, resetear la bandera
+    if (lastWasRateLimit) lastWasRateLimit = false
+    await new Promise(r => setTimeout(r, sleepDelay))
   }
   running = false
 }
@@ -955,8 +965,8 @@ async function startBot() {
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     getMessage: async () => '',
-    keepAliveIntervalMs: 45000,
-    maxIdleTimeMs: 60000,
+    keepAliveIntervalMs: 60000,
+    maxIdleTimeMs: 120000,
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: undefined,
     emitOwnEvents: true,
@@ -1171,6 +1181,18 @@ async function startBot() {
           float: 'center'
         })
       )
+
+      // Cargar comandos y plugins SOLO una vez tras conexión estable
+      try {
+        if (!global.commandsLoaded) {
+          console.log(chalk.cyan('🔌 Cargando comandos y plugins (post-Open)...'))
+          await loadCommandsAndPlugins()
+          global.commandsLoaded = true
+          console.log(chalk.green('✅ Comandos y plugins cargados.'))
+        }
+      } catch (e) {
+        console.error(chalk.red('❌ Error cargando comandos en post-open:'), e)
+      }
 
       // 🎁 Iniciar scheduler de drops aleatorios
       startDropScheduler(client)

@@ -312,8 +312,10 @@ async function checkPermissions(cmdData, command, m, permissions) {
   return true
 }
 
-// Inicializar Comandos
-loadCommandsAndPlugins()
+// Inicializar Comandos: movido a `index.js` para retrasar queries pesadas
+// loadCommandsAndPlugins() will be called once the socket is fully open to avoid
+// triggering many queries at startup that can lead to rate limits.
+global.commandsLoaded = global.commandsLoaded || false
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EXECUTION FLOW
