@@ -713,52 +713,6 @@ function requestBotRestart(delayMs = 1000, reason = '') {
   
   let finalDelay = delayMs
   
-  // 🔧 Verificar Circuit Breaker primero (detecta bucles RÁPIDO)
-  if (reason.includes('401') || reason.includes('428')) {
-    const circuitDelay = updateFailurePattern(reason.includes('401') ? '401' : '428')
-    if (circuitDelay) {
-      finalDelay = circuitDelay
-    } else {
-      // Sin circuit breaker activado, aplicar lógica normal por tipo de error
-      if (reason.includes('428')) {
-        const now = Date.now()
-        if (now - disconnectTracker.last428Time < 30000) {
-          disconnectTracker.consecutive428++
-        } else {
-          disconnectTracker.consecutive428 = 1
-        }
-        disconnectTracker.last428Time = now
-        
-        if (disconnectTracker.consecutive428 >= 3) {
-          // Aumentar backoff para rate-limits severos
-          finalDelay = 120000
-          log.error(`🛑 BUCLE 428 DETECTADO (${disconnectTracker.consecutive428}x). Esperando ${Math.round(finalDelay/1000)}s...`)
-        } else if (disconnectTracker.consecutive428 >= 2) {
-          finalDelay = Math.max(delayMs, 60000)
-        } else {
-          finalDelay = Math.max(delayMs, 30000)
-        }
-      } 
-      else if (reason.includes('401')) {
-        if (disconnectTracker.consecutive401 >= 8) {
-          log.error(`⚠️ 401 PERSISTENTE (${disconnectTracker.consecutive401}x)`)
-          log.error(`💡 Verifica: ¿El número está conectado en otro dispositivo/WhatsApp Web?`)
-          finalDelay = 30000  // Esperar más si hay 401 persistente
-        } else if (disconnectTracker.consecutive401 >= 5) {
-          finalDelay = 10000
-        } else {
-          finalDelay = Math.max(delayMs, 5000)
-        }
-      }
-    }
-  } else {
-    // Resetear en caso de conectar exitosamente
-    disconnectTracker.consecutive428 = 0
-    disconnectTracker.consecutive401 = 0
-    disconnectTracker.failureTimestamps = []
-    finalDelay = Math.max(delayMs, 3000)
-  }
-  
   console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(finalDelay / 1000)}s... (${reason})`))
   disconnectTracker._reconnectTimer = setTimeout(() => {
     disconnectTracker._reconnectTimer = null
@@ -1058,19 +1012,6 @@ async function startBot() {
         } else {
           // "Connection Failure" = temporal. Reconectar con espera
           log.warn(`⚠️ 401 Connection Failure - Reconectando...`)
-
-          // Si el 401 se vuelve persistente, forzar relink para cortar bucle infinito
-          if (shouldForceRelinkOn401()) {
-            // Antes de forzar relink, intentar resincronizar pre-keys
-            await repairPreKeySyncOn401(client)
-          
-            log.error(`🛑 401 persistente (${disconnectTracker.consecutive401}x). Forzando nueva vinculación.`)
-            purgeSession()
-            LOGIN_METHOD = await uPLoader()
-            requestBotRestart(3000, '401 persistente: sesión purgada')
-            return
-          }
-
           requestBotRestart(5000, '401 Connection Failure')
         }
       }
@@ -1104,7 +1045,7 @@ async function startBot() {
         requestBotRestart(3000, 'forbidden con sesión purgada')
       }
       else if (reason === 428) {
-        // Rate limit - con backoff inteligente
+        // Rate limit - reconexión simple
         log.warn(`⚠️ Error 428: Rate limit. Reconectando...`)
         requestBotRestart(5000, 'rate limit 428')
       }
