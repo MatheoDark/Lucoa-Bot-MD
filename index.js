@@ -17,10 +17,20 @@ import { invalidateGroupCache } from './lib/groupCache.js'
 // 🔥 SISTEMA ANTI-CRASH (VITAL PARA TU VPS)
 // Esto evita que el bot muera si Rule34 o YouTube fallan
 process.on('uncaughtException', (err) => {
-    console.log(chalk.red('⚠️ Error atrapado (Bot sigue vivo):'), err.message)
+  console.log(chalk.red('⚠️ Error atrapado (Bot sigue vivo):'), err?.message)
+  try {
+    console.error(err?.stack || err)
+  } catch (e) {
+    console.error('⚠️ Error mostrando stack:', e?.message)
+  }
 })
 process.on('unhandledRejection', (err) => {
-    console.log(chalk.red('⚠️ Promesa rechazada (Bot sigue vivo):'), err.message)
+  console.log(chalk.red('⚠️ Promesa rechazada (Bot sigue vivo):'), err?.message || err)
+  try {
+    console.error(err?.stack || err)
+  } catch (e) {
+    console.error('⚠️ Error mostrando stack (rejection):', e?.message)
+  }
 })
 
 // 🔥 MANEJO DE SEÑALES PM2 - Cierre limpio sin perder sesión
@@ -228,6 +238,7 @@ async function ensureSessionPreKeys(client, minLocal = 20, uploadCount = 30) {
     } catch (e) {
       console.log(chalk.gray(`ℹ️ No se pudo reparar pre-keys (esperado): ${e.message}`))
     }
+}
 
 function teardownClient() {
   try {
