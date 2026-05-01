@@ -818,68 +818,6 @@ async function startBot() {
 
   let { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
   
-  // 🔧 VALIDACIÓN CRÍTICA: Sesión debe tener TODOS estos campos o será rechazada
-  const requiredFields = {
-    me: 'Identidad del usuario',
-    noiseKey: 'Clave de cifrado Noise',
-    signedIdentityKey: 'Clave de identidad firmada',
-    pairingEphemeralKeyPair: 'Clave efímera de emparejamiento',
-    signedPreKey: 'Clave pre-firmada',
-    registrationId: 'ID de registro',
-    advSecretKey: 'Clave secreta de advertencia'
-  }
-  
-  let isSessionValid = true
-  const missingFields = []
-  const fieldsReport = []
-  for (const [field, description] of Object.entries(requiredFields)) {
-    const exists = !!state.creds[field]
-    fieldsReport.push(`   ${exists ? '✓' : '✗'} ${field.padEnd(25)} - ${description}`)
-    if (!exists) {
-      missingFields.push(`${field} (${description})`)
-      isSessionValid = false
-    }
-  }
-  
-  console.log(chalk.cyan('\n📋 VALIDACIÓN DE SESIÓN:'))
-  fieldsReport.forEach(r => console.log(chalk.gray(r)))
-  
-  if (!isSessionValid) {
-    const hardCriticalFields = ['noiseKey', 'signedIdentityKey', 'pairingEphemeralKeyPair', 'signedPreKey', 'registrationId', 'advSecretKey']
-    const missingHardCritical = hardCriticalFields.filter((f) => !state.creds[f])
-    const missingOnlyMe = missingHardCritical.length === 0 && !state.creds.me
-
-    if (missingOnlyMe) {
-      console.log(chalk.yellow('\n⚠️ Faltó campo me temporalmente. Evitando purga para no forzar relink innecesario.'))
-      console.log(chalk.yellow('🔁 Se intentará recuperar en el próximo handshake.'))
-    } else {
-      console.log(chalk.red('\n❌ SESIÓN CORRUPTA - Faltan campos críticos:'))
-      missingFields.forEach(f => console.log(chalk.red(`   - ${f}`)))
-      console.log(chalk.yellow('\n🔄 Purgando sesión corrupta y requiriendo nueva vinculación...'))
-      purgeSession()
-      LOGIN_METHOD = await uPLoader()
-      const freshAuth = await useMultiFileAuthState(global.sessionName)
-      state = freshAuth.state
-      saveCreds = freshAuth.saveCreds
-    }
-  } else {
-    console.log(chalk.green('✅ Sesión válida - Todos los campos presentes\n'))
-  }
-  
-  // Evitar forzar manualmente "registered": puede causar estados inconsistentes.
-  if (state.creds.me && state.creds.noiseKey && state.creds.signedIdentityKey && !state.creds.registered) {
-    console.log(chalk.yellow('⚠️ Sesión con claves válidas pero registered=false. Se deja intacto para que Baileys lo maneje.'))
-  }
-  
-  // 🔧 Validar nextPreKeyId (debe ser un número válido)
-  if (!Number.isFinite(state.creds.nextPreKeyId) || state.creds.nextPreKeyId < 0) {
-    console.log(chalk.yellow(`🔧 nextPreKeyId inválido (${state.creds.nextPreKeyId}). Corrigiendo...`))
-    state.creds.nextPreKeyId = 1
-    try {
-      await saveCreds()
-    } catch {}
-  }
-  
   // Cachear la versión de Baileys para evitar llamadas repetidas que pueden contribuir
   // a rate limits cuando el bot se reinicia frecuentemente.
   let version
@@ -1015,14 +953,12 @@ async function startBot() {
           requestBotRestart(5000, '401 Connection Failure')
         }
       }
-      // Todos los demás errores temporales
-      else if (reason === DisconnectReason.badSession) {
-        log.warn("⚠️ badSession - Reconectando...")
-        requestBotRestart(5000, 'badSession')
-      }
-      else if (reason === DisconnectReason.multideviceMismatch) {
-        log.warn("⚠️ multideviceMismatch - Reconectando...")
-        requestBotRestart(6000, 'multideviceMismatch')
+      // Configuración de Purga automatica para cuando sabemos que la sesión está inservible
+      else if (reason === DisconnectReason.badSession || reason === DisconnectReason.multideviceMismatch) {
+        log.error(`⚠️ Sesión corrupta o desajuste Multidispositivo (${reason}). Purgando sesión para prevenir loops...`)
+        purgeSession()
+        LOGIN_METHOD = await uPLoader()
+        requestBotRestart(3000, `borrado por ${reason}`)
       }
       else if (reason === DisconnectReason.connectionReplaced) {
         const now = Date.now()
