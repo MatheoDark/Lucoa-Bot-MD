@@ -720,12 +720,13 @@ function requestBotRestart(delayMs = 1000, reason = '') {
         disconnectTracker.last428Time = now
         
         if (disconnectTracker.consecutive428 >= 3) {
-          finalDelay = 20000
-          log.error(`🛑 BUCLE 428 DETECTADO (${disconnectTracker.consecutive428}x). Esperando 20s...`)
+          // Aumentar backoff para rate-limits severos
+          finalDelay = 120000
+          log.error(`🛑 BUCLE 428 DETECTADO (${disconnectTracker.consecutive428}x). Esperando ${Math.round(finalDelay/1000)}s...`)
         } else if (disconnectTracker.consecutive428 >= 2) {
-          finalDelay = Math.max(delayMs, 10000)
+          finalDelay = Math.max(delayMs, 60000)
         } else {
-          finalDelay = Math.max(delayMs, 8000)
+          finalDelay = Math.max(delayMs, 30000)
         }
       } 
       else if (reason.includes('401')) {
@@ -915,7 +916,21 @@ async function startBot() {
     } catch {}
   }
   
-  const { version } = await fetchLatestBaileysVersion()
+  // Cachear la versión de Baileys para evitar llamadas repetidas que pueden contribuir
+  // a rate limits cuando el bot se reinicia frecuentemente.
+  let version
+  try {
+    const now = Date.now()
+    if (!global._baileysVersionCache || (now - global._baileysVersionCache.ts) > 60 * 60 * 1000) {
+      const vobj = await fetchLatestBaileysVersion()
+      global._baileysVersionCache = { ts: now, version: vobj.version }
+    }
+    version = global._baileysVersionCache.version
+  } catch (e) {
+    // Si falla, caer en la versión por defecto que Baileys elija internamente
+    console.log(chalk.yellow('⚠️ No se pudo obtener la versión más reciente de Baileys, usando fallback.'))
+    version = undefined
+  }
   const logger = pino({ level: "silent" })
 
   console.info = () => {}
@@ -945,7 +960,8 @@ async function startBot() {
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: undefined,
     emitOwnEvents: true,
-    fireInitQueries: true,
+    // Desactivar queries iniciales automáticas para reducir carga y evitar rate-limits (428)
+    fireInitQueries: false,
     shouldIgnoreJid: (jid) => jid?.endsWith('@broadcast') || jid === 'status@broadcast',
     cachedGroupMetadata: async (jid) => {
       const cached = groupMetadataCache.get(jid)
