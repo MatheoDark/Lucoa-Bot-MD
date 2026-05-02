@@ -854,22 +854,12 @@ async function startBot() {
     browser: Browsers.macOS('Chrome'),
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
     markOnlineOnConnect: false,
-    generateHighQualityLinkPreview: false,
+    generateHighQualityLinkPreview: true,
     syncFullHistory: false,
     getMessage: async () => '',
-    keepAliveIntervalMs: 60000,
-    maxIdleTimeMs: 120000,
-    connectTimeoutMs: 60000,
-    defaultQueryTimeoutMs: undefined,
-    emitOwnEvents: true,
-    // Desactivar queries iniciales automáticas para reducir carga y evitar rate-limits (428)
-    fireInitQueries: false,
+    keepAliveIntervalMs: 45000,
+    maxIdleTimeMs: 60000,
     shouldIgnoreJid: (jid) => jid?.endsWith('@broadcast') || jid === 'status@broadcast',
-    cachedGroupMetadata: async (jid) => {
-      const cached = groupMetadataCache.get(jid)
-      if (cached && Date.now() - cached.ts < 300000) return cached.data
-      return undefined
-    }
   })
 
   // Actualizar cache de metadatos cuando llegan
@@ -981,13 +971,13 @@ async function startBot() {
         requestBotRestart(3000, 'forbidden con sesión purgada')
       }
       else if (reason === 428) {
-        // Rate limit - reconexión simple
-        log.warn(`⚠️ Error 428: Rate limit. Reconectando...`)
+        // Rate limit normal por reconexiones de Baileys
+        log.warn(`⚠️ Reconectando para estabilizar... (428)`)
         requestBotRestart(5000, 'rate limit 428')
       }
       else if (reason === 515) {
-        // Stream error
-        log.warn(`⚠️ 515 Stream Errored - Reconectando...`)
+        // Stream error (normal en whatsapp)
+        log.warn(`⚠️ Sincronizando con WhatsApp... (515)`)
         requestBotRestart(5000, '515 Stream Errored')
       }
       else {
@@ -1025,9 +1015,6 @@ async function startBot() {
       // Backup de sesión al conectar
       backupSession()
 
-      // Asegurar stock de pre-keys para evitar 401/515 por handshake incompleto.
-      await ensureSessionPreKeys(client)
-      
       // 🔧 FIX v11: Auto-save cada 5 minutos SOLO (no cada 3) para evitar JSON corruption
       // Baileys maneja creds.update internamente, no necesitamos guardar tan frecuente
       if (disconnectTracker._credsAutoSaveInterval) {
@@ -1076,6 +1063,7 @@ async function startBot() {
 
       // 🐉 Auto-actualizar estado de WhatsApp con uptime y estética Lucoa
       if (disconnectTracker._statusInterval) clearInterval(disconnectTracker._statusInterval)
+      if (disconnectTracker._statusTimeout) clearTimeout(disconnectTracker._statusTimeout)
       const updateBotStatus = async () => {
         try {
           const sec = process.uptime()
@@ -1090,9 +1078,8 @@ async function startBot() {
           await client.updateProfileStatus(`🐉 Lucoa Bot · ⏱ ${uptimeStr} activa · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`)
         } catch {}
       }
-      // 🔧 FIX v7: Primer update después de 30s, luego cada 15min (era 5min — demasiadas llamadas API)
-      setTimeout(updateBotStatus, 30000)
-      disconnectTracker._statusInterval = setInterval(updateBotStatus, 15 * 60 * 1000)
+      disconnectTracker._statusTimeout = setTimeout(updateBotStatus, 120000) // Se envía a los 2 minutos, no de inmediato
+      disconnectTracker._statusInterval = setInterval(updateBotStatus, 30 * 60 * 1000) // Cada 30 mins
     }
   })
 
