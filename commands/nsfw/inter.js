@@ -124,7 +124,7 @@ const captions = {
   suckboobs: (from, to) => from === to ? 'se chupa las tetas.' : 'le está chupando las tetas a',
   grabboobs: (from, to) => from === to ? 'se agarra las tetas.' : 'le está agarrando las tetas a',
   tentacle: (from, to) => from === to ? 'está siendo profanado por tentáculos.' : 'usó tentáculos contra',
-  fingering: (from, to) => from === to ? 'se está dedeando.' : 'le está metiendo los dedos a',
+  fingering: (from, to) => from === to ? 'se está dedeando.' : 'se esta dedeando pensando en',
   squirt: (from, to) => from === to ? 'hizo un squirt a chorro.' : 'hizo que se mojara toda',
   deepthroat: (from, to) => from === to ? 'se la metió hasta la garganta.' : 'le hizo garganta profunda a',
   bondage: (from, to) => from === to ? 'se amarró.' : 'amarró completamente a',
