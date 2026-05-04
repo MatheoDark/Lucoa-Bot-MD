@@ -944,34 +944,18 @@ async function startBot() {
             // 🔧 FIX: Incrementar contador (antes no se incrementaba, siempre era 0)
             disconnectTracker.consecutive401++
             const circuitDelay = updateFailurePattern('401')
-            const retryDelay = Math.max(5000, circuitDelay || 0)
 
             log.warn(`⚠️ 401 Connection Failure - Reconectando... (${disconnectTracker.consecutive401}/${MAX_401_BEFORE_RELINK})`)
 
-            // 🔧 FIX: Si el bot acaba de arrancar (uptime < 90s),
-            // esperar progresivamente para que WhatsApp libere la sesión anterior
-            const uptimeSec = process.uptime()
-            if (uptimeSec < 90 && disconnectTracker.consecutive401 <= 3) {
-              // Delay progresivo: 30s, 40s, 50s según intento
-              const coldStartDelay = 20000 + (disconnectTracker.consecutive401 * 10000)
-              log.warn(`🕐 Arranque reciente (${Math.round(uptimeSec)}s uptime). Esperando ${coldStartDelay / 1000}s para que WhatsApp libere sesión anterior... (intento ${disconnectTracker.consecutive401}/3)`)
-              requestBotRestart(coldStartDelay, '401 post-restart cold start')
+            // 🔧 FIX: Después de MAX_401 intentos, la sesión está corrupta → auto-purgar
+            if (disconnectTracker.consecutive401 >= MAX_401_BEFORE_RELINK) {
+              log.error(`❌ ${MAX_401_BEFORE_RELINK}+ errores 401 consecutivos. Sesión corrupta → purgando para re-vincular...`)
+              purgeSession()
+              LOGIN_METHOD = await uPLoader()
+              requestBotRestart(3000, 'auto-purge tras 401 persistente')
             } else {
-              // Reparación de pre-keys, pero con cooldown para no entrar en bucle.
-              const now = Date.now()
-              if (now - disconnectTracker.lastPreKeyRepairAt >= PREKEY_REPAIR_COOLDOWN_MS) {
-                if (disconnectTracker.consecutive401 >= 2) {
-                  disconnectTracker.lastPreKeyRepairAt = now
-                  console.log(chalk.yellow(`🔧 Reparando pre-keys tras ${disconnectTracker.consecutive401} errores 401...`))
-                  repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación pre-keys: ${e.message}`)))
-                }
-              }
-
-              if (circuitDelay) {
-                log.warn(`🛑 Circuit breaker activo por 401. Próximo intento en ${Math.round(retryDelay / 1000)}s.`)
-              }
-
-              requestBotRestart(retryDelay, '401 Connection Failure')
+              // Intentos rápidos con 8s de delay
+              requestBotRestart(8000, '401 Connection Failure')
             }
           }
         }
@@ -1229,15 +1213,14 @@ async function startBot() {
   if (hasMainSession()) {
     console.log(chalk.green("✅ Sesión encontrada. Iniciando bot..."))
     LOGIN_METHOD = null
-    // 🔧 FIX: Esperar 10s antes de conectar para que WhatsApp libere la sesión anterior
-    // Esto es crucial para PM2 restart — evita el bucle de 401 Connection Failure
-    console.log(chalk.yellow('⏳ Esperando 10s para liberar sesión anterior de WhatsApp...'))
-    await new Promise(r => setTimeout(r, 10000))
+    // 🔧 FIX: Breve espera para que WhatsApp libere la sesión anterior tras PM2 restart
+    console.log(chalk.yellow('⏳ Esperando 5s para liberar sesión anterior...'))
+    await new Promise(r => setTimeout(r, 5000))
   } else if (restoreSession()) {
     console.log(chalk.green("✅ Sesión restaurada desde backup. Iniciando bot..."))
     LOGIN_METHOD = null
-    console.log(chalk.yellow('⏳ Esperando 10s para liberar sesión anterior de WhatsApp...'))
-    await new Promise(r => setTimeout(r, 10000))
+    console.log(chalk.yellow('⏳ Esperando 5s para liberar sesión anterior...'))
+    await new Promise(r => setTimeout(r, 5000))
   } else {
     LOGIN_METHOD = await uPLoader()
   }
