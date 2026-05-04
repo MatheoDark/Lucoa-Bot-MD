@@ -47,7 +47,26 @@ async function gracefulShutdown(signal) {
             try { global._gracefulSaveDB(); console.log(chalk.green('✅ DB guardada.')) } catch {}
         }
         
-        // 2. Guardar credenciales AL INSTANTE antes de cerrar para evitar pérdida de llaves
+        // 2. PRIMERO: Desconectar listeners para que client.end() no dispare
+        //    eventos connection.update / creds.update que sobreescriban la sesión
+        if (global.client) {
+            try { global.client.ev.removeAllListeners() } catch {}
+        }
+        
+        // 3. Cancelar timers de reconexión y auto-save
+        if (typeof disconnectTracker !== 'undefined') {
+          if (disconnectTracker._reconnectTimer) {
+            clearTimeout(disconnectTracker._reconnectTimer)
+            disconnectTracker._reconnectTimer = null
+          }
+          if (disconnectTracker._credsAutoSaveInterval) {
+            clearInterval(disconnectTracker._credsAutoSaveInterval)
+            disconnectTracker._credsAutoSaveInterval = null
+          }
+        }
+        
+        // 4. Guardar credenciales DESPUÉS de remover listeners
+        //    (así no hay race condition con creds.update)
         if (global._saveCreds) {
             try {
                 await global._saveCreds()
@@ -57,17 +76,14 @@ async function gracefulShutdown(signal) {
             }
         }
         
-        // 3. Cerrar conexión de WhatsApp
+        // 5. Cerrar conexión de WhatsApp (logout: false para NO invalidar sesión)
         if (global.client) {
-            try {
-                global.client.ev.removeAllListeners('connection.update')
-                // Cerrar socket limpiamente sin error
-                try { global.client.end(undefined) } catch {}
-            } catch {}
+            try { global.client.end(undefined) } catch {}
+            global.client = null
         }
         
-        // Esperar unos ms a que se cierren las conexiones
-        await new Promise(r => setTimeout(r, 500))
+        // Esperar a que se cierren las conexiones de red
+        await new Promise(r => setTimeout(r, 800))
     } catch {}
     console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
     process.exit(0)
@@ -886,7 +902,9 @@ async function startBot() {
   global._saveCreds = () => saveCredsWithValidation(saveCreds)
   
   // Guardar credenciales cada vez que cambien (muy importante para mantener sesión viva)
+  // 🔧 FIX: NO guardar durante shutdown para evitar race condition
   client.ev.on("creds.update", async () => {
+    if (_isShuttingDown) return // ← Evita sobreescribir creds durante cierre
     if (process.env.CREDS_DEBUG) console.log(chalk.gray('[CREDS] Cambios detectados, guardando...'))
     await saveCredsWithValidation(saveCreds)
   })
@@ -911,6 +929,7 @@ async function startBot() {
     client.sendMessage(jid, { text: text, ...options }, { quoted })
 
   client.ev.on("connection.update", async (update) => {
+    if (_isShuttingDown) return // ← No reconectar si PM2 está cerrando el proceso
     const { qr, connection, lastDisconnect } = update
 
     if (qr && LOGIN_METHOD === '1') {
@@ -943,23 +962,32 @@ async function startBot() {
           const circuitDelay = updateFailurePattern('401')
           const retryDelay = Math.max(5000, circuitDelay || 0)
 
-          log.warn(`⚠️ 401 Connection Failure - Reintentando sin borrar sesión... (${disconnectTracker.consecutive401}/${MAX_401_BEFORE_RELINK})`)
+          log.warn(`⚠️ 401 Connection Failure - Reconectando... (${disconnectTracker.consecutive401}/${MAX_401_BEFORE_RELINK})`)
 
-          // Reparación de pre-keys, pero con cooldown para no entrar en bucle.
-          const now = Date.now()
-          if (now - disconnectTracker.lastPreKeyRepairAt >= PREKEY_REPAIR_COOLDOWN_MS) {
-            if (disconnectTracker.consecutive401 >= 2) {
-              disconnectTracker.lastPreKeyRepairAt = now
-              console.log(chalk.yellow(`🔧 Reparando pre-keys tras ${disconnectTracker.consecutive401} errores 401...`))
-              repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación pre-keys: ${e.message}`)))
+          // 🔧 FIX: Si es el primer intento tras reinicio de PM2 (uptime < 30s),
+          // esperar más para que WhatsApp libere la sesión anterior
+          const uptimeSec = process.uptime()
+          if (uptimeSec < 30 && disconnectTracker.consecutive401 <= 2) {
+            const coldStartDelay = 15000 // 15s para primer intento post-restart
+            log.warn(`🕐 Arranque reciente (${Math.round(uptimeSec)}s uptime). Esperando ${coldStartDelay/1000}s para que WhatsApp libere sesión anterior...`)
+            requestBotRestart(coldStartDelay, '401 post-restart cold start')
+          } else {
+            // Reparación de pre-keys, pero con cooldown para no entrar en bucle.
+            const now = Date.now()
+            if (now - disconnectTracker.lastPreKeyRepairAt >= PREKEY_REPAIR_COOLDOWN_MS) {
+              if (disconnectTracker.consecutive401 >= 2) {
+                disconnectTracker.lastPreKeyRepairAt = now
+                console.log(chalk.yellow(`🔧 Reparando pre-keys tras ${disconnectTracker.consecutive401} errores 401...`))
+                repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación pre-keys: ${e.message}`)))
+              }
             }
-          }
 
-          if (circuitDelay) {
-            log.warn(`🛑 Circuit breaker activo por 401. Próximo intento en ${Math.round(retryDelay / 1000)}s.`)
-          }
+            if (circuitDelay) {
+              log.warn(`🛑 Circuit breaker activo por 401. Próximo intento en ${Math.round(retryDelay / 1000)}s.`)
+            }
 
-          requestBotRestart(retryDelay, '401 Connection Failure')
+            requestBotRestart(retryDelay, '401 Connection Failure')
+          }
         }
       }
       // Configuración de Purga automatica para cuando sabemos que la sesión está inservible
