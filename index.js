@@ -47,20 +47,7 @@ async function gracefulShutdown(signal) {
             try { global._gracefulSaveDB(); console.log(chalk.green('✅ DB guardada.')) } catch {}
         }
         
-        // 2. Cerrar conexión de WhatsApp LIMPIAMENTE ANTES de forzar credenciales finales
-        if (global.client) {
-            try {
-                // Desuscribir solo connection.update para evitar bucle de reconexión, preservando creds.update
-                global.client.ev.removeAllListeners('connection.update')
-                // 🔧 FIX v8: Usar end() que envía close frame al servidor de WA
-                try { global.client.end(new Error('Graceful Shutdown')) } catch {}
-            } catch {}
-        }
-        
-        // Esperar 2s para que WA registre el close frame
-        await new Promise(r => setTimeout(r, 2000))
-        
-        // 3. Guardar credenciales AL FINAL
+        // 2. Guardar credenciales AL INSTANTE antes de cerrar para evitar pérdida de llaves
         if (global._saveCreds) {
             try {
                 await global._saveCreds()
@@ -69,6 +56,18 @@ async function gracefulShutdown(signal) {
                 console.error('⚠️ Error guardando credenciales:', e.message)
             }
         }
+        
+        // 3. Cerrar conexión de WhatsApp
+        if (global.client) {
+            try {
+                global.client.ev.removeAllListeners('connection.update')
+                // Cerrar socket limpiamente sin error
+                try { global.client.end(undefined) } catch {}
+            } catch {}
+        }
+        
+        // Esperar unos ms a que se cierren las conexiones
+        await new Promise(r => setTimeout(r, 500))
     } catch {}
     console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
     process.exit(0)
@@ -638,12 +637,14 @@ const disconnectTracker = {
   last401Time: 0,
   last440Time: 0,
   forcedRelinkAt: 0,
+  lastPreKeyRepairAt: 0,
   failureTimestamps: []  // Para detectar patrón de fallos rápidos
 }
 
-const MAX_401_BEFORE_RELINK = 10
+const MAX_401_BEFORE_RELINK = 4
 const RESET_401_COUNTER_MS = 120000  // 2 minutos para detectar sesión corrupta más rápido
 const RELINK_COOLDOWN_MS = 10 * 60 * 1000
+const PREKEY_REPAIR_COOLDOWN_MS = 10 * 60 * 1000
 
 function shouldForceRelinkOn401() {
   const now = Date.now()
@@ -939,8 +940,26 @@ async function startBot() {
           requestBotRestart(3000, 'nueva vinculación tras logout real')
         } else {
           // "Connection Failure" = temporal. Reconectar con espera
-          log.warn(`⚠️ 401 Connection Failure - Reconectando...`)
-          requestBotRestart(5000, '401 Connection Failure')
+          const circuitDelay = updateFailurePattern('401')
+          const retryDelay = Math.max(5000, circuitDelay || 0)
+
+          log.warn(`⚠️ 401 Connection Failure - Reintentando sin borrar sesión... (${disconnectTracker.consecutive401}/${MAX_401_BEFORE_RELINK})`)
+
+          // Reparación de pre-keys, pero con cooldown para no entrar en bucle.
+          const now = Date.now()
+          if (now - disconnectTracker.lastPreKeyRepairAt >= PREKEY_REPAIR_COOLDOWN_MS) {
+            if (disconnectTracker.consecutive401 >= 2) {
+              disconnectTracker.lastPreKeyRepairAt = now
+              console.log(chalk.yellow(`🔧 Reparando pre-keys tras ${disconnectTracker.consecutive401} errores 401...`))
+              repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación pre-keys: ${e.message}`)))
+            }
+          }
+
+          if (circuitDelay) {
+            log.warn(`🛑 Circuit breaker activo por 401. Próximo intento en ${Math.round(retryDelay / 1000)}s.`)
+          }
+
+          requestBotRestart(retryDelay, '401 Connection Failure')
         }
       }
       // Configuración de Purga automatica para cuando sabemos que la sesión está inservible
@@ -994,24 +1013,13 @@ async function startBot() {
       disconnectTracker.consecutive440 = 0
       disconnectTracker.last401Time = 0
       disconnectTracker.last440Time = 0
-        // 🔧 NUEVO: Intento temprano de reparación en 5+ errores
-        if (disconnectTracker.consecutive401 === 5) {
-          console.log(chalk.yellow(`🔧 [INTENTO 1] Reparando pre-keys tras 5 errores 401...`))
-          repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación 1: ${e.message}`)))
-        }
-        
-        if (disconnectTracker.consecutive401 === 7) {
-          console.log(chalk.yellow(`🔧 [INTENTO 2] Reparando pre-keys tras 7 errores 401...`))
-          repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación 2: ${e.message}`)))
-        }
       disconnectTracker.failureTimestamps = []  // Resetear circuit breaker
-      
+
       // Limpiar timer si aún existe
       if (disconnectTracker._reconnectTimer) {
         clearTimeout(disconnectTracker._reconnectTimer)
         disconnectTracker._reconnectTimer = null
-      }
-      
+      }      
       // Backup de sesión al conectar
       backupSession()
 
