@@ -38,55 +38,37 @@ let _isShuttingDown = false
 const _processStartTime = Date.now() // Para detectar reinicios rápidos de PM2
 
 async function gracefulShutdown(signal) {
-    if (_isShuttingDown) return
-    _isShuttingDown = true
-    console.log(chalk.yellow(`📴 ${signal} recibido. Cerrando limpiamente...`))
-    try {
-        // 1. Guardar DB
-        if (global._gracefulSaveDB) {
-            try { global._gracefulSaveDB(); console.log(chalk.green('✅ DB guardada.')) } catch {}
-        }
-        
-        // 2. PRIMERO: Desconectar listeners para que client.end() no dispare
-        //    eventos connection.update / creds.update que sobreescriban la sesión
-        if (global.client) {
-            try { global.client.ev.removeAllListeners() } catch {}
-        }
-        
-        // 3. Cancelar timers de reconexión y auto-save
-        if (typeof disconnectTracker !== 'undefined') {
-          if (disconnectTracker._reconnectTimer) {
-            clearTimeout(disconnectTracker._reconnectTimer)
-            disconnectTracker._reconnectTimer = null
-          }
-          if (disconnectTracker._credsAutoSaveInterval) {
-            clearInterval(disconnectTracker._credsAutoSaveInterval)
-            disconnectTracker._credsAutoSaveInterval = null
-          }
-        }
-        
-        // 4. Guardar credenciales DESPUÉS de remover listeners
-        //    (así no hay race condition con creds.update)
-        if (global._saveCreds) {
-            try {
-                await global._saveCreds()
-                console.log(chalk.green('✅ Credenciales guardadas.'))
-            } catch (e) {
-                console.error('⚠️ Error guardando credenciales:', e.message)
-            }
-        }
-        
-        // 5. Cerrar conexión de WhatsApp (logout: false para NO invalidar sesión)
-        if (global.client) {
-            try { global.client.end(undefined) } catch {}
-            global.client = null
-        }
-        
-        // Esperar a que se cierren las conexiones de red
-        await new Promise(r => setTimeout(r, 800))
-    } catch {}
-    console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
-    process.exit(0)
+  if (_isShuttingDown) return
+  _isShuttingDown = true
+  console.log(chalk.yellow(`📴 ${signal} recibido. Cerrando limpiamente...`))
+  try {
+    // 1. Guardar DB
+    if (global._gracefulSaveDB) {
+      try { global._gracefulSaveDB(); console.log(chalk.green('✅ DB guardada.')) } catch { }
+    }
+
+    // 2. Remover TODOS los listeners para que nada sobreescriba credenciales
+    if (global.client) {
+      try { global.client.ev.removeAllListeners() } catch { }
+    }
+
+    // 3. Guardar credenciales (después de remover listeners para evitar race condition)
+    if (global._saveCreds) {
+      try {
+        await global._saveCreds()
+        console.log(chalk.green('✅ Credenciales guardadas.'))
+      } catch (e) {
+        console.error('⚠️ Error guardando credenciales:', e.message)
+      }
+    }
+
+    // 4. NO llamar client.end() — dejar que PM2 mate el proceso naturalmente.
+    //    client.end() puede enviar una señal de cierre a WhatsApp que invalida la sesión.
+    //    Al dejar que el proceso muera, WhatsApp simplemente detecta "conexión perdida"
+    //    y permite reconectar con las mismas credenciales.
+  } catch { }
+  console.log(chalk.green('✅ Sesión preservada. Saliendo...'))
+  process.exit(0)
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
@@ -222,38 +204,38 @@ async function ensureSessionPreKeys(client, minLocal = 20, uploadCount = 30) {
   }
 }
 
-  // 🔧 FIX v3: Detectar y reparar pre-keys desincronizados en 401
-  async function repairPreKeySyncOn401(client) {
-    try {
-      const state = global.client?.authState
-      if (!state?.creds) return
-    
-      const localCount = countLocalPreKeys()
-      const nextPreKeyId = state.creds.nextPreKeyId || 1
-      const expectedCount = Math.max(localCount, nextPreKeyId - 1)
-    
-      // Si hay mucha desincronización, intentar cargar pre-keys nuevos
-      // (Esto fuerza a Baileys a recalcular y sincronizar)
-      if (nextPreKeyId > 100 || (nextPreKeyId - localCount) > 20) {
-        console.log(chalk.yellow(`⚠️ Desincronización de pre-keys detectada:`))
-        console.log(chalk.yellow(`   - nextPreKeyId: ${nextPreKeyId}`))
-        console.log(chalk.yellow(`   - Pre-keys locales: ${localCount}`))
-        console.log(chalk.yellow(`   - Diferencia: ${nextPreKeyId - localCount}`))
-        console.log(chalk.yellow(`\n🔧 Intentando resincronizar pre-keys del servidor...`))
-      
-        // Intenta recargar pre-keys para forzar sincronización
-        if (typeof client?.uploadPreKeysToServerIfRequired === 'function') {
-          await client.uploadPreKeysToServerIfRequired()
-          console.log(chalk.green(`✅ Resincronización de pre-keys completada`))
-        }
-      
-        if (global._saveCreds) {
-          await global._saveCreds()
-        }
+// 🔧 FIX v3: Detectar y reparar pre-keys desincronizados en 401
+async function repairPreKeySyncOn401(client) {
+  try {
+    const state = global.client?.authState
+    if (!state?.creds) return
+
+    const localCount = countLocalPreKeys()
+    const nextPreKeyId = state.creds.nextPreKeyId || 1
+    const expectedCount = Math.max(localCount, nextPreKeyId - 1)
+
+    // Si hay mucha desincronización, intentar cargar pre-keys nuevos
+    // (Esto fuerza a Baileys a recalcular y sincronizar)
+    if (nextPreKeyId > 100 || (nextPreKeyId - localCount) > 20) {
+      console.log(chalk.yellow(`⚠️ Desincronización de pre-keys detectada:`))
+      console.log(chalk.yellow(`   - nextPreKeyId: ${nextPreKeyId}`))
+      console.log(chalk.yellow(`   - Pre-keys locales: ${localCount}`))
+      console.log(chalk.yellow(`   - Diferencia: ${nextPreKeyId - localCount}`))
+      console.log(chalk.yellow(`\n🔧 Intentando resincronizar pre-keys del servidor...`))
+
+      // Intenta recargar pre-keys para forzar sincronización
+      if (typeof client?.uploadPreKeysToServerIfRequired === 'function') {
+        await client.uploadPreKeysToServerIfRequired()
+        console.log(chalk.green(`✅ Resincronización de pre-keys completada`))
       }
-    } catch (e) {
-      console.log(chalk.gray(`ℹ️ No se pudo reparar pre-keys (esperado): ${e.message}`))
+
+      if (global._saveCreds) {
+        await global._saveCreds()
+      }
     }
+  } catch (e) {
+    console.log(chalk.gray(`ℹ️ No se pudo reparar pre-keys (esperado): ${e.message}`))
+  }
 }
 
 function teardownClient() {
@@ -267,11 +249,11 @@ function teardownClient() {
       disconnectTracker._reconnectTimer = null
     }
     if (global.client) {
-      try { global.client.ev.removeAllListeners() } catch {}
-      try { global.client.end() } catch {}
+      try { global.client.ev.removeAllListeners() } catch { }
+      try { global.client.end() } catch { }
       global.client = null
     }
-  } catch {}
+  } catch { }
 }
 
 function purgeSession() {
@@ -281,11 +263,11 @@ function purgeSession() {
     // No hacer backup de una sesión que sabemos que está mala (401/403/Forbidden)
     const backupPath = path.join(global.sessionName, 'creds.backup.json')
     if (fs.existsSync(backupPath)) fs.unlinkSync(backupPath)
-    
+
     fs.rmSync(global.sessionName, { recursive: true, force: true })
     fs.mkdirSync(global.sessionName, { recursive: true })
     console.log(chalk.cyan("♻️ Sesión reiniciada y purgada por completo."))
-  } catch {}
+  } catch { }
 }
 
 function hasMainSession() {
@@ -386,20 +368,20 @@ async function loadBots() {
         await new Promise((res) => setTimeout(res, 2000))
       }
     }
-    
+
     // Reset counter si fue exitoso
     botLoadState.retryCount = 0
     setTimeout(loadBots, 15 * 60 * 1000) // 🔧 FIX v6: Cada 15 min (era 5 min, causaba handshakes excesivos)
-    
+
   } catch (err) {
     console.error(`⚠️ Error en loadBots:`, err.message)
     botLoadState.retryCount++
-    
+
     if (botLoadState.retryCount >= botLoadState.maxRetries) {
       console.error('❌ loadBots falló demasiadas veces. Parando reconexión de SubBots.')
       return
     }
-    
+
     // Backoff exponencial: 10s, 20s, 40s, 80s, 160s, capped at 5 min
     const delay = Math.min(10000 * Math.pow(2, botLoadState.retryCount - 1), botLoadState.maxBackoff)
     console.log(`🔄 Reintentando en ${Math.round(delay / 1000)}s (intento ${botLoadState.retryCount}/${botLoadState.maxRetries})...`)
@@ -485,7 +467,7 @@ async function run() {
 }
 
 // Se mantiene solo para compatibilidad con connection.update (428)
-export function activateRecoveryMode() {}
+export function activateRecoveryMode() { }
 
 export function patchSendMessage(client) {
   if (client._sendMessagePatched) return
@@ -569,10 +551,10 @@ function validateSessionHealth() {
       console.log(chalk.yellow('⚠️ creds.json no existe (sesión nueva)'))
       return { healthy: true, isNew: true }
     }
-    
+
     const content = fs.readFileSync(credsPath, 'utf8')
     const creds = JSON.parse(content)
-    
+
     const checks = {
       hasMe: !!creds.me,
       hasNoiseKey: !!creds.noiseKey,
@@ -593,7 +575,7 @@ function validateSessionHealth() {
     }
 
     const healthy = Object.values(hardChecks).every(v => v === true)
-    
+
     if (!healthy) {
       console.log(chalk.yellow('⚠️ Salud de sesión:'))
       Object.entries(checks).forEach(([key, value]) => {
@@ -602,7 +584,7 @@ function validateSessionHealth() {
         console.log(color(`   ${icon} ${key}`))
       })
     }
-    
+
     return { healthy, checks }
   } catch (e) {
     console.log(chalk.red(`❌ Error validando sesión: ${e.message}`))
@@ -632,7 +614,7 @@ async function saveCredsWithValidation(saveCreds) {
 
     // Serializar escrituras de creds para evitar corrupción por escrituras concurrentes.
     await queueCredsSave(saveCreds)
-    
+
     // ⚠️ NO validar post-escritura (causaba "Unexpected end of JSON input")
     // Baileys escribe de forma atómica, confiamos en eso.
     if (process.env.CREDS_DEBUG) console.log(chalk.gray('✓ Credenciales guardadas'))
@@ -664,15 +646,15 @@ const PREKEY_REPAIR_COOLDOWN_MS = 10 * 60 * 1000
 
 function shouldForceRelinkOn401() {
   const now = Date.now()
-  
+
   // Resetear contador si pasó más de 2 minutos sin errores (sesión se recuperó)
   if (now - disconnectTracker.last401Time > RESET_401_COUNTER_MS) {
     disconnectTracker.consecutive401 = 0
   }
-  
+
   disconnectTracker.consecutive401 += 1
   disconnectTracker.last401Time = now
-  
+
   // 🔧 FIX: Forzar relink cuando hay MÁS de 10 errores 401 en 2 minutos
   // Esto indica que la sesión está REALMENTE corrupta, no es un problema temporal de red
   // Umbral bajado a 10 para detectar sesiones inválidas más rápidamente
@@ -680,7 +662,7 @@ function shouldForceRelinkOn401() {
   if (disconnectTracker.consecutive401 > MAX_401_BEFORE_RELINK) {
     return true
   }
-  
+
   return false
 }
 
@@ -689,14 +671,14 @@ function shouldForceRelinkOn401() {
 function updateFailurePattern(errorType) {
   const now = Date.now()
   disconnectTracker.failureTimestamps.push(now)
-  
+
   // Limpiar timestamps más antiguos de 30s
   disconnectTracker.failureTimestamps = disconnectTracker.failureTimestamps.filter(
     ts => now - ts < 30000
   )
-  
+
   const recentFailures = disconnectTracker.failureTimestamps.length
-  
+
   if (recentFailures >= 5) {
     // Espera exponencial: 10s, 20s, 40s, 80s... máximo 2 min
     const timeInCircuitBreaker = Math.min(
@@ -708,7 +690,7 @@ function updateFailurePattern(errorType) {
     log.error(`💡 Consejo: Revisa que el número NO esté conectado en otro dispositivo/navegador`)
     return timeInCircuitBreaker
   }
-  
+
   return null  // Sin circuit breaker
 }
 
@@ -721,15 +703,15 @@ function requestBotRestart(delayMs = 1000, reason = '') {
     log.warn(`⏳ Reinicio pendiente: ${reason || 'startBot en progreso'}`)
     return
   }
-  
+
   // Cancelar timer anterior
   if (disconnectTracker._reconnectTimer) {
     clearTimeout(disconnectTracker._reconnectTimer)
     disconnectTracker._reconnectTimer = null
   }
-  
+
   let finalDelay = delayMs
-  
+
   console.log(chalk.cyan(`🔄 Reconectando en ${Math.round(finalDelay / 1000)}s... (${reason})`))
   disconnectTracker._reconnectTimer = setTimeout(() => {
     disconnectTracker._reconnectTimer = null
@@ -754,10 +736,10 @@ function cleanTmpFolder() {
           fs.unlinkSync(filePath)
           deleted++
         }
-      } catch {}
+      } catch { }
     }
     if (deleted > 0) console.log(chalk.gray(`🧹 tmp limpiado: ${deleted} archivo(s) eliminado(s)`))
-  } catch {}
+  } catch { }
 }
 
 // Limpiar tmp cada 10 minutos
@@ -778,7 +760,7 @@ function purgePreKeys(forceAll = false) {
         const numB = parseInt(b.replace('pre-key-', '')) || 0
         return numA - numB
       })
-    
+
     if (forceAll && files.length > 0) {
       console.log(chalk.yellow('⚠️ Purga de pre-keys deshabilitada por seguridad de sesión.'))
       return
@@ -808,425 +790,428 @@ async function startBot() {
   _isStartingBot = true
 
   try {
-  // 🔧 CRITICO: Cerrar socket VIEJO antes de crear uno nuevo (como Ellen-Joe)
-  if (global.client) {
-    try {
-      // Usar end() en lugar de ws.close() para cierre limpio
-      global.client.end?.()
-    } catch {}
-    try {
-      global.client.ev?.removeAllListeners()  // Limpia listeners
-    } catch {}
-    global.client = null
-  }
-
-  if (disconnectTracker._credsAutoSaveInterval) {
-    clearInterval(disconnectTracker._credsAutoSaveInterval)
-    disconnectTracker._credsAutoSaveInterval = null
-  }
-
-  await loadDatabaseSafe()
-
-  // 🔧 FIX v10: Validar salud de sesión ANTES de intentar cargar credenciales
-  const sessionHealth = validateSessionHealth()
-  if (!sessionHealth.healthy && !sessionHealth.isNew) {
-    console.log(chalk.red('⚠️ Sesión en estado anómalo. Intentando reparar...'))
-  }
-
-  let { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
-  
-  // Cachear la versión de Baileys para evitar llamadas repetidas que pueden contribuir
-  // a rate limits cuando el bot se reinicia frecuentemente.
-  let version
-  try {
-    const now = Date.now()
-    if (!global._baileysVersionCache || (now - global._baileysVersionCache.ts) > 60 * 60 * 1000) {
-      const vobj = await fetchLatestBaileysVersion()
-      global._baileysVersionCache = { ts: now, version: vobj.version }
-    }
-    version = global._baileysVersionCache.version
-  } catch (e) {
-    // Si falla, caer en la versión por defecto que Baileys elija internamente
-    console.log(chalk.yellow('⚠️ No se pudo obtener la versión más reciente de Baileys, usando fallback.'))
-    version = undefined
-  }
-  const logger = pino({ level: "silent" })
-
-  console.info = () => {}
-  console.debug = () => {}
-  
-  // 🔧 Mostrar información de cuenta para debugging
-  if (state.creds.me) {
-    console.log(chalk.cyan(`📱 Cuenta vinculada: ${state.creds.me.name || 'Sin nombre'}`))
-    console.log(chalk.cyan(`   ID: ${state.creds.me.id.substring(0, 25)}...`))
-    console.log(chalk.cyan(`   Pre-keys disponibles: ${fs.readdirSync(global.sessionName).filter(f => f.startsWith('pre-key-')).length}`))
-    console.log(chalk.cyan(`   nextPreKeyId: ${state.creds.nextPreKeyId}\n`))
-  }
-
-  const groupMetadataCache = new Map()
-
-  const client = makeWASocket({
-    version,
-    logger,
-    browser: Browsers.macOS('Chrome'),
-    auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
-    markOnlineOnConnect: false,
-    generateHighQualityLinkPreview: true,
-    syncFullHistory: false,
-    getMessage: async () => '',
-    keepAliveIntervalMs: 45000,
-    maxIdleTimeMs: 60000,
-    shouldIgnoreJid: (jid) => jid?.endsWith('@broadcast') || jid === 'status@broadcast',
-  })
-
-  // Actualizar cache de metadatos cuando llegan
-  client.ev.on('groups.update', (updates) => {
-    for (const update of updates) {
-      if (update.id) {
-        groupMetadataCache.delete(update.id)
-        invalidateGroupCache(update.id) // Cache centralizado
-      }
-    }
-  })
-  client.ev.on('group-participants.update', ({ id }) => {
-    groupMetadataCache.delete(id)
-    invalidateGroupCache(id) // Cache centralizado
-  })
-
-  patchSendMessage(client)
-  patchInteractive(client)
-  global.client = client
-  client.public = true
-
-  // 🔧 FIX: Exponer saveCreds globalmente para el shutdown handler
-  global._saveCreds = () => saveCredsWithValidation(saveCreds)
-  
-  // Guardar credenciales cada vez que cambien (muy importante para mantener sesión viva)
-  // 🔧 FIX: NO guardar durante shutdown para evitar race condition
-  client.ev.on("creds.update", async () => {
-    if (_isShuttingDown) return // ← Evita sobreescribir creds durante cierre
-    if (process.env.CREDS_DEBUG) console.log(chalk.gray('[CREDS] Cambios detectados, guardando...'))
-    await saveCredsWithValidation(saveCreds)
-  })
-
-  if (!client.authState.creds.registered && LOGIN_METHOD === '2') {
-    setTimeout(async () => {
-      console.clear()
-      cfonts.say('LUCOA-BOT', { font: 'tiny', align: 'center', colors: ['red'] })
-      console.log(chalk.bold.redBright('\nIngrese su número (Ej: 573001234567):'))
-      const fixed = await question(chalk.magentaBright('➤ Número: '))
-      const phoneNumber = normalizePhoneForPairing(fixed)
+    // 🔧 CRITICO: Cerrar socket VIEJO antes de crear uno nuevo (como Ellen-Joe)
+    if (global.client) {
       try {
-        const pairing = await client.requestPairingCode(phoneNumber)
-        console.log(chalk.bgMagenta.white.bold('\n CÓDIGO: '), chalk.white.bold(pairing))
-      } catch (err) {
-        console.log(chalk.red('❌ Error al generar código'))
-      }
-    }, 2000)
-  }
-
-  client.sendText = (jid, text, quoted = "", options) =>
-    client.sendMessage(jid, { text: text, ...options }, { quoted })
-
-  client.ev.on("connection.update", async (update) => {
-    if (_isShuttingDown) return // ← No reconectar si PM2 está cerrando el proceso
-    const { qr, connection, lastDisconnect } = update
-
-    if (qr && LOGIN_METHOD === '1') {
-      console.clear()
-      cfonts.say('QR CODE', { font: 'tiny', align: 'center', colors: ['yellow'] })
-      console.log(chalk.cyan.bold('📸 ESCANEA ESTE CÓDIGO QR\n'))
-      qrcode.generate(qr, { small: true })
+        // Usar end() en lugar de ws.close() para cierre limpio
+        global.client.end?.()
+      } catch { }
+      try {
+        global.client.ev?.removeAllListeners()  // Limpia listeners
+      } catch { }
+      global.client = null
     }
 
-    if (connection === "close") {
-      const reason =
-        lastDisconnect?.error?.output?.statusCode ||
-        lastDisconnect?.error?.data?.statusCode ||
-        lastDisconnect?.reason ||
-        0
-      console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
-      
-      // 401 - loggedOut: distinguir logout real de "Connection Failure" temporal
-      if (reason === DisconnectReason.loggedOut) {
-        const errorMsg = String(lastDisconnect?.error?.message || lastDisconnect?.error || '').toLowerCase()
-        const isRealLogout = errorMsg.includes('logged out')
+    if (disconnectTracker._credsAutoSaveInterval) {
+      clearInterval(disconnectTracker._credsAutoSaveInterval)
+      disconnectTracker._credsAutoSaveInterval = null
+    }
 
-        if (isRealLogout) {
-          log.error(`❌ WhatsApp confirmó cierre de sesión. Se requiere nueva vinculación.`)
+    await loadDatabaseSafe()
+
+    // 🔧 FIX v10: Validar salud de sesión ANTES de intentar cargar credenciales
+    const sessionHealth = validateSessionHealth()
+    if (!sessionHealth.healthy && !sessionHealth.isNew) {
+      console.log(chalk.red('⚠️ Sesión en estado anómalo. Intentando reparar...'))
+    }
+
+    let { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
+
+    // Cachear la versión de Baileys para evitar llamadas repetidas que pueden contribuir
+    // a rate limits cuando el bot se reinicia frecuentemente.
+    let version
+    try {
+      const now = Date.now()
+      if (!global._baileysVersionCache || (now - global._baileysVersionCache.ts) > 60 * 60 * 1000) {
+        const vobj = await fetchLatestBaileysVersion()
+        global._baileysVersionCache = { ts: now, version: vobj.version }
+      }
+      version = global._baileysVersionCache.version
+    } catch (e) {
+      // Si falla, caer en la versión por defecto que Baileys elija internamente
+      console.log(chalk.yellow('⚠️ No se pudo obtener la versión más reciente de Baileys, usando fallback.'))
+      version = undefined
+    }
+    const logger = pino({ level: "silent" })
+
+    console.info = () => { }
+    console.debug = () => { }
+
+    // 🔧 Mostrar información de cuenta para debugging
+    if (state.creds.me) {
+      console.log(chalk.cyan(`📱 Cuenta vinculada: ${state.creds.me.name || 'Sin nombre'}`))
+      console.log(chalk.cyan(`   ID: ${state.creds.me.id.substring(0, 25)}...`))
+      console.log(chalk.cyan(`   Pre-keys disponibles: ${fs.readdirSync(global.sessionName).filter(f => f.startsWith('pre-key-')).length}`))
+      console.log(chalk.cyan(`   nextPreKeyId: ${state.creds.nextPreKeyId}\n`))
+    }
+
+    const groupMetadataCache = new Map()
+
+    const client = makeWASocket({
+      version,
+      logger,
+      browser: Browsers.macOS('Chrome'),
+      auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
+      markOnlineOnConnect: false,
+      generateHighQualityLinkPreview: true,
+      syncFullHistory: false,
+      getMessage: async () => '',
+      keepAliveIntervalMs: 45000,
+      maxIdleTimeMs: 60000,
+      shouldIgnoreJid: (jid) => jid?.endsWith('@broadcast') || jid === 'status@broadcast',
+    })
+
+    // Actualizar cache de metadatos cuando llegan
+    client.ev.on('groups.update', (updates) => {
+      for (const update of updates) {
+        if (update.id) {
+          groupMetadataCache.delete(update.id)
+          invalidateGroupCache(update.id) // Cache centralizado
+        }
+      }
+    })
+    client.ev.on('group-participants.update', ({ id }) => {
+      groupMetadataCache.delete(id)
+      invalidateGroupCache(id) // Cache centralizado
+    })
+
+    patchSendMessage(client)
+    patchInteractive(client)
+    global.client = client
+    client.public = true
+
+    // 🔧 FIX: Exponer saveCreds globalmente para el shutdown handler
+    global._saveCreds = () => saveCredsWithValidation(saveCreds)
+
+    // Guardar credenciales cada vez que cambien (muy importante para mantener sesión viva)
+    // 🔧 FIX: NO guardar durante shutdown para evitar race condition
+    client.ev.on("creds.update", async () => {
+      if (_isShuttingDown) return // ← Evita sobreescribir creds durante cierre
+      if (process.env.CREDS_DEBUG) console.log(chalk.gray('[CREDS] Cambios detectados, guardando...'))
+      await saveCredsWithValidation(saveCreds)
+    })
+
+    if (!client.authState.creds.registered && LOGIN_METHOD === '2') {
+      setTimeout(async () => {
+        console.clear()
+        cfonts.say('LUCOA-BOT', { font: 'tiny', align: 'center', colors: ['red'] })
+        console.log(chalk.bold.redBright('\nIngrese su número (Ej: 573001234567):'))
+        const fixed = await question(chalk.magentaBright('➤ Número: '))
+        const phoneNumber = normalizePhoneForPairing(fixed)
+        try {
+          const pairing = await client.requestPairingCode(phoneNumber)
+          console.log(chalk.bgMagenta.white.bold('\n CÓDIGO: '), chalk.white.bold(pairing))
+        } catch (err) {
+          console.log(chalk.red('❌ Error al generar código'))
+        }
+      }, 2000)
+    }
+
+    client.sendText = (jid, text, quoted = "", options) =>
+      client.sendMessage(jid, { text: text, ...options }, { quoted })
+
+    client.ev.on("connection.update", async (update) => {
+      if (_isShuttingDown) return // ← No reconectar si PM2 está cerrando el proceso
+      const { qr, connection, lastDisconnect } = update
+
+      if (qr && LOGIN_METHOD === '1') {
+        console.clear()
+        cfonts.say('QR CODE', { font: 'tiny', align: 'center', colors: ['yellow'] })
+        console.log(chalk.cyan.bold('📸 ESCANEA ESTE CÓDIGO QR\n'))
+        qrcode.generate(qr, { small: true })
+      }
+
+      if (connection === "close") {
+        const reason =
+          lastDisconnect?.error?.output?.statusCode ||
+          lastDisconnect?.error?.data?.statusCode ||
+          lastDisconnect?.reason ||
+          0
+        console.log(chalk.red(`⚠️ Desconexión: ${reason} | ${lastDisconnect?.error}`))
+
+        // 401 - loggedOut: distinguir logout real de "Connection Failure" temporal
+        if (reason === DisconnectReason.loggedOut) {
+          const errorMsg = String(lastDisconnect?.error?.message || lastDisconnect?.error || '').toLowerCase()
+          const isRealLogout = errorMsg.includes('logged out')
+
+          if (isRealLogout) {
+            log.error(`❌ WhatsApp confirmó cierre de sesión. Se requiere nueva vinculación.`)
+            purgeSession()
+            LOGIN_METHOD = await uPLoader()
+            requestBotRestart(3000, 'nueva vinculación tras logout real')
+          } else {
+            // "Connection Failure" = temporal. Reconectar con espera
+            // 🔧 FIX: Incrementar contador (antes no se incrementaba, siempre era 0)
+            disconnectTracker.consecutive401++
+            const circuitDelay = updateFailurePattern('401')
+            const retryDelay = Math.max(5000, circuitDelay || 0)
+
+            log.warn(`⚠️ 401 Connection Failure - Reconectando... (${disconnectTracker.consecutive401}/${MAX_401_BEFORE_RELINK})`)
+
+            // 🔧 FIX: Si el bot acaba de arrancar (uptime < 90s),
+            // esperar progresivamente para que WhatsApp libere la sesión anterior
+            const uptimeSec = process.uptime()
+            if (uptimeSec < 90 && disconnectTracker.consecutive401 <= 3) {
+              // Delay progresivo: 30s, 40s, 50s según intento
+              const coldStartDelay = 20000 + (disconnectTracker.consecutive401 * 10000)
+              log.warn(`🕐 Arranque reciente (${Math.round(uptimeSec)}s uptime). Esperando ${coldStartDelay / 1000}s para que WhatsApp libere sesión anterior... (intento ${disconnectTracker.consecutive401}/3)`)
+              requestBotRestart(coldStartDelay, '401 post-restart cold start')
+            } else {
+              // Reparación de pre-keys, pero con cooldown para no entrar en bucle.
+              const now = Date.now()
+              if (now - disconnectTracker.lastPreKeyRepairAt >= PREKEY_REPAIR_COOLDOWN_MS) {
+                if (disconnectTracker.consecutive401 >= 2) {
+                  disconnectTracker.lastPreKeyRepairAt = now
+                  console.log(chalk.yellow(`🔧 Reparando pre-keys tras ${disconnectTracker.consecutive401} errores 401...`))
+                  repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación pre-keys: ${e.message}`)))
+                }
+              }
+
+              if (circuitDelay) {
+                log.warn(`🛑 Circuit breaker activo por 401. Próximo intento en ${Math.round(retryDelay / 1000)}s.`)
+              }
+
+              requestBotRestart(retryDelay, '401 Connection Failure')
+            }
+          }
+        }
+        // Configuración de Purga automatica para cuando sabemos que la sesión está inservible
+        else if (reason === DisconnectReason.badSession || reason === DisconnectReason.multideviceMismatch) {
+          log.error(`⚠️ Sesión corrupta o desajuste Multidispositivo (${reason}). Purgando sesión para prevenir loops...`)
           purgeSession()
           LOGIN_METHOD = await uPLoader()
-          requestBotRestart(3000, 'nueva vinculación tras logout real')
-        } else {
-          // "Connection Failure" = temporal. Reconectar con espera
-          const circuitDelay = updateFailurePattern('401')
-          const retryDelay = Math.max(5000, circuitDelay || 0)
-
-          log.warn(`⚠️ 401 Connection Failure - Reconectando... (${disconnectTracker.consecutive401}/${MAX_401_BEFORE_RELINK})`)
-
-          // 🔧 FIX: Si es el primer intento tras reinicio de PM2 (uptime < 30s),
-          // esperar más para que WhatsApp libere la sesión anterior
-          const uptimeSec = process.uptime()
-          if (uptimeSec < 30 && disconnectTracker.consecutive401 <= 2) {
-            const coldStartDelay = 15000 // 15s para primer intento post-restart
-            log.warn(`🕐 Arranque reciente (${Math.round(uptimeSec)}s uptime). Esperando ${coldStartDelay/1000}s para que WhatsApp libere sesión anterior...`)
-            requestBotRestart(coldStartDelay, '401 post-restart cold start')
+          requestBotRestart(3000, `borrado por ${reason}`)
+        }
+        else if (reason === DisconnectReason.connectionReplaced) {
+          const now = Date.now()
+          if (now - disconnectTracker.last440Time < 60000) {
+            disconnectTracker.consecutive440++
           } else {
-            // Reparación de pre-keys, pero con cooldown para no entrar en bucle.
-            const now = Date.now()
-            if (now - disconnectTracker.lastPreKeyRepairAt >= PREKEY_REPAIR_COOLDOWN_MS) {
-              if (disconnectTracker.consecutive401 >= 2) {
-                disconnectTracker.lastPreKeyRepairAt = now
-                console.log(chalk.yellow(`🔧 Reparando pre-keys tras ${disconnectTracker.consecutive401} errores 401...`))
-                repairPreKeySyncOn401(global.client).catch(e => console.log(chalk.gray(`  Reparación pre-keys: ${e.message}`)))
-              }
-            }
-
-            if (circuitDelay) {
-              log.warn(`🛑 Circuit breaker activo por 401. Próximo intento en ${Math.round(retryDelay / 1000)}s.`)
-            }
-
-            requestBotRestart(retryDelay, '401 Connection Failure')
+            disconnectTracker.consecutive440 = 1
           }
+          disconnectTracker.last440Time = now
+
+          const delay = disconnectTracker.consecutive440 >= 3 ? 120000 : 30000
+          log.warn(`⚠️ Conexión reemplazada por otra sesión (440). Reintentando en ${Math.round(delay / 1000)}s...`)
+          log.warn('💡 Cierra WhatsApp Web/sesiones activas duplicadas para estabilizar la conexión.')
+          requestBotRestart(delay, '440 connectionReplaced')
+        }
+        else if (reason === DisconnectReason.forbidden) {
+          log.error("❌ Conexión prohibida. Purgando sesión...")
+          purgeSession()
+          LOGIN_METHOD = await uPLoader()
+          requestBotRestart(3000, 'forbidden con sesión purgada')
+        }
+        else if (reason === 428) {
+          // Rate limit normal por reconexiones de Baileys
+          log.warn(`⚠️ Reconectando para estabilizar... (428)`)
+          requestBotRestart(5000, 'rate limit 428')
+        }
+        else if (reason === 515) {
+          // Stream error (normal en whatsapp)
+          log.warn(`⚠️ Sincronizando con WhatsApp... (515)`)
+          requestBotRestart(5000, '515 Stream Errored')
+        }
+        else {
+          // Todos los demás errores
+          log.warn(`⚠️ Desconexión (${reason}). Reconectando...`)
+          requestBotRestart(4000, `desconexión ${reason}`)
         }
       }
-      // Configuración de Purga automatica para cuando sabemos que la sesión está inservible
-      else if (reason === DisconnectReason.badSession || reason === DisconnectReason.multideviceMismatch) {
-        log.error(`⚠️ Sesión corrupta o desajuste Multidispositivo (${reason}). Purgando sesión para prevenir loops...`)
-        purgeSession()
-        LOGIN_METHOD = await uPLoader()
-        requestBotRestart(3000, `borrado por ${reason}`)
-      }
-      else if (reason === DisconnectReason.connectionReplaced) {
-        const now = Date.now()
-        if (now - disconnectTracker.last440Time < 60000) {
-          disconnectTracker.consecutive440++
-        } else {
-          disconnectTracker.consecutive440 = 1
+
+      if (connection === "open") {
+        // ✅ CONEXIÓN EXITOSA - Resetear TODOS los contadores
+        disconnectTracker.consecutive428 = 0
+        disconnectTracker.consecutive401 = 0
+        disconnectTracker.consecutive440 = 0
+        disconnectTracker.last401Time = 0
+        disconnectTracker.last440Time = 0
+        disconnectTracker.failureTimestamps = []  // Resetear circuit breaker
+
+        // Limpiar timer si aún existe
+        if (disconnectTracker._reconnectTimer) {
+          clearTimeout(disconnectTracker._reconnectTimer)
+          disconnectTracker._reconnectTimer = null
         }
-        disconnectTracker.last440Time = now
+        // Backup de sesión al conectar
+        backupSession()
 
-        const delay = disconnectTracker.consecutive440 >= 3 ? 120000 : 30000
-        log.warn(`⚠️ Conexión reemplazada por otra sesión (440). Reintentando en ${Math.round(delay / 1000)}s...`)
-        log.warn('💡 Cierra WhatsApp Web/sesiones activas duplicadas para estabilizar la conexión.')
-        requestBotRestart(delay, '440 connectionReplaced')
-      }
-      else if (reason === DisconnectReason.forbidden) {
-        log.error("❌ Conexión prohibida. Purgando sesión...")
-        purgeSession()
-        LOGIN_METHOD = await uPLoader()
-        requestBotRestart(3000, 'forbidden con sesión purgada')
-      }
-      else if (reason === 428) {
-        // Rate limit normal por reconexiones de Baileys
-        log.warn(`⚠️ Reconectando para estabilizar... (428)`)
-        requestBotRestart(5000, 'rate limit 428')
-      }
-      else if (reason === 515) {
-        // Stream error (normal en whatsapp)
-        log.warn(`⚠️ Sincronizando con WhatsApp... (515)`)
-        requestBotRestart(5000, '515 Stream Errored')
-      }
-      else {
-        // Todos los demás errores
-        log.warn(`⚠️ Desconexión (${reason}). Reconectando...`)
-        requestBotRestart(4000, `desconexión ${reason}`)
-      }
-    }
+        // 🔧 FIX v11: Auto-save cada 5 minutos SOLO (no cada 3) para evitar JSON corruption
+        // Baileys maneja creds.update internamente, no necesitamos guardar tan frecuente
+        if (disconnectTracker._credsAutoSaveInterval) {
+          clearInterval(disconnectTracker._credsAutoSaveInterval)
+        }
+        disconnectTracker._credsAutoSaveInterval = setInterval(async () => {
+          if (global._saveCreds) {
+            try {
+              await global._saveCreds()
+            } catch (e) {
+              console.log(chalk.red(`⚠️ Error en auto-save: ${e.message}`))
+            }
+          }
+        }, 5 * 60 * 1000) // Cada 5 minutos (era 3)
 
-    if (connection === "open") {
-      // ✅ CONEXIÓN EXITOSA - Resetear TODOS los contadores
-      disconnectTracker.consecutive428 = 0
-      disconnectTracker.consecutive401 = 0
-      disconnectTracker.consecutive440 = 0
-      disconnectTracker.last401Time = 0
-      disconnectTracker.last440Time = 0
-      disconnectTracker.failureTimestamps = []  // Resetear circuit breaker
+        // Timer de estabilidad: si la conexión dura 5 min, reportar estabilidad
+        if (disconnectTracker._stableTimer) clearTimeout(disconnectTracker._stableTimer)
+        disconnectTracker._stableTimer = setTimeout(() => {
+          console.log(chalk.green('✅ Conexión estable por 5min.'))
+        }, 300000)
 
-      // Limpiar timer si aún existe
-      if (disconnectTracker._reconnectTimer) {
-        clearTimeout(disconnectTracker._reconnectTimer)
-        disconnectTracker._reconnectTimer = null
-      }      
-      // Backup de sesión al conectar
-      backupSession()
+        console.log(
+          boxen(chalk.bold(' ¡CONECTADO! '), {
+            borderStyle: 'round',
+            borderColor: 'green',
+            title: chalk.green.bold('● ONLINE ●'),
+            titleAlignment: 'center',
+            float: 'center'
+          })
+        )
 
-      // 🔧 FIX v11: Auto-save cada 5 minutos SOLO (no cada 3) para evitar JSON corruption
-      // Baileys maneja creds.update internamente, no necesitamos guardar tan frecuente
-      if (disconnectTracker._credsAutoSaveInterval) {
-        clearInterval(disconnectTracker._credsAutoSaveInterval)
-      }
-      disconnectTracker._credsAutoSaveInterval = setInterval(async () => {
-        if (global._saveCreds) {
+        // Cargar comandos y plugins SOLO una vez tras conexión estable
+        try {
+          if (!global.commandsLoaded) {
+            console.log(chalk.cyan('🔌 Cargando comandos y plugins (post-Open)...'))
+            await loadCommandsAndPlugins()
+            global.commandsLoaded = true
+            console.log(chalk.green('✅ Comandos y plugins cargados.'))
+          }
+        } catch (e) {
+          console.error(chalk.red('❌ Error cargando comandos en post-open:'), e)
+        }
+
+        // 🎁 Iniciar scheduler de drops aleatorios
+        startDropScheduler(client)
+
+        // 🐉 Auto-actualizar estado de WhatsApp con uptime y estética Lucoa
+        if (disconnectTracker._statusInterval) clearInterval(disconnectTracker._statusInterval)
+        if (disconnectTracker._statusTimeout) clearTimeout(disconnectTracker._statusTimeout)
+        const updateBotStatus = async () => {
           try {
-            await global._saveCreds()
-          } catch (e) {
-            console.log(chalk.red(`⚠️ Error en auto-save: ${e.message}`))
-          }
+            const sec = process.uptime()
+            const d = Math.floor(sec / 86400)
+            const h = Math.floor((sec % 86400) / 3600)
+            const mn = Math.floor((sec % 3600) / 60)
+            const parts = []
+            if (d > 0) parts.push(`${d}d`)
+            if (h > 0) parts.push(`${h}h`)
+            parts.push(`${mn}m`)
+            const uptimeStr = parts.join(' ')
+            await client.updateProfileStatus(`🐉 Lucoa Bot · ⏱ ${uptimeStr} activa · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`)
+          } catch { }
         }
-      }, 5 * 60 * 1000) // Cada 5 minutos (era 3)
-      
-      // Timer de estabilidad: si la conexión dura 5 min, reportar estabilidad
-      if (disconnectTracker._stableTimer) clearTimeout(disconnectTracker._stableTimer)
-      disconnectTracker._stableTimer = setTimeout(() => {
-        console.log(chalk.green('✅ Conexión estable por 5min.'))
-      }, 300000)
-      
-      console.log(
-        boxen(chalk.bold(' ¡CONECTADO! '), {
-          borderStyle: 'round',
-          borderColor: 'green',
-          title: chalk.green.bold('● ONLINE ●'),
-          titleAlignment: 'center',
-          float: 'center'
-        })
-      )
+        disconnectTracker._statusTimeout = setTimeout(updateBotStatus, 120000) // Se envía a los 2 minutos, no de inmediato
+        disconnectTracker._statusInterval = setInterval(updateBotStatus, 30 * 60 * 1000) // Cada 30 mins
+      }
+    })
 
-      // Cargar comandos y plugins SOLO una vez tras conexión estable
+    client.decodeJid = (jid) => {
+      if (!jid) return jid
+      if (/:\d+@/gi.test(jid)) {
+        const decode = jidDecode(jid) || {}
+        return (decode.user && decode.server && decode.user + "@" + decode.server) || jid
+      }
+      return jid
+    }
+
+    try { await events(client) } catch { }
+
+    client.ev.on("messages.upsert", async ({ messages, type }) => {
       try {
-        if (!global.commandsLoaded) {
-          console.log(chalk.cyan('🔌 Cargando comandos y plugins (post-Open)...'))
-          await loadCommandsAndPlugins()
-          global.commandsLoaded = true
-          console.log(chalk.green('✅ Comandos y plugins cargados.'))
-        }
-      } catch (e) {
-        console.error(chalk.red('❌ Error cargando comandos en post-open:'), e)
-      }
+        if (!global.db || !global.db.data) return
 
-      // 🎁 Iniciar scheduler de drops aleatorios
-      startDropScheduler(client)
+        let m = messages?.[0]
+        if (!m?.message) return
+        m.message = Object.keys(m.message)[0] === "ephemeralMessage" ? m.message.ephemeralMessage.message : m.message
 
-      // 🐉 Auto-actualizar estado de WhatsApp con uptime y estética Lucoa
-      if (disconnectTracker._statusInterval) clearInterval(disconnectTracker._statusInterval)
-      if (disconnectTracker._statusTimeout) clearTimeout(disconnectTracker._statusTimeout)
-      const updateBotStatus = async () => {
-        try {
-          const sec = process.uptime()
-          const d = Math.floor(sec / 86400)
-          const h = Math.floor((sec % 86400) / 3600)
-          const mn = Math.floor((sec % 3600) / 60)
-          const parts = []
-          if (d > 0) parts.push(`${d}d`)
-          if (h > 0) parts.push(`${h}h`)
-          parts.push(`${mn}m`)
-          const uptimeStr = parts.join(' ')
-          await client.updateProfileStatus(`🐉 Lucoa Bot · ⏱ ${uptimeStr} activa · ᵖᵒʷᵉʳᵉᵈ ᵇʸ ℳᥝ𝗍ɦᥱ᥆Ɗᥝrƙ`)
-        } catch {}
-      }
-      disconnectTracker._statusTimeout = setTimeout(updateBotStatus, 120000) // Se envía a los 2 minutos, no de inmediato
-      disconnectTracker._statusInterval = setInterval(updateBotStatus, 30 * 60 * 1000) // Cada 30 mins
-    }
-  })
+        // ═══ POLL VOTE HANDLER (para menú interactivo con encuestas) ═══
+        const pollUpdate = m.message?.pollUpdateMessage
+        if (pollUpdate) {
+          try {
+            const pollStore = global.activePollMenus
+            const creationKey = pollUpdate.pollCreationMessageKey
+            if (creationKey) {
+              const pollData = pollStore.get(creationKey.id)
+              if (pollData) {
+                // Recopilar TODOS los JIDs posibles del bot (creator)
+                const creatorSet = new Set()
+                const meNorm = jidNormalizedUser(client.user.id)
+                creatorSet.add(meNorm)
+                // LID del bot desde authState
+                const meLid = client.authState?.creds?.me?.lid
+                if (meLid) creatorSet.add(jidNormalizedUser(meLid))
+                // PN del bot (extraer de id si tiene formato user:device@s.whatsapp.net)
+                const meDecoded = jidDecode(client.user.id)
+                if (meDecoded?.user) creatorSet.add(meDecoded.user + '@s.whatsapp.net')
 
-  client.decodeJid = (jid) => {
-    if (!jid) return jid
-    if (/:\d+@/gi.test(jid)) {
-      const decode = jidDecode(jid) || {}
-      return (decode.user && decode.server && decode.user + "@" + decode.server) || jid
-    }
-    return jid
-  }
+                // Recopilar TODOS los JIDs posibles del votante
+                const voterSet = new Set()
+                if (m.key?.participantAlt) voterSet.add(m.key.participantAlt)
+                if (m.key?.remoteJidAlt) voterSet.add(m.key.remoteJidAlt)
+                if (m.key?.participant) voterSet.add(m.key.participant)
+                if (m.key?.remoteJid && !m.key.remoteJid.endsWith('@g.us')) voterSet.add(m.key.remoteJid)
 
-  try { await events(client) } catch {}
+                const creatorArr = [...creatorSet]
+                const voterArr = [...voterSet]
 
-  client.ev.on("messages.upsert", async ({ messages, type }) => {
-    try {
-      if (!global.db || !global.db.data) return
-
-      let m = messages?.[0]
-      if (!m?.message) return
-      m.message = Object.keys(m.message)[0] === "ephemeralMessage" ? m.message.ephemeralMessage.message : m.message
-
-      // ═══ POLL VOTE HANDLER (para menú interactivo con encuestas) ═══
-      const pollUpdate = m.message?.pollUpdateMessage
-      if (pollUpdate) {
-        try {
-          const pollStore = global.activePollMenus
-          const creationKey = pollUpdate.pollCreationMessageKey
-          if (creationKey) {
-            const pollData = pollStore.get(creationKey.id)
-            if (pollData) {
-              // Recopilar TODOS los JIDs posibles del bot (creator)
-              const creatorSet = new Set()
-              const meNorm = jidNormalizedUser(client.user.id)
-              creatorSet.add(meNorm)
-              // LID del bot desde authState
-              const meLid = client.authState?.creds?.me?.lid
-              if (meLid) creatorSet.add(jidNormalizedUser(meLid))
-              // PN del bot (extraer de id si tiene formato user:device@s.whatsapp.net)
-              const meDecoded = jidDecode(client.user.id)
-              if (meDecoded?.user) creatorSet.add(meDecoded.user + '@s.whatsapp.net')
-
-              // Recopilar TODOS los JIDs posibles del votante
-              const voterSet = new Set()
-              if (m.key?.participantAlt) voterSet.add(m.key.participantAlt)
-              if (m.key?.remoteJidAlt) voterSet.add(m.key.remoteJidAlt)
-              if (m.key?.participant) voterSet.add(m.key.participant)
-              if (m.key?.remoteJid && !m.key.remoteJid.endsWith('@g.us')) voterSet.add(m.key.remoteJid)
-
-              const creatorArr = [...creatorSet]
-              const voterArr = [...voterSet]
-
-              let decrypted = null
-              let matchedCreator = null, matchedVoter = null
-              for (const cr of creatorArr) {
-                for (const vt of voterArr) {
-                  try {
-                    decrypted = decryptPollVote(
-                      pollUpdate.vote,
-                      { pollEncKey: pollData.pollEncKey, pollCreatorJid: cr, pollMsgId: creationKey.id, voterJid: vt }
-                    )
-                    if (decrypted?.selectedOptions?.length) {
-                      matchedCreator = cr
-                      matchedVoter = vt
-                      break
-                    }
-                  } catch {}
-                }
-                if (decrypted?.selectedOptions?.length) break
-              }
-
-              if (decrypted?.selectedOptions?.length) {
-                console.log('[PollVote] OK creator:', matchedCreator, 'voter:', matchedVoter)
-                for (const optHash of decrypted.selectedOptions) {
-                  const hashHex = Buffer.from(optHash).toString('hex')
-                  const command = pollData.optionMap[hashHex]
-                  if (command) {
-                    const voterJid = m.key?.participant || m.key?.remoteJid
-                    const fakeMsg = {
-                      key: { remoteJid: m.key.remoteJid, fromMe: false, participant: voterJid, id: m.key.id + '_pollcmd' },
-                      message: { conversation: command },
-                      messageTimestamp: Math.floor(Date.now() / 1000),
-                      pushName: m.pushName || 'Usuario'
-                    }
-                    const mFake = await smsg(client, fakeMsg)
-                    await handler(client, mFake, { messages: [fakeMsg], type: 'notify' })
+                let decrypted = null
+                let matchedCreator = null, matchedVoter = null
+                for (const cr of creatorArr) {
+                  for (const vt of voterArr) {
+                    try {
+                      decrypted = decryptPollVote(
+                        pollUpdate.vote,
+                        { pollEncKey: pollData.pollEncKey, pollCreatorJid: cr, pollMsgId: creationKey.id, voterJid: vt }
+                      )
+                      if (decrypted?.selectedOptions?.length) {
+                        matchedCreator = cr
+                        matchedVoter = vt
+                        break
+                      }
+                    } catch { }
                   }
+                  if (decrypted?.selectedOptions?.length) break
                 }
-              } else {
-                console.log('[PollVote] FAILED. Creators tried:', creatorArr, 'Voters tried:', voterArr)
+
+                if (decrypted?.selectedOptions?.length) {
+                  console.log('[PollVote] OK creator:', matchedCreator, 'voter:', matchedVoter)
+                  for (const optHash of decrypted.selectedOptions) {
+                    const hashHex = Buffer.from(optHash).toString('hex')
+                    const command = pollData.optionMap[hashHex]
+                    if (command) {
+                      const voterJid = m.key?.participant || m.key?.remoteJid
+                      const fakeMsg = {
+                        key: { remoteJid: m.key.remoteJid, fromMe: false, participant: voterJid, id: m.key.id + '_pollcmd' },
+                        message: { conversation: command },
+                        messageTimestamp: Math.floor(Date.now() / 1000),
+                        pushName: m.pushName || 'Usuario'
+                      }
+                      const mFake = await smsg(client, fakeMsg)
+                      await handler(client, mFake, { messages: [fakeMsg], type: 'notify' })
+                    }
+                  }
+                } else {
+                  console.log('[PollVote] FAILED. Creators tried:', creatorArr, 'Voters tried:', voterArr)
+                }
               }
             }
+          } catch (err) {
+            console.error('[PollMenu] Error:', err.message)
           }
-        } catch (err) {
-          console.error('[PollMenu] Error:', err.message)
+          return
         }
-        return
-      }
 
-      if (m.key?.remoteJid === "status@broadcast") return
+        if (m.key?.remoteJid === "status@broadcast") return
 
-      client.public = true
-      if (!client.public && !m.key.fromMe && type === "notify") return
-      if (m.key.id?.startsWith("BAE5") && m.key.id.length === 16) return
+        client.public = true
+        if (!client.public && !m.key.fromMe && type === "notify") return
+        if (m.key.id?.startsWith("BAE5") && m.key.id.length === 16) return
 
-      m = await smsg(client, m)
-      await handler(client, m, { messages, type })
-    } catch (err) { 
+        m = await smsg(client, m)
+        await handler(client, m, { messages, type })
+      } catch (err) {
         // Silencio errores menores de mensajes para no ensuciar consola
-    }
-  })
+      }
+    })
   } finally {
     _isStartingBot = false
     if (_pendingRestart && !_isShuttingDown) {
@@ -1236,17 +1221,23 @@ async function startBot() {
   }
 }
 
-;(async () => {
-  loadBots().catch(() => {})
+; (async () => {
+  loadBots().catch(() => { })
   await loadDatabaseSafe()
   console.log(chalk.gray('[ ✿ ] DB Cargada.'))
 
   if (hasMainSession()) {
     console.log(chalk.green("✅ Sesión encontrada. Iniciando bot..."))
     LOGIN_METHOD = null
+    // 🔧 FIX: Esperar 10s antes de conectar para que WhatsApp libere la sesión anterior
+    // Esto es crucial para PM2 restart — evita el bucle de 401 Connection Failure
+    console.log(chalk.yellow('⏳ Esperando 10s para liberar sesión anterior de WhatsApp...'))
+    await new Promise(r => setTimeout(r, 10000))
   } else if (restoreSession()) {
     console.log(chalk.green("✅ Sesión restaurada desde backup. Iniciando bot..."))
     LOGIN_METHOD = null
+    console.log(chalk.yellow('⏳ Esperando 10s para liberar sesión anterior de WhatsApp...'))
+    await new Promise(r => setTimeout(r, 10000))
   } else {
     LOGIN_METHOD = await uPLoader()
   }
