@@ -972,10 +972,17 @@ async function startBot() {
           requestBotRestart(delay, '440 connectionReplaced')
         }
         else if (reason === DisconnectReason.forbidden) {
-          log.error("❌ Conexión prohibida. Purgando sesión...")
-          purgeSession()
-          LOGIN_METHOD = await uPLoader()
-          requestBotRestart(3000, 'forbidden con sesión purgada')
+          // Forbidden puede ser temporal (rate-limit, servidor). Reintentar antes de purgar.
+          disconnectTracker.consecutiveForbidden = (disconnectTracker.consecutiveForbidden || 0) + 1
+          if (disconnectTracker.consecutiveForbidden >= 3) {
+            log.error(`❌ 3+ errores forbidden consecutivos. Purgando sesión...`)
+            purgeSession()
+            LOGIN_METHOD = await uPLoader()
+            requestBotRestart(3000, 'forbidden persistente')
+          } else {
+            log.warn(`⚠️ Forbidden (intento ${disconnectTracker.consecutiveForbidden}/3). Reintentando en 30s...`)
+            requestBotRestart(30000, 'forbidden temporal')
+          }
         }
         else if (reason === 428) {
           // Rate limit normal por reconexiones de Baileys
@@ -999,6 +1006,7 @@ async function startBot() {
         disconnectTracker.consecutive428 = 0
         disconnectTracker.consecutive401 = 0
         disconnectTracker.consecutive440 = 0
+        disconnectTracker.consecutiveForbidden = 0
         disconnectTracker.last401Time = 0
         disconnectTracker.last440Time = 0
         disconnectTracker.failureTimestamps = []  // Resetear circuit breaker
