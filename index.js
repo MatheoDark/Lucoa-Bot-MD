@@ -940,23 +940,14 @@ async function startBot() {
             LOGIN_METHOD = await uPLoader()
             requestBotRestart(3000, 'nueva vinculación tras logout real')
           } else {
-            // "Connection Failure" = temporal. Reconectar con espera
-            // 🔧 FIX: Incrementar contador (antes no se incrementaba, siempre era 0)
+            // "Connection Failure" = temporal. NUNCA borrar sesión por esto.
+            // Puede ser un problema de red, rate-limit, o WhatsApp reiniciando servidores.
             disconnectTracker.consecutive401++
-            const circuitDelay = updateFailurePattern('401')
 
-            log.warn(`⚠️ 401 Connection Failure - Reconectando... (${disconnectTracker.consecutive401}/${MAX_401_BEFORE_RELINK})`)
-
-            // 🔧 FIX: Después de MAX_401 intentos, la sesión está corrupta → auto-purgar
-            if (disconnectTracker.consecutive401 >= MAX_401_BEFORE_RELINK) {
-              log.error(`❌ ${MAX_401_BEFORE_RELINK}+ errores 401 consecutivos. Sesión corrupta → purgando para re-vincular...`)
-              purgeSession()
-              LOGIN_METHOD = await uPLoader()
-              requestBotRestart(3000, 'auto-purge tras 401 persistente')
-            } else {
-              // Intentos rápidos con 8s de delay
-              requestBotRestart(8000, '401 Connection Failure')
-            }
+            // Backoff exponencial: 8s, 16s, 32s, 64s, max 120s
+            const backoff = Math.min(8000 * Math.pow(2, disconnectTracker.consecutive401 - 1), 120000)
+            log.warn(`⚠️ 401 Connection Failure (intento ${disconnectTracker.consecutive401}). Reintentando en ${Math.round(backoff / 1000)}s...`)
+            requestBotRestart(backoff, '401 Connection Failure')
           }
         }
         // Configuración de Purga automatica para cuando sabemos que la sesión está inservible
